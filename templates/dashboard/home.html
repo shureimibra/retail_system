@@ -1,0 +1,1222 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Retail RMS{% endblock %}
+
+{% block content %}
+<!-- Top Header Section -->
+<div class="mb-8 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+    <div>
+        <h2 class="text-3xl font-extrabold tracking-tight text-textprimary">Welcome back, {{ user.username }}! </h2>
+        <p class="text-sm text-textsecondary mt-1">Monitor real-time retail demand constraints, recovered sales, and stock recommendations.</p>
+    </div>
+    
+    <!-- Report Export and Record buttons -->
+    <div class="flex flex-wrap items-center gap-3">
+        <a id="exportCsvBtn" href="#" class="px-4 py-2.5 bg-bgsecondary border border-bordercolor text-textsecondary rounded-xl shadow-soft hover-glow flex items-center gap-2 text-sm font-semibold transition-all">
+            <svg class="w-4 h-4 text-textsecondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Export CSV
+        </a>
+        <a id="exportPdfBtn" href="#" class="px-4 py-2.5 bg-bgsecondary border border-bordercolor text-textsecondary rounded-xl shadow-soft hover-glow flex items-center gap-2 text-sm font-semibold transition-all">
+            <svg class="w-4 h-4 text-textsecondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Export PDF
+        </a>
+        <button id="quickRecordIntentBtn" class="px-5 py-2.5 bg-primary text-white rounded-xl shadow-glow-cyan hover-glow flex items-center gap-2 text-sm font-bold transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Record Blocked Purchase
+        </button>
+    </div>
+</div>
+
+<!-- Filters Panel -->
+<div class="glassmorphism rounded-2xl p-5 mb-8 border border-bordercolor">
+    <h3 class="text-xs font-bold text-textsecondary mb-3 uppercase tracking-wider">Filter Reports</h3>
+    <form id="filterForm" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+            <label class="block text-xs font-semibold text-textmuted mb-1">Start Date</label>
+            <input type="date" name="start_date" id="startDate" min="2020-01-01" max="2035-12-31" value="{{ start_date_filter }}" class="w-full px-3 py-2 rounded-lg border border-bordercolor bg-bgprimary text-textprimary text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-colors">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-textmuted mb-1">End Date</label>
+            <input type="date" name="end_date" id="endDate" min="2020-01-01" max="2035-12-31" value="{{ end_date_filter }}" class="w-full px-3 py-2 rounded-lg border border-bordercolor bg-bgprimary text-textprimary text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-colors">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-textmuted mb-1">Status</label>
+            <select name="status" id="statusFilter" class="w-full px-3 py-2 rounded-lg border border-bordercolor bg-bgprimary text-textprimary text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-colors">
+                <option value="">All Statuses</option>
+                <option value="Pending" {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="Monitoring" {% if status_filter == 'Monitoring' %}selected{% endif %}>Monitoring</option>
+                <option value="Customer Notified" {% if status_filter == 'Customer Notified' %}selected{% endif %}>Customer Notified</option>
+                <option value="Resolved" {% if status_filter == 'Resolved' %}selected{% endif %}>Resolved</option>
+                <option value="Recovered" {% if status_filter == 'Recovered' %}selected{% endif %}>Recovered</option>
+                <option value="Closed" {% if status_filter == 'Closed' %}selected{% endif %}>Closed</option>
+            </select>
+        </div>
+        <div class="flex items-end">
+            <button type="submit" class="w-full py-2 bg-bgtertiary border border-bordercolor text-textsecondary hover:text-primary rounded-lg font-semibold text-sm transition-all">
+                Apply Filters
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- KPI Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+    <!-- Card 1: Total Blocked -->
+    <div id="kpiTotalBlocked" class="glassmorphism rounded-2xl p-6 hover-glow transition-all duration-300 relative overflow-hidden group cursor-pointer border-t-2 border-t-primary neon-cyan">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-xs font-bold text-textsecondary uppercase tracking-wider">Total Blocked</h3>
+                <span class="text-3xl font-extrabold text-textprimary block mt-1">{{ kpis.total_blocked_purchases }}</span>
+            </div>
+            <div class="text-primary opacity-80 group-hover:scale-110 transition-transform">
+                <svg class="w-16 h-8 text-primary" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M0,20 Q15,30 30,10 T60,25 T90,5 T100,15" />
+                </svg>
+            </div>
+        </div>
+        <div class="text-xs text-textsecondary mt-2">
+            <span class="text-success font-semibold">▲ 8.2%</span> vs last month
+        </div>
+    </div>
+    
+    <!-- Card 2: Pending Intents -->
+    <div id="kpiPendingIntents" class="glassmorphism rounded-2xl p-6 hover-glow transition-all duration-300 relative overflow-hidden group cursor-pointer border-t-2 border-t-warning neon-gold">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-xs font-bold text-textsecondary uppercase tracking-wider">Pending Intents</h3>
+                <span class="text-3xl font-extrabold text-textprimary block mt-1">{{ kpis.active_intents }}</span>
+            </div>
+            <div class="text-warning opacity-80 group-hover:scale-110 transition-transform">
+                <svg class="w-16 h-8 text-warning" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M0,10 Q20,25 40,5 T80,20 T100,12" />
+                </svg>
+            </div>
+        </div>
+        <div class="text-xs text-textsecondary mt-2">
+            <span class="text-success font-semibold">▲ 4.1%</span> vs last month
+        </div>
+    </div>
+
+    <!-- Card 3: Resolved Intents -->
+    <div id="kpiResolvedIntents" class="glassmorphism rounded-2xl p-6 hover-glow transition-all duration-300 relative overflow-hidden group cursor-pointer border-t-2 border-t-success neon-green">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-xs font-bold text-textsecondary uppercase tracking-wider">Resolved Intents</h3>
+                <span class="text-3xl font-extrabold text-textprimary block mt-1">{{ kpis.recovered_sales }}</span>
+            </div>
+            <div class="text-success opacity-80 group-hover:scale-110 transition-transform">
+                <svg class="w-16 h-8 text-success" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M0,25 Q15,5 35,20 T70,5 T100,10" />
+                </svg>
+            </div>
+        </div>
+        <div class="text-xs text-textsecondary mt-2">
+            <span class="text-danger font-semibold">▼ 1.3%</span> vs last month
+        </div>
+    </div>
+
+    <!-- Card 4: Estimated Lost Sales -->
+    <div id="kpiEstimatedLost" class="glassmorphism rounded-2xl p-6 hover-glow transition-all duration-300 relative overflow-hidden group cursor-pointer border-t-2 border-t-danger neon-rose">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-xs font-bold text-textsecondary uppercase tracking-wider">Estimated Lost Sales</h3>
+                <span class="text-3xl font-extrabold text-textprimary block mt-1 price-display" data-value="{{ kpis.estimated_lost_revenue }}">KSh {{ kpis.estimated_lost_revenue|floatformat:2 }}</span>
+            </div>
+            <div class="text-danger opacity-80 group-hover:scale-110 transition-transform">
+                <svg class="w-16 h-8 text-danger" viewBox="0 0 100 30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M0,5 Q25,25 50,10 T85,30 T100,20" />
+                </svg>
+            </div>
+        </div>
+        <div class="text-xs text-textsecondary mt-2">
+            <span class="text-success font-semibold">▲ 0.8%</span> vs last month
+        </div>
+    </div>
+</div>
+
+<!-- Restock Recommendations Alert Banner (if any exist) -->
+{% if recommendations %}
+<div class="glassmorphism border border-warning/30 rounded-2xl p-6 mb-8 bg-warning/5 animate-pulse relative overflow-hidden neon-gold">
+    <div class="flex items-start gap-4">
+        <div class="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center text-warning shrink-0">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        </div>
+        <div>
+            <h4 class="text-md font-bold text-textprimary">Restock Recommendations Identified</h4>
+            <p class="text-sm text-textsecondary mt-1">The following product variations have exceeded the constraint trigger threshold (>= 3 blocked requests) and should be restocked immediately:</p>
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {% for rec in recommendations %}
+                <div class="p-3.5 bg-bgtertiary rounded-xl border border-bordercolor flex flex-col justify-between">
+                    <div>
+                        <span class="text-xs font-bold px-2 py-0.5 bg-warning/15 text-warning rounded-full uppercase">{{ rec.status }}</span>
+                        <h5 class="text-sm font-bold text-textprimary mt-2">{{ rec.product_name }}</h5>
+                        <p class="text-xs text-textmuted mt-0.5">Size: {{ rec.size }} • Color: {{ rec.color }}</p>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between border-t border-bordercolor pt-2 pb-2">
+                        <span class="text-xs text-textsecondary">Blocked Requests: <strong class="text-textprimary text-sm">{{ rec.blocked_count }}</strong></span>
+                        <span class="text-xs text-textsecondary">Current Stock: <strong class="text-textprimary text-sm">{{ rec.current_stock }}</strong></span>
+                    </div>
+                    <div class="mt-2 pt-2 border-t border-bordercolor/60 flex items-center gap-2">
+                        <input type="number" min="1" value="10" placeholder="Qty" id="restock-qty-{{ rec.variation_id }}" class="w-16 px-2 py-1 bg-bgprimary text-textprimary border border-bordercolor rounded-lg text-xs focus:ring-1 focus:ring-primary focus:outline-none">
+                        <button data-variation-id="{{ rec.variation_id }}" class="quick-restock-btn flex-1 py-1 bg-primary text-white hover:bg-primary/80 rounded-lg text-xs font-bold transition-all shadow-sm">
+                            Restock & Notify
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Charts Layout -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    
+    <!-- Conversion Funnel and Constraints Layout -->
+    <div class="space-y-8">
+        <!-- Constraints Doughnut -->
+        <div class="glassmorphism rounded-2xl p-6 border border-bordercolor relative">
+            <h3 class="text-lg font-bold text-textprimary mb-4">Intent Constraint Distribution</h3>
+            <div class="h-64 relative flex items-center justify-between">
+                <div class="w-1/2 h-full relative">
+                    <canvas id="constraintsChart"></canvas>
+                </div>
+                <div class="w-1/2 pl-4 flex flex-col justify-center space-y-2 text-xs" id="customLegend">
+                    <!-- Dynamic legend loaded via js -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Conversion Funnel Mockup -->
+        <div class="glassmorphism rounded-2xl p-6 border border-bordercolor relative">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-textprimary">Purchase Recovery Funnel</h3>
+                    <p class="text-xs text-textmuted mt-0.5">Overall efficiency of capturing and converting blocked intents</p>
+                </div>
+                <span class="text-xs font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">▲ 7.8% Overall</span>
+            </div>
+            
+            <div class="space-y-4 my-6">
+                <!-- Step 1 -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="text-textsecondary">1. Customer Blocked Intents</span>
+                        <span class="text-textprimary font-bold">100% Volume</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-bgtertiary rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-secondaryaccent rounded-full" style="width: 100%"></div>
+                    </div>
+                </div>
+                <!-- Step 2 -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="text-textsecondary">2. Stock Monitored (Resolved)</span>
+                        <span class="text-textprimary font-bold">53% Monitored</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-bgtertiary rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-secondaryaccent rounded-full" style="width: 53%"></div>
+                    </div>
+                </div>
+                <!-- Step 3 -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="text-textsecondary">3. Customer Notified (SMS/Alerts)</span>
+                        <span class="text-textprimary font-bold">23% Re-engaged</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-bgtertiary rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-secondaryaccent rounded-full" style="width: 23%"></div>
+                    </div>
+                </div>
+                <!-- Step 4 -->
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs font-semibold">
+                        <span class="text-textsecondary">4. Recovered Sales</span>
+                        <span class="text-textprimary font-bold">8% Completed</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-bgtertiary rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-primary to-secondaryaccent rounded-full" style="width: 8%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Blocked Products Bar -->
+    <div class="glassmorphism rounded-2xl p-6 border border-bordercolor flex flex-col justify-between">
+        <div>
+            <h3 class="text-lg font-bold text-textprimary">Top Blocked Products</h3>
+            <p class="text-xs text-textsecondary mt-0.5">Products most frequently affected by purchase constraints</p>
+        </div>
+        <div class="h-96 relative mt-6">
+            <canvas id="topProductsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Monthly Intent Trends Line -->
+    <div class="glassmorphism rounded-2xl p-6 lg:col-span-2 border border-bordercolor">
+        <h3 class="text-lg font-bold text-textprimary mb-2">Monthly Intent & Recovery Trends</h3>
+        <p class="text-xs text-textsecondary mb-4">Detailed monitoring of blocked customer events vs actual resolved outcomes</p>
+        <div class="h-72 relative">
+            <canvas id="trendsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Grid Section -->
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+    <!-- Recent Activity Table -->
+    <div class="glassmorphism rounded-2xl p-6 border border-bordercolor xl:col-span-2">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-textprimary">Recent Captured Intents</h3>
+            <a href="{% url 'intents:list' %}" class="text-sm font-bold text-primary hover:underline">View All</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-textsecondary">
+                <thead class="bg-bgtertiary text-textprimary uppercase text-[10px] tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3 rounded-l-lg">ID</th>
+                        <th class="px-4 py-3">Customer</th>
+                        <th class="px-4 py-3">Product</th>
+                        <th class="px-4 py-3">Constraint</th>
+                        <th class="px-4 py-3">Est. Value</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Date</th>
+                        <th class="px-4 py-3 rounded-r-lg">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-bordercolor">
+                    {% for intent in recent_intents %}
+                    <tr class="hover:bg-bgtertiary/40 transition-colors">
+                        <td class="px-4 py-4 font-bold text-textprimary">#{{ intent.id }}</td>
+                        <td class="px-4 py-4">{{ intent.customer.first_name }} {{ intent.customer.last_name }}</td>
+                        <td class="px-4 py-4">
+                            <span class="font-medium text-textprimary">{{ intent.product.name }}</span>
+                            {% if intent.variation %}
+                            <span class="text-[10px] text-textmuted block">{{ intent.variation.size }} / {{ intent.variation.color }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-4">
+                            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-bgtertiary border border-bordercolor text-textsecondary">
+                                {{ intent.constraint_type }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-4 font-semibold text-textprimary">
+                            <span class="price-display text-sm" data-value="{{ intent.estimated_value }}">KSh {{ intent.estimated_value|floatformat:2 }}</span>
+                        </td>
+                        <td class="px-4 py-4">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider
+                                {% if intent.status == 'Pending' %}bg-warning/10 text-warning
+                                {% elif intent.status == 'Monitoring' %}bg-primary/10 text-primary
+                                {% elif intent.status == 'Customer Notified' %}bg-secondaryaccent/10 text-secondaryaccent
+                                {% elif intent.status == 'Resolved' %}bg-success/10 text-success
+                                {% elif intent.status == 'Recovered' %}bg-success/10 text-success
+                                {% else %}bg-textmuted/10 text-textmuted{% endif %}">
+                                {{ intent.status }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-4 text-xs">{{ intent.created_at|date:"Y-m-d" }}</td>
+                        <td class="px-4 py-4">
+                            {% if intent.status == 'Pending' or intent.status == 'Monitoring' %}
+                                {% if intent.variation %}
+                                <div class="flex items-center gap-1.5">
+                                    <input type="number" min="1" value="10" placeholder="Qty" id="direct-restock-qty-{{ intent.id }}" class="w-12 px-1 py-0.5 bg-bgprimary text-textprimary border border-bordercolor rounded text-xs focus:ring-1 focus:ring-primary focus:outline-none">
+                                    <button data-intent-id="{{ intent.id }}" data-variation-id="{{ intent.variation.id }}" class="direct-restock-btn px-2 py-0.5 bg-primary text-white hover:bg-primary/80 rounded text-[10px] font-bold transition-all whitespace-nowrap shadow-sm">
+                                        Restock
+                                    </button>
+                                </div>
+                                {% else %}
+                                <span class="text-xs text-textmuted">No variation</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-xs text-success flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                Resolved
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-4 py-8 text-center text-textmuted">No blocked intents recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quick Actions List -->
+    <div class="glassmorphism rounded-2xl p-6 border border-bordercolor flex flex-col justify-between">
+        <div>
+            <h3 class="text-lg font-bold text-textprimary mb-1">Quick Actions</h3>
+            <p class="text-xs text-textmuted mb-6">Shortcuts to manage inventory flow</p>
+            
+            <div class="space-y-4">
+                <a href="{% url 'intents:create' %}" class="flex items-center justify-between p-3.5 bg-bgtertiary hover:bg-bgtertiary/60 border border-bordercolor rounded-xl transition-all group">
+                    <div>
+                        <h4 class="text-sm font-bold text-textprimary group-hover:text-primary transition-colors">Record Locked Sale</h4>
+                        <p class="text-xs text-textsecondary mt-0.5">Add a purchase constraint event</p>
+                    </div>
+                    <svg class="w-4 h-4 text-textmuted group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+                
+                <a href="{% url 'products:create' %}" class="flex items-center justify-between p-3.5 bg-bgtertiary hover:bg-bgtertiary/60 border border-bordercolor rounded-xl transition-all group">
+                    <div>
+                        <h4 class="text-sm font-bold text-textprimary group-hover:text-primary transition-colors">Register Product</h4>
+                        <p class="text-xs text-textsecondary mt-0.5">Add products to constraint tracker</p>
+                    </div>
+                    <svg class="w-4 h-4 text-textmuted group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+
+                <a href="{% url 'customers:create' %}" class="flex items-center justify-between p-3.5 bg-bgtertiary hover:bg-bgtertiary/60 border border-bordercolor rounded-xl transition-all group">
+                    <div>
+                        <h4 class="text-sm font-bold text-textprimary group-hover:text-primary transition-colors">New Customer Profiles</h4>
+                        <p class="text-xs text-textsecondary mt-0.5">Create re-engagement subscriber contacts</p>
+                    </div>
+                    <svg class="w-4 h-4 text-textmuted group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+
+                <a href="{% url 'notifications:list' %}" class="flex items-center justify-between p-3.5 bg-bgtertiary hover:bg-bgtertiary/60 border border-bordercolor rounded-xl transition-all group">
+                    <div>
+                        <h4 class="text-sm font-bold text-textprimary group-hover:text-primary transition-colors">View Notification Logs</h4>
+                        <p class="text-xs text-textsecondary mt-0.5">Check status of outgoing SMS and alerts</p>
+                    </div>
+                    <svg class="w-4 h-4 text-textmuted group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </a>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-bordercolor flex items-center justify-between text-xs text-textmuted">
+            <span>Server status: <strong class="text-success font-semibold">Online</strong></span>
+            <span>Version 1.2.0</span>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODALS SECTION ================= -->
+<input type="hidden" id="csrfToken" value="{{ csrf_token }}">
+
+<!-- Modal 1: Quick Record Intent Modal -->
+<div id="recordIntentModal" class="fixed inset-0 z-40 hidden flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
+    <div class="glassmorphism rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-soft border border-bordercolor relative max-h-[90vh] overflow-y-auto neon-cyan">
+        <h3 class="text-2xl font-bold text-textprimary mb-4">Record Blocked Purchase</h3>
+        <form id="quickIntentForm" class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Customer selection -->
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Customer</label>
+                        <button type="button" id="dashboardAddCustomer" class="text-xs font-bold text-primary hover:underline">+ New Customer</button>
+                    </div>
+                    <select id="modalCustomer" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+                        <option value="">Select Customer</option>
+                        {% for customer in all_customers %}
+                        <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }} ({{ customer.phone_number }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Product selection -->
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Product</label>
+                        <button type="button" id="dashboardAddProduct" class="text-xs font-bold text-primary hover:underline">+ New Product</button>
+                    </div>
+                    <select id="modalProduct" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+                        <option value="">Select Product</option>
+                        {% for product in all_products %}
+                        <option value="{{ product.id }}">{{ product.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Variation selection -->
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Variation (Optional)</label>
+                        <button type="button" id="dashboardAddVariation" class="text-xs font-bold text-primary hover:underline">+ New Variation</button>
+                    </div>
+                    <select id="modalVariation" class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+                        <option value="">---------</option>
+                    </select>
+                </div>
+                
+                <!-- Constraint Type -->
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Constraint Type</label>
+                        <button type="button" id="dashboardAddConstraint" class="text-xs font-bold text-primary hover:underline">+ New Constraint</button>
+                    </div>
+                    <select id="modalConstraint" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+                        <option value="Out of stock">Out of stock</option>
+                        <option value="Size unavailable">Size unavailable</option>
+                        <option value="Color unavailable">Color unavailable</option>
+                        <option value="Price too high">Price too high</option>
+                        <option value="Authenticity concern">Authenticity concern</option>
+                        <option value="Budget mismatch">Budget mismatch</option>
+                    </select>
+                </div>
+                
+                <!-- Quantity -->
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Requested Quantity</label>
+                    <input type="number" id="modalQty" value="1" min="1" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+                </div>
+                
+                <!-- Estimated Value -->
+                <div class="space-y-1">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Estimated Lost Value (KSh) (Blank to auto-calculate)</label>
+                    <input type="number" step="0.01" id="modalValue" class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+                </div>
+            </div>
+            
+            <!-- Notes -->
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Notes</label>
+                <textarea id="modalNotes" rows="3" class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm"></textarea>
+            </div>
+            
+            <div class="pt-4 flex justify-end gap-3 border-t border-bordercolor">
+                <button type="button" id="closeRecordIntentModal" class="px-5 py-2.5 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl text-xs font-bold transition-all">Cancel</button>
+                <button type="submit" class="px-5 py-2.5 bg-primary text-white rounded-xl shadow-glow-cyan text-xs font-bold transition-all">Save Record</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 2: Add Customer (Dashboard Sub-Modal) -->
+<div id="custSubModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/70 backdrop-blur-sm transition-all duration-300">
+    <div class="glassmorphism rounded-3xl p-6 md:p-8 max-w-md w-full shadow-soft border border-bordercolor relative neon-cyan">
+        <h3 class="text-xl font-bold text-textprimary mb-4">Register New Customer</h3>
+        <form id="subCustomerForm" class="space-y-4">
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">First Name</label>
+                <input type="text" id="subCustFirstName" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Last Name</label>
+                <input type="text" id="subCustLastName" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Phone Number</label>
+                <input type="text" id="subCustPhone" required placeholder="e.g. +254..." class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Email (Optional)</label>
+                <input type="email" id="subCustEmail" class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+            </div>
+            <div class="pt-4 flex justify-end gap-3 border-t border-bordercolor">
+                <button type="button" id="closeCustSubModal" class="px-4 py-2 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl text-xs font-bold transition-all">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-xl shadow-glow-cyan text-xs font-bold transition-all">Save Customer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 3: Add Variation (Dashboard Sub-Modal) -->
+<div id="varSubModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/70 backdrop-blur-sm transition-all duration-300">
+    <div class="glassmorphism rounded-3xl p-6 md:p-8 max-w-md w-full shadow-soft border border-bordercolor relative neon-purple">
+        <h3 class="text-xl font-bold text-textprimary mb-4">Add Product Variation</h3>
+        <form id="subVariationForm" class="space-y-4">
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Selected Product</label>
+                <input type="text" id="subVarProductDisplay" readonly class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgtertiary text-textsecondary text-sm font-semibold focus:outline-none">
+                <input type="hidden" id="subVarProductId">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Size</label>
+                <input type="text" id="subVarSize" required placeholder="e.g. 42, M, 128GB" class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Color</label>
+                <input type="text" id="subVarColor" required placeholder="e.g. Black, Blue, N/A" class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Stock Quantity</label>
+                <input type="number" id="subVarStock" required value="0" min="0" class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+            </div>
+            <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">SKU</label>
+                    <button type="button" id="subGenerateSkuBtn" class="text-xs font-bold text-primary hover:underline">Auto Generate</button>
+                </div>
+                <input type="text" id="subVarSku" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+            </div>
+            <div class="pt-4 flex justify-end gap-3 border-t border-bordercolor">
+                <button type="button" id="closeVarSubModal" class="px-4 py-2 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl text-xs font-bold transition-all">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-xl shadow-glow-purple text-xs font-bold transition-all">Save Variation</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 4: Add Product (Dashboard Sub-Modal) -->
+<div id="prodSubModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/70 backdrop-blur-sm transition-all duration-300">
+    <div class="glassmorphism rounded-3xl p-6 md:p-8 max-w-md w-full shadow-soft border border-bordercolor relative neon-cyan">
+        <h3 class="text-xl font-bold text-textprimary mb-4">Register New Product</h3>
+        <form id="subProductForm" class="space-y-4">
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Product Name</label>
+                <input type="text" id="subProdName" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Category</label>
+                <select id="subProdCategory" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+                    <option value="">Select Category</option>
+                    {% for category in all_categories %}
+                    <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Base Price (KSh)</label>
+                <input type="number" step="0.01" id="subProdPrice" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+            </div>
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Description</label>
+                <textarea id="subProdDesc" rows="3" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm"></textarea>
+            </div>
+            <div class="pt-4 flex justify-end gap-3 border-t border-bordercolor">
+                <button type="button" id="closeProdSubModal" class="px-4 py-2 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl text-xs font-bold transition-all">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-xl shadow-glow-cyan text-xs font-bold transition-all">Save Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 5: Add Constraint (Dashboard Sub-Modal) -->
+<div id="constraintSubModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/70 backdrop-blur-sm transition-all duration-300">
+    <div class="glassmorphism rounded-3xl p-6 md:p-8 max-w-md w-full shadow-soft border border-bordercolor relative neon-cyan">
+        <h3 class="text-xl font-bold text-textprimary mb-4">Add Custom Constraint Type</h3>
+        <form id="subConstraintForm" class="space-y-4">
+            <div class="space-y-1">
+                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Constraint Name</label>
+                <input type="text" id="subConstraintName" required placeholder="e.g. Shipping delay, Brand restriction..." class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
+            </div>
+            <div class="pt-4 flex justify-end gap-3 border-t border-bordercolor">
+                <button type="button" id="closeConstraintSubModal" class="px-4 py-2 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl text-xs font-bold transition-all">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-xl shadow-glow-cyan text-xs font-bold transition-all">Add Constraint</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script id="chart_labels_json" type="application/json">{{ chart_labels|safe }}</script>
+<script id="chart_data_json" type="application/json">{{ chart_data|safe }}</script>
+<script id="top_products_labels_json" type="application/json">{{ top_products_labels|safe }}</script>
+<script id="top_products_data_json" type="application/json">{{ top_products_data|safe }}</script>
+<script id="trends_labels_json" type="application/json">{{ trends_labels|safe }}</script>
+<script id="trends_data_json" type="application/json">{{ trends_data|safe }}</script>
+<script id="trends_recovered_json" type="application/json">{{ trends_recovered|safe }}</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Theme colors
+        function getChartColors() {
+            const isDark = document.documentElement.classList.contains('dark');
+            return {
+                gridColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#E2E8F0',
+                textColor: isDark ? '#A1A1AA' : '#475569',
+                accentColor: isDark ? '#00E5FF' : '#0ea5e9',
+                purpleColor: '#a855f7',
+                successColor: isDark ? '#00FF85' : '#22c55e',
+                dangerColor: isDark ? '#FF3B5C' : '#ef4444',
+                warningColor: isDark ? '#FFB020' : '#f59e0b',
+                skyColor: '#38bdf8'
+            };
+        }
+
+        // Export links
+        const exportCsvBtn = document.getElementById('exportCsvBtn');
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const statusFilterInput = document.getElementById('statusFilter');
+
+        function updateExportUrls() {
+            const startVal = startDateInput.value;
+            const endVal = endDateInput.value;
+            const statusVal = statusFilterInput.value;
+            const queryParams = new URLSearchParams();
+            if (startVal) queryParams.set('start_date', startVal);
+            if (endVal) queryParams.set('end_date', endVal);
+            if (statusVal) queryParams.set('status', statusVal);
+
+            exportCsvBtn.href = "{% url 'reports:export_csv' %}?" + queryParams.toString();
+            exportPdfBtn.href = "{% url 'reports:export_pdf' %}?" + queryParams.toString();
+        }
+
+        startDateInput.addEventListener('change', updateExportUrls);
+        endDateInput.addEventListener('change', updateExportUrls);
+        statusFilterInput.addEventListener('change', updateExportUrls);
+        updateExportUrls();
+
+        // Click handlers for KPI cards to dynamically filter dashboard report views
+        const kpiTotalBlocked = document.getElementById('kpiTotalBlocked');
+        const kpiPendingIntents = document.getElementById('kpiPendingIntents');
+        const kpiResolvedIntents = document.getElementById('kpiResolvedIntents');
+        const kpiEstimatedLost = document.getElementById('kpiEstimatedLost');
+
+        function filterDashboardByStatus(statusVal) {
+            const startVal = startDateInput.value;
+            const endVal = endDateInput.value;
+            const queryParams = new URLSearchParams();
+            if (startVal) queryParams.set('start_date', startVal);
+            if (endVal) queryParams.set('end_date', endVal);
+            if (statusVal) queryParams.set('status', statusVal);
+            window.location.href = window.location.pathname + "?" + queryParams.toString();
+        }
+
+        if (kpiTotalBlocked) {
+            kpiTotalBlocked.addEventListener('click', () => filterDashboardByStatus(''));
+        }
+        if (kpiPendingIntents) {
+            kpiPendingIntents.addEventListener('click', () => filterDashboardByStatus('Pending'));
+        }
+        if (kpiResolvedIntents) {
+            kpiResolvedIntents.addEventListener('click', () => {
+                window.location.href = "{% url 'notifications:list' %}";
+            });
+        }
+        if (kpiEstimatedLost) {
+            kpiEstimatedLost.addEventListener('click', () => {
+                window.location.href = "{% url 'intents:list' %}";
+            });
+        }
+
+        // Chart 1: Constraints Doughnut
+        const constraintsCtx = document.getElementById('constraintsChart').getContext('2d');
+        const constraintLabels = JSON.parse(document.getElementById('chart_labels_json').textContent);
+        const constraintData = JSON.parse(document.getElementById('chart_data_json').textContent);
+        
+        let colors = getChartColors();
+
+        function populateCustomLegend(labels, data, bgColors) {
+            const legendContainer = document.getElementById('customLegend');
+            legendContainer.innerHTML = '';
+            
+            const total = data.reduce((a, b) => a + b, 0);
+            
+            labels.forEach((label, index) => {
+                const val = data[index];
+                const percentage = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                
+                const legendItem = document.createElement('div');
+                legendItem.className = 'flex items-center justify-between text-textsecondary py-0.5 border-b border-bordercolor/30';
+                legendItem.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${bgColors[index]}"></span>
+                        <span class="truncate max-w-[120px] font-medium text-textprimary">${label}</span>
+                    </div>
+                    <span class="font-bold text-textprimary">${percentage}% (${val})</span>
+                `;
+                legendContainer.appendChild(legendItem);
+            });
+        }
+
+        const doughnutColors = [
+            colors.accentColor, colors.purpleColor, colors.successColor, colors.dangerColor, colors.warningColor, colors.skyColor
+        ];
+
+        let constraintsChart = new Chart(constraintsCtx, {
+            type: 'doughnut',
+            data: {
+                labels: constraintLabels,
+                datasets: [{
+                    data: constraintData,
+                    backgroundColor: doughnutColors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                cutout: '70%'
+            }
+        });
+
+        populateCustomLegend(constraintLabels, constraintData, doughnutColors);
+
+        // Chart 2: Top Blocked Products Bar
+        const productsCtx = document.getElementById('topProductsChart').getContext('2d');
+        const productLabels = JSON.parse(document.getElementById('top_products_labels_json').textContent);
+        const productData = JSON.parse(document.getElementById('top_products_data_json').textContent);
+        
+        let productsChart = new Chart(productsCtx, {
+            type: 'bar',
+            data: {
+                labels: productLabels,
+                datasets: [{
+                    label: 'Block Count',
+                    data: productData,
+                    backgroundColor: colors.purpleColor,
+                    borderRadius: 6,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: colors.textColor, font: { family: 'Plus Jakarta Sans', size: 10 } }
+                    },
+                    y: {
+                        grid: { color: colors.gridColor },
+                        ticks: { color: colors.textColor, stepSize: 1, font: { family: 'Plus Jakarta Sans', size: 10 } }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Chart 3: Trends Line
+        const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+        const trendsLabels = JSON.parse(document.getElementById('trends_labels_json').textContent);
+        const trendsData = JSON.parse(document.getElementById('trends_data_json').textContent);
+        const trendsRecovered = JSON.parse(document.getElementById('trends_recovered_json').textContent);
+        
+        // Setup gradients
+        const gradIntents = trendsCtx.createLinearGradient(0, 0, 0, 300);
+        gradIntents.addColorStop(0, 'rgba(0, 229, 255, 0.2)');
+        gradIntents.addColorStop(1, 'rgba(0, 229, 255, 0)');
+        
+        const gradRecovered = trendsCtx.createLinearGradient(0, 0, 0, 300);
+        gradRecovered.addColorStop(0, 'rgba(0, 255, 133, 0.2)');
+        gradRecovered.addColorStop(1, 'rgba(0, 255, 133, 0)');
+
+        let trendsChart = new Chart(trendsCtx, {
+            type: 'line',
+            data: {
+                labels: trendsLabels,
+                datasets: [
+                    {
+                        label: 'Total Blocked Intents',
+                        data: trendsData,
+                        borderColor: colors.accentColor,
+                        backgroundColor: gradIntents,
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: colors.accentColor,
+                        pointBorderColor: '#09090b',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 7
+                    },
+                    {
+                        label: 'Resolved Intents',
+                        data: trendsRecovered,
+                        borderColor: colors.successColor,
+                        backgroundColor: gradRecovered,
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: colors.successColor,
+                        pointBorderColor: '#09090b',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 7
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: colors.textColor, font: { family: 'Plus Jakarta Sans', size: 10 } }
+                    },
+                    y: {
+                        grid: { color: colors.gridColor },
+                        ticks: { color: colors.textColor, stepSize: 1, font: { family: 'Plus Jakarta Sans', size: 10 } }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: colors.textColor, font: { family: 'Plus Jakarta Sans', size: 11 } }
+                    }
+                }
+            }
+        });
+
+        // Theme-change event
+        window.addEventListener('theme-changed', function() {
+            const newColors = getChartColors();
+            
+            const newDoughnutColors = [
+                newColors.accentColor, newColors.purpleColor, newColors.successColor, newColors.dangerColor, newColors.warningColor, newColors.skyColor
+            ];
+
+            constraintsChart.data.datasets[0].backgroundColor = newDoughnutColors;
+            constraintsChart.update();
+            populateCustomLegend(constraintLabels, constraintData, newDoughnutColors);
+
+            productsChart.data.datasets[0].backgroundColor = newColors.purpleColor;
+            productsChart.options.scales.x.ticks.color = newColors.textColor;
+            productsChart.options.scales.y.ticks.color = newColors.textColor;
+            productsChart.options.scales.y.grid.color = newColors.gridColor;
+            productsChart.update();
+
+            trendsChart.data.datasets[0].borderColor = newColors.accentColor;
+            trendsChart.data.datasets[1].borderColor = newColors.successColor;
+            trendsChart.options.scales.x.ticks.color = newColors.textColor;
+            trendsChart.options.scales.y.ticks.color = newColors.textColor;
+            trendsChart.options.scales.y.grid.color = newColors.gridColor;
+            trendsChart.options.plugins.legend.labels.color = newColors.textColor;
+            trendsChart.update();
+        });
+
+        // --- DASHBOARD DYNAMIC MODALS JS ---
+        const recordIntentModal = document.getElementById('recordIntentModal');
+        const custSubModal = document.getElementById('custSubModal');
+        const varSubModal = document.getElementById('varSubModal');
+        const prodSubModal = document.getElementById('prodSubModal');
+        const constraintSubModal = document.getElementById('constraintSubModal');
+        
+        const modalProduct = document.getElementById('modalProduct');
+        const modalVariation = document.getElementById('modalVariation');
+        const modalCustomer = document.getElementById('modalCustomer');
+        const modalConstraint = document.getElementById('modalConstraint');
+        const csrfToken = document.getElementById('csrfToken').value;
+
+        // Open Dashboard Record Intent Modal
+        document.getElementById('quickRecordIntentBtn').addEventListener('click', () => {
+            recordIntentModal.classList.remove('hidden');
+        });
+        document.getElementById('closeRecordIntentModal').addEventListener('click', () => {
+            recordIntentModal.classList.add('hidden');
+            document.getElementById('quickIntentForm').reset();
+        });
+
+        // Open Sub-Modals
+        document.getElementById('dashboardAddCustomer').addEventListener('click', () => {
+            custSubModal.classList.remove('hidden');
+        });
+        document.getElementById('closeCustSubModal').addEventListener('click', () => {
+            custSubModal.classList.add('hidden');
+            document.getElementById('subCustomerForm').reset();
+        });
+
+        document.getElementById('dashboardAddProduct').addEventListener('click', () => {
+            prodSubModal.classList.remove('hidden');
+        });
+        document.getElementById('closeProdSubModal').addEventListener('click', () => {
+            prodSubModal.classList.add('hidden');
+            document.getElementById('subProductForm').reset();
+        });
+
+        document.getElementById('dashboardAddConstraint').addEventListener('click', () => {
+            constraintSubModal.classList.remove('hidden');
+        });
+        document.getElementById('closeConstraintSubModal').addEventListener('click', () => {
+            constraintSubModal.classList.add('hidden');
+            document.getElementById('subConstraintForm').reset();
+        });
+
+        document.getElementById('dashboardAddVariation').addEventListener('click', () => {
+            const productId = modalProduct.value;
+            if (!productId) {
+                alert("Please select a Product first.");
+                return;
+            }
+            const productText = modalProduct.options[modalProduct.selectedIndex].text;
+            document.getElementById('subVarProductId').value = productId;
+            document.getElementById('subVarProductDisplay').value = productText;
+            varSubModal.classList.remove('hidden');
+        });
+        document.getElementById('closeVarSubModal').addEventListener('click', () => {
+            varSubModal.classList.add('hidden');
+            document.getElementById('subVariationForm').reset();
+        });
+
+        // Auto SKU inside modal
+        document.getElementById('subGenerateSkuBtn').addEventListener('click', () => {
+            const productId = modalProduct.value;
+            const size = document.getElementById('subVarSize').value.replace(/\s+/g, '-').toUpperCase();
+            const color = document.getElementById('subVarColor').value.replace(/\s+/g, '-').toUpperCase();
+            if (!productId || !size || !color) {
+                alert("Provide Size & Color first.");
+                return;
+            }
+            const randNum = Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('subVarSku').value = `VAR-P${productId}-${size}-${color}-${randNum}`;
+        });
+
+        // Helper to load modal variations
+        async function loadModalVariations() {
+            const pId = modalProduct.value;
+            modalVariation.innerHTML = '<option value="">---------</option>';
+            if (!pId) return;
+
+            try {
+                const response = await fetch(`/api/variations/?product=${pId}`);
+                if (response.ok) {
+                    const vars = await response.json();
+                    vars.forEach(v => {
+                        const opt = new Option(`${v.size} / ${v.color} (Stock: ${v.stock_quantity})`, v.id);
+                        modalVariation.add(opt);
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        modalProduct.addEventListener('change', loadModalVariations);
+
+        // Submit Sub Customer Form
+        document.getElementById('subCustomerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                first_name: document.getElementById('subCustFirstName').value,
+                last_name: document.getElementById('subCustLastName').value,
+                phone_number: document.getElementById('subCustPhone').value,
+                email: document.getElementById('subCustEmail').value || null
+            };
+
+            try {
+                const response = await fetch('/api/customers/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const newCust = await response.json();
+                    const opt = new Option(`${newCust.first_name} ${newCust.last_name} (${newCust.phone_number})`, newCust.id, true, true);
+                    modalCustomer.add(opt);
+                    custSubModal.classList.add('hidden');
+                    document.getElementById('subCustomerForm').reset();
+                } else {
+                    alert("Error: " + JSON.stringify(await response.json()));
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Submit Sub Product Form
+        document.getElementById('subProductForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('subProdName').value,
+                category: parseInt(document.getElementById('subProdCategory').value),
+                base_price: parseFloat(document.getElementById('subProdPrice').value),
+                description: document.getElementById('subProdDesc').value
+            };
+
+            try {
+                const response = await fetch('/api/products/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const newProd = await response.json();
+                    const opt = new Option(newProd.name, newProd.id, true, true);
+                    modalProduct.add(opt);
+                    prodSubModal.classList.add('hidden');
+                    document.getElementById('subProductForm').reset();
+                    await loadModalVariations();
+                } else {
+                    alert("Error: " + JSON.stringify(await response.json()));
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Submit Sub Variation Form
+        document.getElementById('subVariationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                product: parseInt(document.getElementById('subVarProductId').value),
+                size: document.getElementById('subVarSize').value,
+                color: document.getElementById('subVarColor').value,
+                stock_quantity: parseInt(document.getElementById('subVarStock').value),
+                sku: document.getElementById('subVarSku').value
+            };
+
+            try {
+                const response = await fetch('/api/variations/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const newVar = await response.json();
+                    await loadModalVariations();
+                    modalVariation.value = newVar.id;
+                    varSubModal.classList.add('hidden');
+                    document.getElementById('subVariationForm').reset();
+                } else {
+                    alert("Error: " + JSON.stringify(await response.json()));
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Submit Custom Constraint Form
+        document.getElementById('subConstraintForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const cName = document.getElementById('subConstraintName').value.trim();
+            if (cName) {
+                const opt = new Option(cName, cName, true, true);
+                modalConstraint.add(opt);
+                constraintSubModal.classList.add('hidden');
+                document.getElementById('subConstraintForm').reset();
+            }
+        });
+
+        // Submit Blocked Purchase Intent Form from Dashboard
+        document.getElementById('quickIntentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                customer: parseInt(modalCustomer.value),
+                product: parseInt(modalProduct.value),
+                variation: modalVariation.value ? parseInt(modalVariation.value) : null,
+                constraint_type: modalConstraint.value,
+                requested_quantity: parseInt(document.getElementById('modalQty').value),
+                estimated_value: document.getElementById('modalValue').value ? parseFloat(document.getElementById('modalValue').value) : null,
+                notes: document.getElementById('modalNotes').value
+            };
+
+            try {
+                const response = await fetch('/api/intents/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    // Success! Refresh dashboard to represent updated charts & metrics
+                    window.location.reload();
+                } else {
+                    alert("Error saving record: " + JSON.stringify(await response.json()));
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        // Quick restock function for recommendation banner cards
+        window.quickRestock = async function(variationId) {
+            const qtyInput = document.getElementById(`restock-qty-${variationId}`);
+            const qtyVal = parseInt(qtyInput.value);
+            if (!qtyVal || qtyVal <= 0) {
+                alert("Please enter a valid stock quantity (> 0) to restock.");
+                return;
+            }
+
+            try {
+                // Fetch current variation to check if we can add/update
+                const getResponse = await fetch(`/api/variations/${variationId}/`);
+                if (!getResponse.ok) {
+                    alert("Failed to fetch variation details.");
+                    return;
+                }
+                const currentVar = await getResponse.json();
+                const newQty = currentVar.stock_quantity + qtyVal;
+
+                const patchResponse = await fetch(`/api/variations/${variationId}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ stock_quantity: newQty })
+                });
+
+                if (patchResponse.ok) {
+                    alert("Stock updated successfully! Restock notifications triggered.");
+                    window.location.reload();
+                } else {
+                    alert("Error updating stock: " + JSON.stringify(await patchResponse.json()));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Request failed: " + err);
+            }
+        };
+
+        // Direct restock function for the recent captured intents table
+        window.directRestock = async function(intentId, variationId) {
+            const qtyInput = document.getElementById(`direct-restock-qty-${intentId}`);
+            const qtyVal = parseInt(qtyInput.value);
+            if (!qtyVal || qtyVal <= 0) {
+                alert("Please enter a valid stock quantity (> 0) to restock.");
+                return;
+            }
+
+            try {
+                const getResponse = await fetch(`/api/variations/${variationId}/`);
+                if (!getResponse.ok) {
+                    alert("Failed to fetch variation details.");
+                    return;
+                }
+                const currentVar = await getResponse.json();
+                const newQty = currentVar.stock_quantity + qtyVal;
+
+                const patchResponse = await fetch(`/api/variations/${variationId}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ stock_quantity: newQty })
+                });
+
+                if (patchResponse.ok) {
+                    alert("Stock updated successfully! Restock notifications triggered.");
+                    window.location.reload();
+                } else {
+                    alert("Error updating stock: " + JSON.stringify(await patchResponse.json()));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Request failed: " + err);
+            }
+        };
+        // Bind quick-restock buttons
+        document.querySelectorAll('.quick-restock-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const varId = this.getAttribute('data-variation-id');
+                window.quickRestock(varId);
+            });
+        });
+
+        // Bind direct-restock buttons
+        document.querySelectorAll('.direct-restock-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const intentId = this.getAttribute('data-intent-id');
+                const varId = this.getAttribute('data-variation-id');
+                window.directRestock(intentId, varId);
+            });
+        });
+    });
+</script>
+{% endblock %}
+

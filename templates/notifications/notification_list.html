@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications - Retail RMS{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h2 class="text-3xl font-extrabold text-textprimary tracking-tight">Notification Logs</h2>
+        <p class="text-sm text-textsecondary mt-1">Review all automated customer re-engagement SMS sent by the system.</p>
+    </div>
+</div>
+
+<div class="glassmorphism rounded-2xl shadow-soft overflow-hidden border border-bordercolor neon-cyan">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left text-textsecondary">
+            <thead class="bg-bgtertiary text-textprimary uppercase text-[10px] font-bold tracking-wider">
+                <tr>
+                    <th scope="col" class="px-6 py-4">Sent At</th>
+                    <th scope="col" class="px-6 py-4">Customer Name & Phone</th>
+                    <th scope="col" class="px-6 py-4">Product Details</th>
+                    <th scope="col" class="px-6 py-4">Message Content</th>
+                    <th scope="col" class="px-6 py-4 text-right">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-bordercolor">
+                {% for log in notifications %}
+                <tr class="hover:bg-bgtertiary/40 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap text-xs font-medium">{{ log.sent_at|date:"M d, Y • H:i" }}</td>
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-textprimary">{{ log.intent.customer.first_name }} {{ log.intent.customer.last_name }}</div>
+                        <span class="text-xs text-textmuted block font-normal mt-0.5">{{ log.intent.customer.phone_number }}</span>
+                    </td>
+                    <td class="px-6 py-4 font-bold text-textprimary">{{ log.intent.product.name }}</td>
+                    <td class="px-6 py-4 max-w-xs truncate" title="{{ log.message }}">{{ log.message }}</td>
+                    <td class="px-6 py-4 text-right">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider
+                            {% if log.status == 'Sent' %}bg-success/15 text-success
+                            {% else %}bg-danger/15 text-danger{% endif %}">
+                            {{ log.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-8 text-center text-textmuted">
+                        No automated SMS notifications sent yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mb-8 mt-12 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h2 class="text-3xl font-extrabold text-textprimary tracking-tight">Inbound Customer Replies</h2>
+        <p class="text-sm text-textsecondary mt-1">Review incoming messages and replies sent by customers back to our Twilio number.</p>
+    </div>
+</div>
+
+<div class="glassmorphism rounded-2xl shadow-soft overflow-hidden border border-bordercolor neon-purple">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left text-textsecondary">
+            <thead class="bg-bgtertiary text-textprimary uppercase text-[10px] font-bold tracking-wider">
+                <tr>
+                    <th scope="col" class="px-6 py-4">Received At</th>
+                    <th scope="col" class="px-6 py-4">Customer Name & Phone</th>
+                    <th scope="col" class="px-6 py-4">Twilio Recipient Number</th>
+                    <th scope="col" class="px-6 py-4">Message Content</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-bordercolor">
+                {% for log in inbound_logs %}
+                <tr class="hover:bg-bgtertiary/40 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap text-xs font-medium">{{ log.received_at|date:"M d, Y • H:i" }}</td>
+                    <td class="px-6 py-4">
+                        {% if log.customer %}
+                        <div class="font-bold text-textprimary">{{ log.customer.first_name }} {{ log.customer.last_name }}</div>
+                        {% else %}
+                        <div class="font-bold text-textmuted">Unknown Contact</div>
+                        {% endif %}
+                        <span class="text-xs text-textmuted block font-normal mt-0.5">{{ log.from_number }}</span>
+                    </td>
+                    <td class="px-6 py-4 font-bold text-textprimary">{{ log.to_number }}</td>
+                    <td class="px-6 py-4 font-medium text-textprimary" title="{{ log.body }}">{{ log.body }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="px-6 py-8 text-center text-textmuted">
+                        No customer replies received yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

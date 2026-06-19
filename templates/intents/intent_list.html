@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Blocked Intents - Retail RMS{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h2 class="text-3xl font-extrabold text-textprimary tracking-tight">Blocked Purchase Intents</h2>
+        <p class="text-sm text-textsecondary mt-1 font-medium">Track customer demand constraints, notify them of stock updates, and monitor recovery.</p>
+    </div>
+    <div>
+        <a href="{% url 'intents:create' %}" class="px-5 py-2.5 bg-primary text-white rounded-xl shadow-glow-cyan hover-glow flex items-center gap-2 text-sm font-bold transition-all">
+            <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Record Blocked Purchase
+        </a>
+    </div>
+</div>
+
+<div class="glassmorphism rounded-2xl shadow-soft overflow-hidden border border-bordercolor neon-cyan">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left text-textsecondary">
+            <thead class="bg-bgtertiary text-textprimary uppercase text-[10px] font-bold tracking-wider">
+                <tr>
+                    <th scope="col" class="px-6 py-4">Date</th>
+                    <th scope="col" class="px-6 py-4">Customer</th>
+                    <th scope="col" class="px-6 py-4">Product Details</th>
+                    <th scope="col" class="px-6 py-4">Constraint</th>
+                    <th scope="col" class="px-6 py-4">Est. Lost Value</th>
+                    <th scope="col" class="px-6 py-4">Status</th>
+                    <th scope="col" class="px-6 py-4 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-bordercolor">
+                {% for intent in intents %}
+                <tr class="hover:bg-bgtertiary/40 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap text-xs font-medium">{{ intent.created_at|date:"M d, Y • H:i" }}</td>
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-textprimary">{{ intent.customer.first_name }} {{ intent.customer.last_name }}</div>
+                        <span class="text-xs text-textmuted block font-normal mt-0.5">{{ intent.customer.phone_number }}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="font-bold text-textprimary">{{ intent.product.name }}</span>
+                        {% if intent.variation %}
+                        <span class="text-xs text-textmuted block mt-0.5">Size: {{ intent.variation.size }} • Color: {{ intent.variation.color }}</span>
+                        {% else %}
+                        <span class="text-xs text-textmuted block mt-0.5">No variation selected</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="bg-bgtertiary border border-bordercolor text-textsecondary text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                            {{ intent.constraint_type }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 font-bold text-textprimary">
+                        <span class="price-display text-sm" data-value="{{ intent.estimated_value }}">KSh {{ intent.estimated_value|floatformat:2 }}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide uppercase
+                            {% if intent.status == 'Pending' %}bg-warning/15 text-warning
+                            {% elif intent.status == 'Monitoring' %}bg-primary/15 text-primary
+                            {% elif intent.status == 'Customer Notified' %}bg-secondaryaccent/15 text-secondaryaccent
+                            {% elif intent.status == 'Recovered' %}bg-success/15 text-success
+                            {% else %}bg-textmuted/15 text-textmuted{% endif %}">
+                            {{ intent.status }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <a href="{% url 'intents:update' intent.id %}" class="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl transition-all">Update</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-6 py-8 text-center text-textmuted">
+                        No blocked purchase intents recorded.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

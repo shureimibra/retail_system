@@ -1,0 +1,474 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Retail System{% endblock %}</title>
+    <script src="{% static 'js/tailwind.js' %}"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: 'var(--accent-primary)',
+                        bgprimary: 'var(--bg-primary)',
+                        bgsecondary: 'var(--bg-secondary)',
+                        bgtertiary: 'var(--bg-tertiary)',
+                        textprimary: 'var(--text-primary)',
+                        textsecondary: 'var(--text-secondary)',
+                        textmuted: 'var(--text-muted)',
+                        bordercolor: 'var(--border-color)',
+                        success: 'var(--accent-success)',
+                        danger: 'var(--accent-danger)',
+                        warning: 'var(--accent-warning)',
+                        secondaryaccent: 'var(--accent-secondary)'
+                    },
+                    boxShadow: {
+                        'glow-cyan': 'var(--shadow-glow-cyan)',
+                        'glow-purple': 'var(--shadow-glow-purple)',
+                        'glow-green': 'var(--shadow-glow-green)',
+                        'glow-rose': 'var(--shadow-glow-rose)',
+                        'glow-gold': 'var(--shadow-glow-gold)',
+                        'soft': 'var(--shadow-soft)'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --border-color: #e2e8f0;
+
+            --accent-primary: #0ea5e9; /* Sky blue */
+            --accent-secondary: #8b5cf6; /* Violet */
+            --accent-success: #22c55e;
+            --accent-danger: #ef4444;
+            --accent-warning: #f59e0b;
+
+            --shadow-glow-cyan: 0 0 15px rgba(14, 165, 233, 0.25);
+            --shadow-glow-purple: 0 0 15px rgba(139, 92, 246, 0.25);
+            --shadow-glow-green: 0 0 15px rgba(34, 197, 94, 0.25);
+            --shadow-glow-rose: 0 0 15px rgba(239, 68, 68, 0.25);
+            --shadow-glow-gold: 0 0 15px rgba(245, 158, 11, 0.25);
+
+            --shadow-soft: 0 4px 20px rgba(0,0,0,0.05);
+            --glass-card: #FFFFFF;
+            --glass-border: 1px solid rgba(226, 232, 240, 0.5);
+            --glass-blur: blur(0px);
+        }
+
+        html.dark {
+            --bg-primary: #09090b;      /* Pitch black */
+            --bg-secondary: #121214;    /* Sleek dark panel */
+            --bg-tertiary: #1c1c1f;     /* Elevated panel */
+            --text-primary: #f4f4f5;    /* Off-white */
+            --text-secondary: #a1a1aa;  /* Zinc gray */
+            --text-muted: #52525b;      /* Dark gray */
+            --border-color: rgba(255, 255, 255, 0.08);
+
+            --accent-primary: #00E5FF;  /* Neon cyan */
+            --accent-secondary: #a855f7; /* Neon violet */
+            --accent-success: #00FF85;  /* Neon green */
+            --accent-danger: #FF3B5C;   /* Neon pink */
+            --accent-warning: #FFB020;  /* Neon gold */
+
+            --shadow-glow-cyan: 0 0 20px rgba(0, 229, 255, 0.35);
+            --shadow-glow-purple: 0 0 20px rgba(168, 85, 247, 0.35);
+            --shadow-glow-green: 0 0 20px rgba(0, 255, 133, 0.35);
+            --shadow-glow-rose: 0 0 20px rgba(255, 59, 92, 0.35);
+            --shadow-glow-gold: 0 0 20px rgba(255, 176, 32, 0.35);
+
+            --shadow-soft: 0 4px 25px rgba(0,0,0,0.55);
+            --glass-card: rgba(18, 18, 20, 0.7);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+            --glass-blur: blur(12px);
+        }
+
+        html.dark input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        .glassmorphism {
+            backdrop-filter: var(--glass-blur);
+            background: var(--glass-card);
+            border: var(--glass-border);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Global Form Input Overrides */
+        input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]), select, textarea {
+            background-color: var(--bg-primary) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 0.75rem !important; /* rounded-xl */
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            font-size: 0.875rem !important; /* text-sm */
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):focus, select:focus, textarea:focus {
+            border-color: var(--accent-primary) !important;
+            box-shadow: var(--shadow-glow-cyan) !important;
+            outline: none !important;
+            background-color: var(--bg-secondary) !important;
+        }
+
+
+        /* Neon Glow Utility Classes */
+        .neon-cyan {
+            border: 1px solid var(--accent-primary) !important;
+            box-shadow: var(--shadow-glow-cyan) !important;
+        }
+        .neon-purple {
+            border: 1px solid var(--accent-secondary) !important;
+            box-shadow: var(--shadow-glow-purple) !important;
+        }
+        .neon-green {
+            border: 1px solid var(--accent-success) !important;
+            box-shadow: var(--shadow-glow-green) !important;
+        }
+        .neon-rose {
+            border: 1px solid var(--accent-danger) !important;
+            box-shadow: var(--shadow-glow-rose) !important;
+        }
+        .neon-gold {
+            border: 1px solid var(--accent-warning) !important;
+            box-shadow: var(--shadow-glow-gold) !important;
+        }
+
+        .hover-glow:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-glow-cyan);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Collapsible Sidebar Styles */
+        #sidebar.collapsed {
+            width: 5rem;
+        }
+        #sidebar.collapsed .sidebar-text,
+        #sidebar.collapsed #logoText,
+        #sidebar.collapsed .sidebar-currency,
+        #sidebar.collapsed .sidebar-footer-info {
+            display: none;
+        }
+        #sidebar.collapsed .sidebar-item {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+        #sidebar.collapsed #sidebarToggleIcon {
+            transform: rotate(180deg);
+        }
+        #sidebar.collapsed .sidebar-logout-btn {
+            justify-content: center;
+        }
+        #sidebar.collapsed .sidebar-logout-text {
+            display: none;
+        }
+    </style>
+    <script src="{% static 'js/chart.js' %}"></script>
+    <script>
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen flex transition-colors duration-300">
+    
+    {% if user.is_authenticated %}
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="w-64 bg-bgsecondary border-r border-bordercolor hidden md:flex flex-col transition-all duration-300 shrink-0 relative">
+        <!-- Sidebar Header -->
+        <div class="h-16 flex items-center justify-between px-6 border-b border-bordercolor">
+            <h1 id="logoText" class="text-xl font-bold gradient-text tracking-wide transition-opacity duration-200">Retail RMS</h1>
+            <button id="sidebarToggle" class="p-1.5 rounded-lg bg-bgtertiary text-textsecondary hover:text-primary transition-all">
+                <svg id="sidebarToggleIcon" class="w-5 h-5 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Navigation Links -->
+        <nav class="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
+            <a href="{% url 'dashboard:home' %}" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-textsecondary hover:text-primary hover:bg-bgtertiary transition-all" title="Dashboard">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                <span class="sidebar-text transition-opacity duration-200 font-medium text-sm">Dashboard</span>
+            </a>
+            <a href="{% url 'intents:list' %}" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-textsecondary hover:text-primary hover:bg-bgtertiary transition-all" title="Blocked Intents">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                <span class="sidebar-text transition-opacity duration-200 font-medium text-sm">Blocked Intents</span>
+            </a>
+            <a href="{% url 'products:list' %}" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-textsecondary hover:text-primary hover:bg-bgtertiary transition-all" title="Products">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                <span class="sidebar-text transition-opacity duration-200 font-medium text-sm">Products</span>
+            </a>
+            <a href="{% url 'customers:list' %}" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-textsecondary hover:text-primary hover:bg-bgtertiary transition-all" title="Customers">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <span class="sidebar-text transition-opacity duration-200 font-medium text-sm">Customers</span>
+            </a>
+            <a href="{% url 'notifications:list' %}" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl text-textsecondary hover:text-primary hover:bg-bgtertiary transition-all" title="Notifications">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                <span class="sidebar-text transition-opacity duration-200 font-medium text-sm">Notifications</span>
+            </a>
+        </nav>
+        
+        <!-- Sidebar Footer & Theme Toggle -->
+        <div class="p-4 border-t border-bordercolor space-y-4">
+            <!-- Global Currency Selector -->
+            <div class="sidebar-currency space-y-1 bg-bgtertiary/50 p-2 rounded-xl border border-bordercolor/40">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-textsecondary">Currency</label>
+                <select id="currencySelector" class="w-full px-2 py-1.5 rounded-lg border border-bordercolor bg-bgprimary text-textprimary text-xs focus:outline-none transition-colors">
+                    <option value="KSH">KSh (Kenyan Shilling)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                </select>
+            </div>
+            
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
+                        {{ user.username|make_list|first|upper }}
+                    </div>
+                    <div class="sidebar-footer-info text-sm">
+                        <p class="font-medium text-textprimary truncate max-w-[100px]">{{ user.username }}</p>
+                        <p class="text-textmuted text-xs">{% if user.is_superuser %}Admin{% else %}Staff{% endif %}</p>
+                    </div>
+                </div>
+                
+                <!-- Dark Mode Toggle -->
+                <button id="themeToggle" class="p-2 rounded-lg bg-bgtertiary text-textsecondary hover:text-primary transition-all">
+                    <svg id="themeToggleDarkIcon" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                    <svg id="themeToggleLightIcon" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.46 5.05L5.75 4.343a1 1 0 10-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                </button>
+            </div>
+            
+            <form action="{% url 'accounts:logout' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="sidebar-logout-btn w-full flex items-center justify-center gap-2 px-3 py-2 text-xs text-danger bg-red-500/10 rounded-xl hover:bg-red-500/20 transition-all font-semibold">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    <span class="sidebar-logout-text">Logout</span>
+                </button>
+            </form>
+        </div>
+    </aside>
+    {% endif %}
+
+    <!-- Mobile Sidebar Drawer -->
+    <div id="mobileSidebar" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm transition-all duration-300">
+        <aside class="w-64 h-full bg-bgsecondary border-r border-bordercolor flex flex-col p-5 space-y-4">
+            <div class="flex items-center justify-between pb-4 border-b border-bordercolor">
+                <h1 class="text-xl font-bold gradient-text">Retail RMS</h1>
+                <button id="closeMobileSidebar" class="p-1.5 rounded-lg bg-bgtertiary text-textsecondary hover:text-primary">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <nav class="flex-1 space-y-1.5">
+                <a href="{% url 'dashboard:home' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-textsecondary hover:text-primary hover:bg-bgtertiary transition-all font-medium text-sm">Dashboard</a>
+                <a href="{% url 'intents:list' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-textsecondary hover:text-primary hover:bg-bgtertiary transition-all font-medium text-sm">Blocked Intents</a>
+                <a href="{% url 'products:list' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-textsecondary hover:text-primary hover:bg-bgtertiary transition-all font-medium text-sm">Products</a>
+                <a href="{% url 'customers:list' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-textsecondary hover:text-primary hover:bg-bgtertiary transition-all font-medium text-sm">Customers</a>
+                <a href="{% url 'notifications:list' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-textsecondary hover:text-primary hover:bg-bgtertiary transition-all font-medium text-sm">Notifications</a>
+            </nav>
+            <div class="pt-4 border-t border-bordercolor space-y-4">
+                <div class="space-y-1 bg-bgtertiary/50 p-2 rounded-xl border border-bordercolor/40">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-textsecondary">Currency</label>
+                    <select id="mobileCurrencySelector" class="w-full px-2 py-1 rounded-lg bg-bgprimary border border-bordercolor text-textprimary text-xs focus:outline-none transition-colors">
+                        <option value="KSH">KSh</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                    </select>
+                </div>
+                <form action="{% url 'accounts:logout' %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs text-danger bg-red-500/10 rounded-xl hover:bg-red-500/20 transition-all font-semibold">
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col min-h-screen relative overflow-y-auto">
+        {% if user.is_authenticated %}
+        <!-- Mobile Header -->
+        <header class="md:hidden h-16 bg-bgsecondary border-b border-bordercolor flex items-center px-4 justify-between transition-colors">
+            <h1 class="text-xl font-bold gradient-text">Retail RMS</h1>
+            <div class="flex items-center gap-2">
+                <button id="mobileThemeToggle" class="p-2 rounded-lg text-textsecondary hover:text-primary">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
+                </button>
+                <button id="openMobileSidebarBtn" class="p-2 text-textsecondary hover:text-primary">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+            </div>
+        </header>
+        {% endif %}
+
+        <!-- Messages Notifications -->
+        {% if messages %}
+        <div class="absolute top-4 right-4 z-50 space-y-2 w-80">
+            {% for message in messages %}
+            <div class="p-4 rounded-xl shadow-lg {% if message.tags == 'error' %}bg-danger{% elif message.tags == 'success' %}bg-success{% else %}bg-primary{% endif %} text-white animate-pulse">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="flex-1 p-6 lg:p-8">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <script>
+        // Collapsible Sidebar Script
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        if (sidebar && sidebarToggle) {
+            if (localStorage.getItem('sidebar-collapsed') === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+                window.dispatchEvent(new Event('resize'));
+            });
+        }
+
+        // Mobile Sidebar Drawer toggles
+        const mobileSidebar = document.getElementById('mobileSidebar');
+        const openMobileBtn = document.getElementById('openMobileSidebarBtn');
+        const closeMobileBtn = document.getElementById('closeMobileSidebar');
+        if (openMobileBtn && mobileSidebar) {
+            openMobileBtn.addEventListener('click', () => {
+                mobileSidebar.classList.remove('hidden');
+            });
+        }
+        if (closeMobileBtn && mobileSidebar) {
+            closeMobileBtn.addEventListener('click', () => {
+                mobileSidebar.classList.add('hidden');
+            });
+        }
+
+        // Dark Mode toggles
+        const themeToggleBtn = document.getElementById('themeToggle');
+        const mobileThemeToggleBtn = document.getElementById('mobileThemeToggle');
+        const themeToggleDarkIcon = document.getElementById('themeToggleDarkIcon');
+        const themeToggleLightIcon = document.getElementById('themeToggleLightIcon');
+
+        function updateToggleIcons() {
+            if (document.documentElement.classList.contains('dark')) {
+                themeToggleLightIcon.classList.remove('hidden');
+                themeToggleDarkIcon.classList.add('hidden');
+            } else {
+                themeToggleLightIcon.classList.add('hidden');
+                themeToggleDarkIcon.classList.remove('hidden');
+            }
+        }
+        updateToggleIcons();
+
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('color-theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('color-theme', 'dark');
+            }
+            updateToggleIcons();
+            window.dispatchEvent(new Event('theme-changed'));
+        }
+
+        if (themeToggleBtn) themeToggleBtn.addEventListener('click', toggleTheme);
+        if (mobileThemeToggleBtn) mobileThemeToggleBtn.addEventListener('click', toggleTheme);
+
+        // Currency Exchange rates (relative to KSh base currency)
+        const EXCHANGE_RATES = {
+            'KSH': 1.0,
+            'USD': 1.0 / 130.0,
+            'EUR': 1.0 / 140.0,
+            'GBP': 1.0 / 165.0
+        };
+
+        const CURRENCY_SYMBOLS = {
+            'KSH': 'KSh ',
+            'USD': '$',
+            'EUR': '€',
+            'GBP': '£'
+        };
+
+        function updatePrices() {
+            const activeCurrency = localStorage.getItem('active_currency') || 'KSH';
+            const rate = EXCHANGE_RATES[activeCurrency] || 1.0;
+            const symbol = CURRENCY_SYMBOLS[activeCurrency] || 'KSh ';
+
+            document.querySelectorAll('.price-display').forEach(el => {
+                const kshVal = parseFloat(el.getAttribute('data-value'));
+                if (!isNaN(kshVal)) {
+                    const convertedVal = kshVal * rate;
+                    el.textContent = symbol + convertedVal.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                }
+            });
+
+            const sel = document.getElementById('currencySelector');
+            if (sel) sel.value = activeCurrency;
+            const mobSel = document.getElementById('mobileCurrencySelector');
+            if (mobSel) mobSel.value = activeCurrency;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const sel = document.getElementById('currencySelector');
+            if (sel) {
+                sel.addEventListener('change', (e) => {
+                    localStorage.setItem('active_currency', e.target.value);
+                    updatePrices();
+                    window.dispatchEvent(new Event('currency-changed'));
+                });
+            }
+            const mobSel = document.getElementById('mobileCurrencySelector');
+            if (mobSel) {
+                mobSel.addEventListener('change', (e) => {
+                    localStorage.setItem('active_currency', e.target.value);
+                    updatePrices();
+                    window.dispatchEvent(new Event('currency-changed'));
+                });
+            }
+            updatePrices();
+        });
+    </script>
+</body>
+</html>

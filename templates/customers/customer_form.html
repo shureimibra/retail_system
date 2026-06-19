@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.pk %}Edit Customer{% else %}Register Customer{% endif %} - Retail RMS{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h2 class="text-3xl font-extrabold text-textprimary tracking-tight">{% if form.instance.pk %}Edit Customer{% else %}Register Customer{% endif %}</h2>
+    <p class="text-sm text-textsecondary mt-1 font-medium">{% if form.instance.pk %}Update the customer profile in the system database.{% else %}Create a new customer profile in the system database.{% endif %}</p>
+</div>
+
+<div class="glassmorphism rounded-2xl shadow-soft p-6 md:p-8 max-w-2xl border border-bordercolor neon-cyan transition-all duration-300">
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+        <div class="p-3 bg-danger/10 border border-danger/25 text-danger text-sm rounded-xl font-medium animate-pulse">
+            {{ form.non_field_errors.0 }}
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-1.5">
+                <label for="{{ form.first_name.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">First Name</label>
+                {{ form.first_name }}
+            </div>
+            <div class="space-y-1.5">
+                <label for="{{ form.last_name.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Last Name</label>
+                {{ form.last_name }}
+            </div>
+            <div class="space-y-1.5">
+                <label for="{{ form.phone_number.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Phone Number</label>
+                {{ form.phone_number }}
+            </div>
+            <div class="space-y-1.5">
+                <label for="{{ form.email.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Email Address (Optional)</label>
+                {{ form.email }}
+            </div>
+        </div>
+        
+        <div class="pt-6 flex justify-end gap-3 border-t border-bordercolor">
+            <a href="{% url 'customers:list' %}" class="px-5 py-2.5 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl hover:text-primary transition-all font-semibold text-sm">
+                Cancel
+            </a>
+            <button type="submit" class="px-5 py-2.5 bg-primary text-white rounded-xl shadow-glow-cyan hover-glow transition-all font-semibold text-sm">
+                Save Customer
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

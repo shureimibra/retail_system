@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}Customers - Retail RMS{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h2 class="text-3xl font-extrabold text-textprimary tracking-tight">Customers Database</h2>
+        <p class="text-sm text-textsecondary mt-1">Manage customer registry and view individual constraint history.</p>
+    </div>
+    <div>
+        <a href="{% url 'customers:create' %}" class="px-5 py-2.5 bg-primary text-white rounded-xl shadow-glow-cyan hover-glow flex items-center gap-2 text-sm font-bold transition-all">
+            <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+            Add Customer
+        </a>
+    </div>
+</div>
+
+<div class="glassmorphism rounded-2xl shadow-soft overflow-hidden border border-bordercolor neon-cyan">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left text-textsecondary">
+            <thead class="bg-bgtertiary text-textprimary uppercase text-[10px] font-bold tracking-wider">
+                <tr>
+                    <th scope="col" class="px-6 py-4">Name</th>
+                    <th scope="col" class="px-6 py-4">Phone Number</th>
+                    <th scope="col" class="px-6 py-4">Email</th>
+                    <th scope="col" class="px-6 py-4 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-bordercolor">
+                {% for customer in customers %}
+                <tr class="hover:bg-bgtertiary/40 transition-colors">
+                    <td class="px-6 py-4 font-bold text-textprimary">{{ customer.first_name }} {{ customer.last_name }}</td>
+                    <td class="px-6 py-4 font-semibold text-textprimary">{{ customer.phone_number }}</td>
+                    <td class="px-6 py-4 font-medium">{{ customer.email|default:"-" }}</td>
+                    <td class="px-6 py-4 text-right flex items-center justify-end gap-2">
+                        <a href="{% url 'intents:list' %}?customer={{ customer.id }}" class="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl transition-all">View Intents</a>
+                        <a href="{% url 'customers:update' customer.id %}" class="px-3 py-1.5 bg-bgtertiary hover:bg-bgtertiary/80 border border-bordercolor text-textsecondary font-bold text-xs rounded-xl transition-all">Edit</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="px-6 py-8 text-center text-textmuted">
+                        No customers registered yet. Add a customer to begin.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
