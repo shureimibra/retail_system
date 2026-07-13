@@ -39,9 +39,9 @@ def main():
 
     to_number = args.to
     if not to_number:
-        to_number = input("Enter recipient phone number (press Enter for +254701266217): ").strip()
+        to_number = input("Enter recipient phone number (press Enter for +254724210669): ").strip()
         if not to_number:
-            to_number = "+254701266217"
+            to_number = "+254724210669"
 
     message_body = args.message
     if not message_body:

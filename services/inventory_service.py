@@ -19,5 +19,5 @@ def handle_stock_update(product_or_variation):
             resolve_blocked_intents_for_variation(product_or_variation)
     elif isinstance(product_or_variation, Product):
         # Check if any variation has stock
-        if product_or_variation.variations.filter(stock_quantity__gt=0).exists():
+        if ProductVariation.objects.filter(product=product_or_variation, stock_quantity__gt=0).exists():
             resolve_blocked_intents_for_product(product_or_variation)

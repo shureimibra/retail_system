@@ -19,8 +19,19 @@ def check_inventory_for_intents(sender, instance, created, **kwargs):
         )
         
         for intent in matching_intents:
-            # Update status to Resolved or trigger notification
+            # Update status to Resolved (this will trigger send_notification_on_intent_resolve)
             intent.status = 'Resolved'
             intent.save()
-            # Trigger SMS notification
-            SMSService.send_restock_notification(intent.id)
+
+
+@receiver(post_save, sender=BlockedPurchaseIntent)
+def send_notification_on_intent_resolve(sender, instance, created, **kwargs):
+    """
+    Trigger WhatsApp notification when a BlockedPurchaseIntent's status is manually updated to 'Resolved'
+    (e.g., from the admin panel or intent update views).
+    """
+    if instance.status == 'Resolved':
+        # Prevent duplicate notifications if one was already successfully sent
+        from notifications.models import NotificationLog
+        if not NotificationLog.objects.filter(intent=instance, status='Sent').exists():
+            SMSService.send_restock_notification(instance.id)

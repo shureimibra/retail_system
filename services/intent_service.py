@@ -1,4 +1,5 @@
 from intents.models import BlockedPurchaseIntent
+from products.models import ProductVariation
 from services.notification_service import send_resolution_notification
 
 def create_blocked_purchase_intent(customer, product, variation, constraint_type, requested_quantity=1, estimated_value=None, notes="", recorded_by=None):
@@ -47,7 +48,7 @@ def resolve_blocked_intents_for_product(product):
     resolved_count = 0
     
     # Check if there is any stock available across variations
-    has_stock = product.variations.filter(stock_quantity__gt=0).exists()
+    has_stock = ProductVariation.objects.filter(product=product, stock_quantity__gt=0).exists()
     
     for intent in intents:
         if intent.variation:

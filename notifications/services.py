@@ -27,8 +27,8 @@ class SMSService:
             
             message = f"Hello {intent.customer.first_name}, the {product_name}{variation_str} you requested is now available."
             
-            # Force use of user's verified phone number (+254797278281) for WhatsApp testing
-            phone = "+254701266217"
+            # Use customer's phone number dynamically
+            phone = intent.customer.phone_number
             if not phone or not phone.startswith('+'):
                 logger.warning(f"Failed to send SMS: Invalid phone number format '{phone}' for customer ID {intent.customer.id}")
                 NotificationLog.objects.create(

@@ -1,13 +1,15 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Dashboard - Retail RMS{% endblock %}
 
 {% block content %}
-<!-- Top Header Section -->
+<!-- Top Header Section (Transparent background) -->
 <div class="mb-8 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
     <div>
+        <span class="text-xs font-bold uppercase tracking-widest text-primary mb-2 block bg-primary/10 w-max px-2.5 py-1 rounded-full">Retail Intelligence</span>
         <h2 class="text-3xl font-extrabold tracking-tight text-textprimary">Welcome back, {{ user.username }}! </h2>
-        <p class="text-sm text-textsecondary mt-1">Monitor real-time retail demand constraints, recovered sales, and stock recommendations.</p>
+        <p class="text-sm text-textsecondary mt-1 max-w-xl">Monitor real-time retail demand constraints, recovered sales, and stock recommendations.</p>
     </div>
     
     <!-- Report Export and Record buttons -->
