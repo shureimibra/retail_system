@@ -5,10 +5,7 @@
 <div class="content narrow">
   <div class="page-head"><div><h1>Reports</h1><p>Download your missed sales for a period, to share or keep.</p></div></div>
   <form method="get" class="panel panel-body form">
-    <div class="form-row">
-      <div class="field"><label for="start_date">From</label><input type="date" id="start_date" name="start_date" value="{{ filters.start_date }}"></div>
-      <div class="field"><label for="end_date">To</label><input type="date" id="end_date" name="end_date" value="{{ filters.end_date }}"></div>
-    </div>
+    {% include "ui/period.html" %}
     <div class="field"><label for="status">Status</label>
       <select id="status" name="status"><option value="">All statuses</option>
         {% for value, label in status_choices %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}

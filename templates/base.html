@@ -7,6 +7,7 @@
   <link rel="icon" href="{% static 'icons/favicon.svg' %}" type="image/svg+xml">
   <link rel="preload" href="{% static 'fonts/ibm-plex-sans-latin-400-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script>try { if (localStorage.getItem('sidebar') === 'collapsed') document.documentElement.dataset.sidebar = 'collapsed'; } catch (e) {}</script>
   {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -27,6 +28,7 @@
       {% endfor %}
     </nav>
     <div class="bottom nav">
+      <button class="nav-link sidebar-toggle" type="button" id="sidebarToggle" aria-pressed="false">{% icon "chevron-left" %}<span>Collapse menu</span></button>
       <a href="{% url 'settings:index' %}"{% if nav_current == 'settings' %} aria-current="page"{% endif %}>{% icon "settings" %}<span>Settings</span></a>
       <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
         <button class="nav-link" type="submit">{% icon "log-out" %}<span>Sign out</span></button>
@@ -96,6 +98,32 @@
   btn.addEventListener('click', function () { setOpen(sheet.hidden); });
   scrim.addEventListener('click', function () { setOpen(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !sheet.hidden) setOpen(false); });
+
+  // Desktop sidebar: fold to icons and back; remembered on this device.
+  var toggle = document.getElementById('sidebarToggle'), root = document.documentElement;
+  function syncToggle() {
+    var collapsed = root.dataset.sidebar === 'collapsed';
+    toggle.setAttribute('aria-pressed', String(collapsed));
+    toggle.querySelector('span').textContent = collapsed ? 'Expand menu' : 'Collapse menu';
+    toggle.setAttribute('aria-label', collapsed ? 'Expand menu' : 'Collapse menu');
+  }
+  toggle.addEventListener('click', function () {
+    if (root.dataset.sidebar === 'collapsed') { delete root.dataset.sidebar; } else { root.dataset.sidebar = 'collapsed'; }
+    try { localStorage.setItem('sidebar', root.dataset.sidebar || 'expanded'); } catch (e) {}
+    syncToggle();
+    window.dispatchEvent(new Event('resize'));
+  });
+  syncToggle();
+
+  // Period pickers: a preset applies at once; "Custom range" shows the two dates.
+  document.querySelectorAll('[data-period]').forEach(function (box) {
+    var select = box.querySelector('select'), custom = box.querySelector('[data-custom]');
+    select.addEventListener('change', function () {
+      custom.hidden = select.value !== 'custom';
+      if (select.value !== 'custom') { custom.querySelectorAll('input').forEach(function (i) { i.value = ''; }); select.form.submit(); }
+      else { custom.querySelector('input').focus(); }
+    });
+  });
 
   // Forms that ask before doing something that can't be undone.
   document.querySelectorAll('form[data-confirm]').forEach(function (form) {
