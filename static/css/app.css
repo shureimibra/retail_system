@@ -424,7 +424,7 @@ dialog .form h2 { font-size: 17px; }
 @media (max-width: 1023px) {
   :root[data-drawer="open"] { overflow: hidden; }
   :root[data-drawer="open"] .sidebar { display: flex; flex-direction: column; position: fixed; inset: 0 auto 0 0; z-index: 45;
-    width: min(300px, 86vw); height: 100%; padding: 14px 12px calc(14px + env(safe-area-inset-bottom)); overflow-y: auto;
+    width: min(300px, 86vw); height: 100%; padding: 14px 12px calc(14px + env(safe-area-inset-bottom)); overflow: hidden;
     background: var(--surface); border-right: 1px solid var(--border); box-shadow: var(--shadow-pop); animation: drawer-in .22s var(--ease); }
   :root[data-drawer="open"] .sidebar .drawer-close { display: grid; }
   .page { grid-column: -2; }
@@ -437,3 +437,12 @@ dialog .form h2 { font-size: 17px; }
 @media (min-width: 1024px) { .menu-btn { display: none; } }
 @keyframes drawer-in { from { transform: translateX(-24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { :root[data-drawer="open"] .sidebar { animation: none; } }
+
+/* Sidebar on short screens: only the page list scrolls; Settings and Sign out stay pinned */
+@media (min-width: 600px) { .sidebar { overflow: hidden; } }
+.sidebar > .nav:not(.bottom) { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+.sidebar .bottom { flex: none; }
+@media (max-height: 760px) {
+  .sidebar .nav a, .sidebar .nav button.nav-link { min-height: 36px; padding-top: 6px; padding-bottom: 6px; }
+  .sidebar .nav-group { padding-top: 10px; }
+}
