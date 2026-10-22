@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}To order{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>To order</h1>
+    <p>{% if groups %}{{ item_count }} item{{ item_count|pluralize }} to order · {{ customer_count }} customer{{ customer_count|pluralize }} waiting · {{ money_waiting|money:request.shop }}{% else %}What to buy, and who is waiting for it.{% endif %}</p></div>
+  <div class="actions"><a class="btn" href="{% url 'reports:summary_csv' 'to-order' %}">{% icon "download" "sm" %}CSV</a></div>
+</div>
+
+{% if groups %}
+<form method="post" action="{% url 'intents:mark_ordered' %}" class="stack-lg">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  {% if any_open %}
+  <div class="panel bulk-bar">
+    <span class="small muted">Tick what you've ordered. Customers stay waiting until it arrives; then they're messaged automatically.</span>
+    <div class="field"><label for="expected_at">Arrives (optional)</label><input id="expected_at" name="expected_at" type="date"></div>
+    <button class="btn btn-primary" type="submit">Mark as ordered</button>
+  </div>
+  {% endif %}
+
+  {% for group in groups %}
+  <section class="panel" aria-label="{{ group.supplier|default:'No supplier set' }}">
+    <div class="panel-head"><h2>{{ group.supplier|default:"No supplier set" }}</h2>
+      {% if group.share_url %}<a class="btn btn-sm" href="{{ group.share_url }}" target="_blank" rel="noopener">{% icon "send" "sm" %}Share list on WhatsApp</a>{% endif %}</div>
+    <div class="table-wrap">
+      <table class="table table-cards to-order">
+        <thead><tr><th class="pick"><span class="visually-hidden">Ordered</span></th><th>Item</th><th>Waiting</th><th class="r">Order</th><th class="r">Money waiting</th><th>Needed by</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for row in group.rows %}
+        <tr>
+          <td class="pick">{% if row.open_ids %}<input type="checkbox" name="row" value="{{ row.open_ids|join:',' }}" aria-label="Ordered: {{ row.product_name }} {{ row.variation_label }}">{% endif %}</td>
+          <td class="card-title"><a class="primary" href="{% url 'products:detail' row.product_id %}">{{ row.product_name }} · {{ row.variation_label }}</a>
+            <span class="sub">{% if row.sku %}<span class="mono">{{ row.sku }}</span> · {% endif %}{% if row.available %}{{ row.available }} free in stock{% else %}none free in stock{% endif %}</span></td>
+          <td data-label="Waiting"><span class="initials" title="{{ row.customers|join:', ' }}">{% for i in row.initials|slice:":3" %}<span class="avatar avatar-xs">{{ i }}</span>{% endfor %}{% if row.initials|length > 3 %}<span class="more">+{{ row.initials|length|add:"-3" }}</span>{% endif %}</span></td>
+          <td data-label="Order" class="r num">{{ row.to_order }}</td>
+          <td data-label="Money waiting" class="r num">{{ row.money_waiting|money:request.shop }}</td>
+          <td data-label="Needed by">{{ row.needed_by|date:"D j M"|default:"Not set" }}</td>
+          <td data-label="Status">{% if row.open_ids %}<span class="badge badge-open">Open</span>{% else %}<span class="badge badge-on_order">On order{% if row.expected_at %} · {{ row.expected_at|date:"D j M" }}{% endif %}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endfor %}
+</form>
+{% else %}
+<div class="panel"><div class="empty">{% icon "package" %}<p>Nothing to order. When customers wait for a size, colour or item you're out of, it shows up here.</p></div></div>
+{% endif %}
+{% endblock %}

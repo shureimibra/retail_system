@@ -90,7 +90,7 @@ def needs_you(shop, limit=8):
         rows.append({'kind': 'promise', 'badge': 'Open', 'badge_class': 'open',
                      'title': f'{due_count} promise{"s" if due_count != 1 else ""} due by {_day(first)}',
                      'sub': 'Nothing ordered yet', 'at': None,
-                     'action': 'View', 'url': reverse('intents:list') + '?show=waiting'})
+                     'action': 'View', 'url': reverse('intents:list') + '?show=stock'})
 
     for intent in (Intent.objects.filter(shop=shop, status=Intent.RESERVED, pickup_by__lt=today)
                    .select_related('customer', 'product', 'variation').order_by('pickup_by')[:limit]):

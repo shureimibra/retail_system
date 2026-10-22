@@ -95,31 +95,45 @@ def get_recovery_funnel(shop, start_date=None, end_date=None, status=None):
 
 
 def get_to_order(shop):
-    """The morning list: items customers are waiting for, most money first."""
+    """The morning list: items customers are waiting for, most money first, then the earliest need."""
     rows = {}
     waiting = (BlockedPurchaseIntent.objects
                .filter(shop=shop, status__in=BlockedPurchaseIntent.WAITING_STATUSES,
                        constraint_type__in=BlockedPurchaseIntent.RESTOCK_REASONS)
-               .select_related('product', 'variation', 'customer'))
+               .select_related('product', 'variation', 'customer')
+               .prefetch_related('variation__holds')
+               .order_by('created_at'))
     for intent in waiting:
         key = (intent.product_id, intent.variation_id)
         row = rows.setdefault(key, {
+            'key': f'{intent.product_id}-{intent.variation_id or 0}',
             'product_id': intent.product_id, 'product_name': intent.product.name,
+            'supplier': intent.product.supplier,
             'variation_id': intent.variation_id,
             'variation_label': intent.variation.label if intent.variation else 'Any size or colour',
             'sku': intent.variation.sku if intent.variation else '',
             'available': intent.variation.available_quantity if intent.variation else None,
-            'waiting': 0, 'on_order': 0, 'money_waiting': 0, 'needed_by': None, 'customers': [],
+            'waiting': 0, 'on_order': 0, 'money_waiting': 0, 'needed_by': None, 'expected_at': None,
+            'customers': [], 'initials': [], 'open_ids': [],
         })
         row['waiting'] += intent.requested_quantity
-        row['on_order'] += intent.requested_quantity if intent.status == BlockedPurchaseIntent.ON_ORDER else 0
+        if intent.status == BlockedPurchaseIntent.ON_ORDER:
+            row['on_order'] += intent.requested_quantity
+            if intent.expected_at and (row['expected_at'] is None or intent.expected_at < row['expected_at']):
+                row['expected_at'] = intent.expected_at
+        else:
+            row['open_ids'].append(intent.id)
         row['money_waiting'] += float(intent.estimated_value or 0)
         if intent.needed_by and (row['needed_by'] is None or intent.needed_by < row['needed_by']):
             row['needed_by'] = intent.needed_by
-        row['customers'].append(intent.customer.first_name or intent.customer.phone_number)
+        customer = intent.customer
+        row['customers'].append(customer.first_name or customer.phone_number)
+        row['initials'].append(((customer.first_name or '')[:1] + (customer.last_name or '')[:1]).upper()
+                               or customer.phone_number[-2:])
     for row in rows.values():
         row['to_order'] = max(0, row['waiting'] - (row['available'] or 0) - row['on_order'])
-    return sorted(rows.values(), key=lambda r: (-r['money_waiting'], r['product_name']))
+    far = datetime.date.max
+    return sorted(rows.values(), key=lambda r: (-r['money_waiting'], r['needed_by'] or far, r['product_name']))
 
 def get_constraint_distribution(shop, start_date=None, end_date=None, status=None):
     base_qs = _filter_intents(shop, start_date, end_date, status)

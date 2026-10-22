@@ -3,40 +3,83 @@
 {% block title %}Waiting{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Waiting</h1><p>Customers who wanted something you couldn't sell them, and where each one stands.</p></div>
+  <div><h1>Waiting</h1><p>Customers who wanted something you couldn't sell them, grouped by customer.</p></div>
   <div class="actions"><a class="btn" href="{% url 'intents:create' %}">{% icon "plus" "sm" %}Log missed sale</a></div>
 </div>
+
 <div class="panel">
-  <nav class="tabs" aria-label="Filter">
+  <nav class="tabs" aria-label="Show">
     {% for key, label, count in tabs %}
-    <a href="?show={{ key }}"{% if current_tab == key %} aria-current="page"{% endif %}>{{ label }}<span>{{ count }}</span></a>
+    <a href="?show={{ key }}{% if tab_query %}&amp;{{ tab_query }}{% endif %}"{% if current_tab == key %} aria-current="page"{% endif %}>{{ label }}<span>{{ count }}</span></a>
     {% endfor %}
   </nav>
-  {% if status_filter %}<div class="filter-note">Showing only <span class="badge badge-{{ request.GET.status }}">{{ status_filter }}</span><a class="btn btn-plain btn-sm" href="?show={{ current_tab }}">Show all</a></div>{% endif %}
-  {% if intents %}
-  <div class="table-wrap">
-    <table class="table table-cards">
-      <thead><tr><th>Item</th><th>Customer</th><th>Reason</th><th class="r">Value</th><th>Logged</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
-      <tbody>
-      {% for intent in intents %}
-      <tr>
-        <td class="card-title"><span class="primary">{{ intent.product.name }}{% if intent.variation %} · {{ intent.variation.label }}{% endif %}</span>
-          {% if intent.variation %}<span class="sub sku">{{ intent.variation.sku }}</span>{% endif %}</td>
-        <td data-label="Customer">{{ intent.customer.first_name }} {{ intent.customer.last_name }}<span class="sub mono">{{ intent.customer.phone_number }}</span></td>
-        <td data-label="Reason"><span class="tag">{{ intent.get_constraint_type_display }}</span></td>
-        <td data-label="Value" class="r">{{ intent.estimated_value|money:request.shop }}</td>
-        <td data-label="Logged" class="num">{{ intent.created_at|date:"j M" }}</td>
-        <td data-label="Status"><span class="badge badge-{{ intent.status }}">{{ intent.get_status_display }}</span></td>
-        <td class="r"><a class="btn btn-plain btn-sm" href="{% url 'intents:update' intent.pk %}">Open</a></td>
-      </tr>
+
+  <form method="get" class="filter-bar" aria-label="Filter">
+    <input type="hidden" name="show" value="{{ current_tab }}">
+    {% if filters.customer %}<input type="hidden" name="customer" value="{{ filters.customer }}">{% endif %}
+    {% if filters.product %}<input type="hidden" name="product" value="{{ filters.product }}">{% endif %}
+    <div class="field grow-field"><label for="q">Search</label>
+      <input id="q" name="q" type="search" value="{{ filters.q }}" placeholder="Name, phone, product or SKU" autocomplete="off"></div>
+    {% if current_tab == 'all' %}
+    <div class="field"><label for="f-status">Status</label>
+      <select id="f-status" name="status"><option value="">Any status</option>
+        {% for value, label in status_choices %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></div>
+    {% endif %}
+    <div class="field"><label for="f-reason">Reason</label>
+      <select id="f-reason" name="reason"><option value="">Any reason</option>
+        {% for value, label in reason_choices %}<option value="{{ value }}"{% if filters.reason == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></div>
+    {% include "ui/period.html" %}
+    <div class="filter-actions"><button class="btn" type="submit">Apply</button>
+      {% if filtered %}<a class="btn btn-plain" href="?show={{ current_tab }}">Clear</a>{% endif %}</div>
+  </form>
+
+  {% if groups %}
+  <form method="post" action="{% url 'intents:mark_ordered' %}" id="order-form">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    {% if can_order and any_orderable %}
+    <div class="bulk-bar">
+      <span class="small muted">Tick items you've ordered from your supplier.</span>
+      <div class="field"><label for="expected_at">Arrives (optional)</label><input id="expected_at" name="expected_at" type="date"></div>
+      <button class="btn" type="submit">Mark as ordered</button>
+    </div>
+    {% endif %}
+    <div class="summary-line small muted">{{ item_count }} item{{ item_count|pluralize }} from {{ page_obj.paginator.count }} customer{{ page_obj.paginator.count|pluralize }}</div>
+    <div class="cust-groups">
+      {% for group in groups %}
+      <section class="cust-group" aria-label="{{ group.customer.first_name }} {{ group.customer.last_name }}">
+        <div class="cust-head">
+          <span class="avatar">{{ group.customer.first_name|first|upper }}{{ group.customer.last_name|first|upper }}</span>
+          <a class="grow cust-name" href="{% url 'customers:detail' group.customer.pk %}"><span class="row-title">{{ group.customer.first_name }} {{ group.customer.last_name }}</span>
+            <span class="row-sub mono">{{ group.customer.phone_number }}</span></a>
+          <span class="small muted nowrap">{{ group.items|length }} item{{ group.items|length|pluralize }} · {{ group.money|money:request.shop }}</span>
+        </div>
+        <ul class="cust-items">
+          {% for intent in group.items %}
+          <li>
+            {% if can_order and any_orderable %}
+            <span class="pick">{% if intent.can_order %}<input type="checkbox" name="intent" value="{{ intent.pk }}" id="pick-{{ intent.pk }}" aria-label="Ordered: {{ intent.product.name }}{% if intent.variation %} {{ intent.variation.label }}{% endif %}">{% endif %}</span>
+            {% endif %}
+            <span class="grow"><span class="row-title">{{ intent.product.name }}{% if intent.variation %} · {{ intent.variation.label }}{% endif %}</span>
+              <span class="row-sub">{{ intent.get_constraint_type_display }}
+                {% if intent.needed_by %} · <span class="{% if intent.needed_by <= today %}due{% endif %}">needed by {{ intent.needed_by|date:"D j M" }}</span>{% endif %}
+                {% if intent.status == 'on_order' and intent.expected_at %} · arrives {{ intent.expected_at|date:"D j M" }}{% endif %}
+                · {% if intent.days_waiting == 0 %}today{% else %}{{ intent.days_waiting }} day{{ intent.days_waiting|pluralize }}{% endif %}</span></span>
+            <span class="badge badge-{{ intent.status }}">{{ intent.get_status_display }}</span>
+            <a class="btn btn-plain btn-sm" href="{% url 'intents:update' intent.pk %}">Open</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
       {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    </div>
+  </form>
   {% else %}
   <div class="empty">{% icon "clipboard-list" %}
-    <p>{% if current_tab == 'waiting' %}No one is waiting right now. When a customer can't buy, log it and they'll show up here.{% else %}Nothing here yet.{% endif %}</p>
-    <a class="btn" href="{% url 'intents:create' %}">Log missed sale</a></div>
+    <p>{% if filtered %}Nothing matches these filters.{% elif current_tab == 'stock' %}No one is waiting. Missed sales you log appear here.{% elif current_tab == 'price' %}No one is waiting for a lower price. Customers who said the price was too high or over their budget appear here and are messaged when you lower the price.{% else %}Nothing here yet.{% endif %}</p>
+    {% if filtered %}<a class="btn" href="?show={{ current_tab }}">Clear filters</a>{% else %}<a class="btn" href="{% url 'intents:create' %}">Log missed sale</a>{% endif %}</div>
   {% endif %}
 </div>
 {% include "ui/pagination.html" %}

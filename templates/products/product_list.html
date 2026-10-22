@@ -14,14 +14,14 @@
       <tbody>
       {% for p in products %}
       <tr>
-        <td class="card-title"><span class="primary">{{ p.name }}</span>{% if p.needs_review %} <span class="badge badge-warn">Needs review</span>{% endif %}
+        <td class="card-title"><a class="primary" href="{% url 'products:detail' p.pk %}">{{ p.name }}</a>{% if p.needs_review %} <span class="badge badge-warn">Needs review</span>{% endif %}
           <span class="sub">{{ p.category.name }}</span></td>
         <td data-label="Type">{{ p.product_type.name|default:"—" }}</td>
         <td data-label="Price" class="r">{{ p.base_price|money:request.shop }}</td>
         <td data-label="Stock"><span class="chips">
           {% for v in p.variations.all %}<span class="tag{% if not v.available_quantity %} tag-out{% endif %}">{{ v.label|default:v.sku }} · {{ v.available_quantity }}</span>{% empty %}<span class="faint">None yet</span>{% endfor %}
         </span></td>
-        <td class="r">{% if is_manager %}<a class="btn btn-plain btn-sm" href="{% url 'products:update' p.pk %}">Edit</a>{% endif %}</td>
+        <td class="r"><a class="btn btn-plain btn-sm" href="{% url 'products:detail' p.pk %}">Open</a></td>
       </tr>
       {% endfor %}
       </tbody>

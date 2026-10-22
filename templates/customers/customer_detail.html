@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{{ customer.first_name }} {{ customer.last_name }}{% endblock %}
+{% block content %}
+<div>
+  <a class="back" href="{% url 'customers:list' %}">{% icon "chevron-left" "sm" %}Customers</a>
+  <div class="page-head">
+    <div><h1>{{ customer.first_name }} {{ customer.last_name }}</h1>
+      <p><a class="mono" href="tel:{{ customer.phone_number }}">{{ customer.phone_number }}</a>{% if customer.email %} · {{ customer.email }}{% endif %}
+        · {% if customer.marketing_opt_in %}can be messaged{% else %}<span class="err-text">opted out of messages</span>{% endif %}</p></div>
+    <div class="actions">
+      <a class="btn" href="tel:{{ customer.phone_number }}">{% icon "phone" "sm" %}Call</a>
+      {% if conversation %}<a class="btn" href="{% url 'notifications:list' %}">{% icon "message-circle" "sm" %}Messages</a>{% endif %}
+      <a class="btn" href="{% url 'customers:update' customer.pk %}">{% icon "pencil" "sm" %}Edit</a>
+    </div>
+  </div>
+</div>
+
+<section class="panel" aria-labelledby="open-title">
+  <div class="panel-head"><h2 id="open-title">Open items</h2><a class="btn btn-plain btn-sm" href="{% url 'intents:create' %}?customer={{ customer.pk }}">{% icon "plus" "sm" %}Another item</a></div>
+  {% if open_items %}
+  <ul class="cust-items">
+    {% for intent in open_items %}
+    <li><span class="grow"><span class="row-title">{{ intent.product.name }}{% if intent.variation %} · {{ intent.variation.label }}{% endif %}</span>
+        <span class="row-sub">{{ intent.get_constraint_type_display }} · logged {{ intent.created_at|date:"j M" }}{% if intent.needed_by %} · needed by {{ intent.needed_by|date:"D j M" }}{% endif %}{% if intent.pickup_by and intent.status == 'reserved' %} · pick up by {{ intent.pickup_by|date:"D j M" }}{% endif %}</span></span>
+      <span class="num nowrap">{{ intent.estimated_value|money:request.shop }}</span>
+      <span class="badge badge-{{ intent.status }}">{{ intent.get_status_display }}</span>
+      <a class="btn btn-plain btn-sm" href="{% url 'intents:update' intent.pk %}">Open</a></li>
+    {% endfor %}
+  </ul>
+  {% else %}<div class="empty"><p>Nothing open for {{ customer.first_name }}.</p></div>{% endif %}
+</section>
+
+<div class="grid-even">
+  <section class="panel" aria-labelledby="paid-title">
+    <div class="panel-head"><h2 id="paid-title">Payments</h2></div>
+    {% if payments %}
+    <div class="rows">
+      {% for p in payments %}
+      <div><span class="grow"><span class="row-title">{{ p.amount|money:request.shop }} · {{ p.get_method_display }}</span>
+          <span class="row-sub">{{ p.intent.product.name }} · {{ p.created_at|date:"j M" }}{% if p.reference %} · <span class="mono">{{ p.reference }}</span>{% endif %}{% if p.recorded_by %} · by {{ p.recorded_by.first_name|default:p.recorded_by.username }}{% endif %}</span></span></div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="panel-body muted">No payments yet.</p>{% endif %}
+  </section>
+
+  <section class="panel" aria-labelledby="closed-title">
+    <div class="panel-head"><h2 id="closed-title">Closed</h2></div>
+    {% if closed_items %}
+    <ul class="cust-items">
+      {% for intent in closed_items %}
+      <li><span class="grow"><span class="row-title">{{ intent.product.name }}{% if intent.variation %} · {{ intent.variation.label }}{% endif %}</span>
+          <span class="row-sub">{{ intent.updated_at|date:"j M" }}{% if intent.closed_reason %} · {{ intent.closed_reason }}{% endif %}</span></span>
+        <span class="badge badge-{{ intent.status }}">{{ intent.get_status_display }}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="panel-body muted">Nothing closed yet.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

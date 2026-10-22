@@ -106,3 +106,25 @@ def change_price(product, new_price, changed_by=None, variation=None):
         from intents.automation import notify_price_drop
         notify_price_drop(change)
     return change
+
+
+def suggest_sku(product, *values):
+    """NAZ-42-BLA style: product initials, then each option (colours shortened). Made unique if taken."""
+    parts = [''.join(w[0] for w in product.name.split()).upper()[:4] or 'P']
+    for i, value in enumerate(v for v in values if v):
+        value = value.replace(' ', '').upper()
+        parts.append(value if i == 0 else value[:3])
+    base = '-'.join(parts)[:90]
+    sku, n = base, 2
+    while ProductVariation.objects.filter(sku=sku).exists():
+        sku, n = f'{base}-{n}', n + 1
+    return sku
+
+
+def set_option_photo(product, value, image):
+    """The photo for every row with this option value (e.g. Black). Replaces any earlier one."""
+    from .models import ProductOptionPhoto
+    photo = ProductOptionPhoto.objects.filter(product=product, value=value).first() or ProductOptionPhoto(product=product, value=value)
+    photo.image = image
+    photo.save()
+    return photo

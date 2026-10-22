@@ -222,5 +222,5 @@ class NavigationTests(HomeTestCase):
         self.request('Mary')
         self.login('owner')
         response = self.client.get('/intents/?status=reserved')
-        self.assertEqual(len(response.context['intents']), 1)
-        self.assertContains(response, 'Showing only')
+        self.assertEqual(response.context['item_count'], 1)
+        self.assertContains(response, '<option value="reserved" selected>')

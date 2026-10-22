@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{{ product.name }}{% endblock %}
+{% block content %}
+<div>
+  <a class="back" href="{% url 'products:list' %}">{% icon "chevron-left" "sm" %}Products</a>
+  <div class="page-head product-head">
+    {% if product.image %}<img class="product-thumb" src="{{ product.image.url }}" alt="" width="64" height="64">{% else %}<span class="product-thumb empty-thumb" aria-hidden="true">{% icon "package" %}</span>{% endif %}
+    <div class="grow"><h1>{{ product.name }}{% if product.needs_review %} <span class="badge badge-warn">Needs review</span>{% endif %}</h1>
+      <p>{{ product.product_type.name|default:"No type" }} · {{ product.category.name }} · {{ product.base_price|money:request.shop }}{% if product.supplier %} · from {{ product.supplier }}{% endif %}</p></div>
+    {% if can_manage %}<div class="actions"><a class="btn" href="{% url 'products:update' product.pk %}">{% icon "pencil" "sm" %}Edit</a>
+      <a class="btn btn-primary" href="#receive">Receive stock</a></div>{% endif %}
+  </div>
+</div>
+
+<section class="panel" aria-labelledby="grid-title">
+  <div class="panel-head"><h2 id="grid-title">{% if detail.option_names %}{{ detail.option_names|join:" and " }}{% else %}Stock{% endif %}</h2>
+    <span class="faint small">{{ detail.total_stock }} in stock{% if detail.waiting_stock.count %} · <span class="clay-text">{{ detail.waiting_stock.count }} waiting</span>{% endif %}</span></div>
+  {% if detail.grid %}
+  <div class="table-wrap">
+    <table class="option-grid">
+      <thead><tr><th scope="col"><span class="visually-hidden">{{ detail.grid.row_name }}</span></th>{% for col in detail.grid.cols %}<th scope="col">{{ col }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for row, cells in detail.grid.rows %}
+        <tr><th scope="row">{{ row }}</th>
+          {% for v in cells %}<td>{% if v %}
+            {% if can_manage %}<a class="cell{% if v.waiting %} has-waiting{% endif %}{% if not v.stock_quantity %} is-out{% endif %}" href="?receive={{ v.pk }}#receive" title="{{ v.sku }}: receive stock">{% else %}<span class="cell{% if v.waiting %} has-waiting{% endif %}{% if not v.stock_quantity %} is-out{% endif %}" title="{{ v.sku }}">{% endif %}
+              <span class="cell-stock">{{ v.stock_quantity }}</span>{% if v.waiting %}<span class="cell-waiting">{{ v.waiting }} waiting</span>{% endif %}
+            {% if can_manage %}</a>{% else %}</span>{% endif %}
+          {% else %}<span class="cell is-none" aria-label="Not stocked">·</span>{% endif %}</td>{% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="panel-body small faint divided">Each box shows units in stock{% if can_manage %}; tap one to receive stock for it{% endif %}. Customers waiting are shown in orange.</p>
+  {% elif detail.variations %}
+  <div class="rows">
+    {% for v in detail.variations %}
+    <div><span class="grow"><span class="row-title">{{ v.label|default:v.sku }}</span><span class="row-sub mono">{{ v.sku }}</span></span>
+      {% if v.waiting %}<span class="clay-text small">{{ v.waiting }} waiting</span>{% endif %}
+      <span class="num">{{ v.stock_quantity }} in stock</span>
+      {% if can_manage %}<a class="btn btn-plain btn-sm" href="?receive={{ v.pk }}#receive">Receive</a>{% endif %}</div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty"><p>No sizes or colours yet.{% if can_manage %} Add the ones you stock below.{% endif %}</p></div>
+  {% endif %}
+</section>
+
+<div class="grid-even">
+  <section class="panel" aria-labelledby="wait-stock">
+    <div class="panel-head"><h2 id="wait-stock">Waiting for stock</h2>{% if detail.waiting_stock.count %}<a class="btn btn-plain btn-sm" href="{% url 'intents:list' %}?show=stock&amp;product={{ product.pk }}">View</a>{% endif %}</div>
+    <div class="panel-body">
+      {% if detail.waiting_stock.count %}
+      <p class="big-number">{{ detail.waiting_stock.customers }} customer{{ detail.waiting_stock.customers|pluralize }}</p>
+      <p class="muted">{{ detail.waiting_stock.money|money:request.shop }}{% if detail.waiting_stock.oldest_need %} · the first needs it by {{ detail.waiting_stock.oldest_need|date:"D j M" }}{% endif %}</p>
+      {% else %}<p class="muted">No one is waiting for this to come back in.</p>{% endif %}
+    </div>
+  </section>
+  <section class="panel" aria-labelledby="wait-price">
+    <div class="panel-head"><h2 id="wait-price">Waiting for a lower price</h2>{% if detail.waiting_price.count %}<a class="btn btn-plain btn-sm" href="{% url 'intents:list' %}?show=price&amp;product={{ product.pk }}">View</a>{% endif %}</div>
+    <div class="panel-body">
+      {% if detail.waiting_price.count %}
+      <p class="big-number">{{ detail.waiting_price.customers }} customer{{ detail.waiting_price.customers|pluralize }}</p>
+      <p class="muted">Any price below {{ product.base_price|money:request.shop }} messages them.</p>
+      {% else %}<p class="muted">No one said the price was too high or over their budget.</p>{% endif %}
+    </div>
+  </section>
+</div>
+
+{% if can_manage %}
+<div class="grid-even">
+  <section class="panel" id="receive" aria-labelledby="receive-title">
+    <div class="panel-head"><h2 id="receive-title">Receive stock</h2></div>
+    {% if detail.variations %}
+    <form method="post" class="panel-body form" novalidate>
+      {% csrf_token %}<input type="hidden" name="action" value="receive">
+      <div class="field"><label for="r-variation">{% if detail.option_names %}{{ detail.option_names|join:" / " }}{% else %}Item{% endif %}</label>
+        <select id="r-variation" name="variation">{% for v in detail.variations %}<option value="{{ v.pk }}"{% if v.pk == receive_id %} selected{% endif %}>{{ v.label|default:v.sku }} ({{ v.stock_quantity }} in stock{% if v.waiting %}, {{ v.waiting }} waiting{% endif %})</option>{% endfor %}</select></div>
+      <div class="form-row">
+        <div class="field"><label for="r-qty">Units that arrived</label><input id="r-qty" name="quantity" type="number" inputmode="numeric" min="1" value="1"{% if receive_id %} autofocus{% endif %}></div>
+        <div class="field"><label for="r-ref">Delivery note <span class="faint">(optional)</span></label><input id="r-ref" name="reference" type="text" maxlength="100"></div>
+      </div>
+      <p class="help">Units go to waiting customers first, oldest first, and each one is messaged with the photo.</p>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Receive</button></div>
+    </form>
+    {% else %}<p class="panel-body muted">Add a size or colour first.</p>{% endif %}
+  </section>
+
+  <section class="panel" aria-labelledby="price-title">
+    <div class="panel-head"><h2 id="price-title">Change price</h2></div>
+    <form method="post" class="panel-body form" novalidate>
+      {% csrf_token %}<input type="hidden" name="action" value="price">
+      <div class="field"><label for="p-price">New price</label><input id="p-price" name="price" type="number" inputmode="decimal" min="0" step="1" value="{{ product.base_price|floatformat:'0' }}"></div>
+      <p class="help">{% if detail.waiting_price.count %}Lowering it messages the {{ detail.waiting_price.customers }} customer{{ detail.waiting_price.customers|pluralize }} waiting for a lower price.{% else %}Every change is recorded.{% endif %}</p>
+      <div class="form-actions"><button class="btn" type="submit">Save price</button></div>
+    </form>
+  </section>
+</div>
+
+<section class="panel" aria-labelledby="add-title">
+  <div class="panel-head"><h2 id="add-title">Add a size or colour</h2></div>
+  <form method="post" class="panel-body form" novalidate>
+    {% csrf_token %}<input type="hidden" name="action" value="add">
+    <div class="form-row">
+      {% for name, values in detail.type_options %}
+      <div class="field"><label for="add-{{ forloop.counter }}">{{ name }}</label>
+        <input id="add-{{ forloop.counter }}" name="option{{ forloop.counter }}" type="text" list="add-list-{{ forloop.counter }}" maxlength="50" autocomplete="off">
+        {% if values %}<datalist id="add-list-{{ forloop.counter }}">{% for value in values %}<option value="{{ value }}">{% endfor %}</datalist>{% endif %}</div>
+      {% endfor %}
+      <div class="field"><label for="add-stock">In stock now</label><input id="add-stock" name="stock" type="number" inputmode="numeric" min="0" value="0"></div>
+    </div>
+    <p class="help">The SKU is made for you.</p>
+    <div class="form-actions"><button class="btn" type="submit">Add</button></div>
+  </form>
+</section>
+{% endif %}
+
+<section class="panel" aria-labelledby="photos-title">
+  <div class="panel-head"><h2 id="photos-title">Photos</h2><span class="faint small">Sent with restock messages</span></div>
+  <div class="rows photo-rows">
+    <div>
+      {% if product.image %}<img class="product-thumb sm" src="{{ product.image.url }}" alt="{{ product.name }}" width="48" height="48">{% else %}<span class="product-thumb sm empty-thumb" aria-hidden="true">{% icon "package" "sm" %}</span>{% endif %}
+      <span class="grow"><span class="row-title">Product photo</span><span class="row-sub">Used when there's no photo for the {{ detail.photo_label|lower|default:"option" }}</span></span>
+      {% if can_manage %}<form method="post" enctype="multipart/form-data" class="photo-form">{% csrf_token %}<input type="hidden" name="action" value="photo">
+        <label class="visually-hidden" for="ph-main">Product photo</label><input id="ph-main" type="file" name="image" accept="image/*">
+        <button class="btn btn-sm" type="submit">Upload</button></form>{% endif %}
+    </div>
+    {% for value, photo in detail.photos %}
+    <div>
+      {% if photo %}<img class="product-thumb sm" src="{{ photo.image.url }}" alt="{{ product.name }} in {{ value }}" width="48" height="48">{% else %}<span class="product-thumb sm empty-thumb" aria-hidden="true">{% icon "package" "sm" %}</span>{% endif %}
+      <span class="grow"><span class="row-title">{{ value }}</span><span class="row-sub">{% if photo %}Sent for every {{ detail.photo_label|lower }} {{ value }}{% else %}No photo yet, the product photo is sent{% endif %}</span></span>
+      {% if can_manage %}<form method="post" enctype="multipart/form-data" class="photo-form">{% csrf_token %}<input type="hidden" name="action" value="photo"><input type="hidden" name="value" value="{{ value }}">
+        <label class="visually-hidden" for="ph-{{ forloop.counter }}">Photo for {{ value }}</label><input id="ph-{{ forloop.counter }}" type="file" name="image" accept="image/*">
+        <button class="btn btn-sm" type="submit">Upload</button></form>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

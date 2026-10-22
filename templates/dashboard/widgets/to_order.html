@@ -1,6 +1,6 @@
 {% load ui %}
 <section class="panel" aria-labelledby="to-order">
-  <div class="panel-head"><h2 id="to-order">To order today</h2>{% if is_manager %}<a class="btn btn-plain btn-sm" href="{% url 'reports:index' %}#to-order">Full list</a>{% endif %}</div>
+  <div class="panel-head"><h2 id="to-order">To order today</h2>{% if is_manager %}<a class="btn btn-plain btn-sm" href="{% url 'intents:to_order' %}">Full list</a>{% endif %}</div>
   {% if data.to_order %}
   <div class="rows">
     {% for row in data.to_order %}

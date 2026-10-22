@@ -7,7 +7,7 @@ class ProductForm(ShopFormMixin, forms.ModelForm):
 
     class Meta:
         model = Product
-        fields = ['name', 'product_type', 'category', 'description', 'base_price', 'image']
+        fields = ['name', 'product_type', 'category', 'description', 'base_price', 'supplier', 'image']
         labels = {'base_price': 'Price'}
         widgets = {
             'base_price': forms.NumberInput(attrs={'inputmode': 'decimal', 'step': '1', 'min': '0'}),

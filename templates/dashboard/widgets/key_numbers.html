@@ -1,6 +1,6 @@
 {% load ui %}{% with n=data.key_numbers %}
 <div class="metrics w-wide" role="group" aria-label="Key numbers">
-  <a class="metric" href="{% url 'intents:list' %}?show=waiting"><span class="label">Waiting demand</span>
+  <a class="metric" href="{% url 'intents:list' %}?show=stock"><span class="label">Waiting demand</span>
     <span class="value">{{ n.waiting_money|money:request.shop }}</span>
     <span class="foot">{{ n.waiting_customers }} customer{{ n.waiting_customers|pluralize }}{% if n.due_this_week %} · {{ n.due_this_week }} need it this week{% endif %}</span></a>
   <a class="metric" href="{% url 'notifications:list' %}"><span class="label">In conversation</span>

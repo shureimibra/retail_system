@@ -26,6 +26,7 @@
         <a href="{% url url_name %}"{% if nav_current == key %} aria-current="page"{% endif %}>
           {% icon icon_name %}<span>{{ label }}</span>
           {% if key == 'notifications' and unread_replies %}<span class="count"><span class="badge-count" aria-label="{{ unread_replies }} unread">{{ unread_replies }}</span></span>{% endif %}
+          {% if key == 'to_order' and to_order_count %}<span class="count" aria-label="{{ to_order_count }} to order">{{ to_order_count }}</span>{% endif %}
           {% if key == 'intents' and waiting_count %}<span class="count" aria-label="{{ waiting_count }} waiting">{{ waiting_count }}</span>{% endif %}
         </a>
       {% endfor %}
@@ -69,6 +70,7 @@
 <div class="sheet" id="moreSheet" role="dialog" aria-modal="true" aria-label="More" hidden>
   <div class="handle"></div>
   <nav class="nav">
+    {% if is_manager %}<a href="{% url 'intents:to_order' %}">{% icon "boxes" %}To order{% if to_order_count %}<span class="count">{{ to_order_count }}</span>{% endif %}</a>{% endif %}
     <a href="{% url 'products:list' %}">{% icon "package" %}Products</a>
     <a href="{% url 'customers:list' %}">{% icon "users" %}Customers</a>
     {% if is_manager %}<a href="{% url 'reports:index' %}">{% icon "chart-column" %}Reports</a>{% endif %}
