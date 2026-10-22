@@ -17,8 +17,17 @@
     {% endfor %}
   </div>
   <div class="panel-body divided">
-    <p class="small muted">Channels are connected by whoever runs Retail OS for you. The provider keys live on the server, not here.
-    {% if simulator_enabled %}While testing, see what customers would receive in the <a href="{% url 'notifications:simulator' %}">customer simulator</a>.{% endif %}</p>
+    <p class="small muted">Channels are connected by whoever runs Retail OS for you. The provider keys live on the server, not here.</p>
   </div>
 </div>
+{% if simulator_enabled %}
+<div class="panel">
+  <div class="panel-head"><h2>Test mode</h2><span class="badge badge-notified">Nothing is sent</span></div>
+  <div class="panel-body stack">
+    <p class="muted">Real WhatsApp isn't connected yet, so messages stay on this computer. To check your automatic messages, pretend to be a customer: see exactly what they would receive, and send a reply as they would from their phone.</p>
+    <p class="small faint">This disappears once real WhatsApp is connected. Real customers then reply from their own phones and their replies arrive in Conversations.</p>
+    <div><a class="btn" href="{% url 'notifications:simulator' %}">Open test mode</a></div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

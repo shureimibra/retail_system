@@ -1,26 +1,28 @@
 {% extends "base.html" %}
 {% load ui %}
-{% block title %}Customer simulator{% endblock %}
+{% block title %}Test mode{% endblock %}
 {% block page %}
 <div class="content narrow">
   <div class="page-head">
-    <div><h1>Customer simulator</h1><p>For testing only. Nothing here leaves this computer. Reply as a customer to try replies, STOP and follow-ups.</p></div>
+    <div><a class="back" href="{% url 'settings:messaging' %}">{% icon "chevron-left" "sm" %}Settings · Messaging</a>
+      <h1>Test mode: be the customer</h1>
+      <p>Real WhatsApp isn't connected yet, so nothing here leaves this computer. Below is what customers would receive. To check how the shop handles an answer, send a reply as if you were that customer on their phone.</p></div>
   </div>
 
   <form method="post" class="panel panel-body form">
     {% csrf_token %}
     <div class="form-row">
-      <div class="field"><label for="from">Reply as</label>
+      <div class="field"><label for="from">Pretend to be</label>
         <select id="from" name="from">{% for c in customers %}<option value="{{ c.phone_number }}">{{ c.first_name }} {{ c.last_name }} ({{ c.phone_number }})</option>{% endfor %}</select></div>
       <div class="field"><label for="channel">On</label>
         <select id="channel" name="channel">{% for value, label in channels %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
     </div>
     <div class="field"><label for="body">Message</label><textarea id="body" name="body" rows="2">Yes, can I pay a deposit?</textarea></div>
-    <div class="form-actions"><button type="submit" class="btn btn-primary">Send as customer</button></div>
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Send from their phone</button></div>
   </form>
 
   <div class="panel">
-    <div class="panel-head"><h2>What customers received</h2></div>
+    <div class="panel-head"><h2>What customers would see on their phone</h2></div>
     <div class="rows">
       {% for m in messages_list %}
       <div class="sim-msg {{ m.direction }}">
