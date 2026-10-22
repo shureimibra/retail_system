@@ -397,20 +397,55 @@ dialog .form h2 { font-size: 17px; }
   .period select, .period input[type="date"] { width: 100%; }
 }
 
-/* Collapsible desktop sidebar (tablets always use the icon rail) */
-.sidebar-toggle { display: none; }
+/* Collapsible desktop sidebar: toggle sits at the top beside the shop name (tablets use the drawer) */
+.sidebar-toggle { display: none; place-items: center; width: 36px; height: 36px; flex: none; border: 0; border-radius: var(--r-control);
+  background: none; color: var(--fg-3); cursor: pointer; }
+.sidebar-toggle:hover { background: var(--surface-2); color: var(--fg); }
 @media (min-width: 1024px) {
-  .sidebar-toggle { display: flex; }
-  .sidebar-toggle .icon { transition: transform .2s var(--ease); }
+  .sidebar { position: sticky; }
+  .sidebar-toggle { display: grid; position: absolute; top: 12px; right: 8px; }
+  .sidebar .brand { padding-right: 40px; }
   .shell { transition: grid-template-columns .2s var(--ease); }
   :root[data-sidebar="collapsed"] .shell { grid-template-columns: 76px 1fr; }
   :root[data-sidebar="collapsed"] .sidebar { padding: 12px 8px; }
-  :root[data-sidebar="collapsed"] .sidebar .brand { justify-content: center; padding: 0 0 12px; }
+  :root[data-sidebar="collapsed"] .sidebar .brand { justify-content: center; padding: 0 0 8px; margin-bottom: 0; border-bottom: 0; }
+  :root[data-sidebar="collapsed"] .sidebar-toggle { position: static; margin: 0 auto 8px; }
+  :root[data-sidebar="collapsed"] .sidebar > .nav:not(.bottom) { border-top: 1px solid var(--border); padding-top: 8px; }
   :root[data-sidebar="collapsed"] .sidebar .brand-text,
   :root[data-sidebar="collapsed"] .sidebar .nav-group { display: none; }
   :root[data-sidebar="collapsed"] .sidebar .nav a,
   :root[data-sidebar="collapsed"] .sidebar .nav button.nav-link { flex-direction: column; gap: 3px; padding: 8px 4px; font-size: 11px; text-align: center; justify-content: center; }
   :root[data-sidebar="collapsed"] .sidebar .nav .count { margin: 0; }
-  :root[data-sidebar="collapsed"] .sidebar-toggle .icon { transform: rotate(180deg); }
-  :root[data-sidebar="collapsed"] .sidebar-toggle span { display: none; }
+}
+
+/* Phones and tablets: menu button opens the full sidebar as a drawer */
+.menu-btn, .drawer-close { display: grid; place-items: center; width: 40px; height: 40px; margin-left: -8px; flex: none;
+  border: 0; border-radius: var(--r-control); background: none; color: var(--fg-2); cursor: pointer; }
+.menu-btn:hover, .drawer-close:hover { background: var(--surface-2); color: var(--fg); }
+.drawer-close { display: none; position: absolute; top: 10px; right: 8px; margin: 0; }
+.drawer-scrim { z-index: 44; }
+@media (max-width: 1023px) {
+  :root[data-drawer="open"] { overflow: hidden; }
+  :root[data-drawer="open"] .sidebar { display: flex; flex-direction: column; position: fixed; inset: 0 auto 0 0; z-index: 45;
+    width: min(300px, 86vw); height: 100%; padding: 14px 12px calc(14px + env(safe-area-inset-bottom)); overflow: hidden;
+    background: var(--surface); border-right: 1px solid var(--border); box-shadow: var(--shadow-pop); animation: drawer-in .22s var(--ease); }
+  :root[data-drawer="open"] .sidebar .drawer-close { display: grid; }
+  .page { grid-column: -2; }
+  :root[data-drawer="open"] .sidebar .brand { justify-content: flex-start; padding: 2px 48px 14px 6px; margin-bottom: 8px; border-bottom: 1px solid var(--border); }
+  :root[data-drawer="open"] .sidebar .brand-text, :root[data-drawer="open"] .sidebar .nav-group { display: block; }
+  :root[data-drawer="open"] .sidebar .nav a, :root[data-drawer="open"] .sidebar .nav button.nav-link { flex-direction: row; gap: 10px; padding: 8px 10px; font-size: 14.5px; text-align: left; justify-content: flex-start; }
+  :root[data-drawer="open"] .sidebar .nav .count { margin: 0 0 0 auto; }
+  :root[data-drawer="open"] .sidebar .bottom { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); }
+}
+@media (min-width: 1024px) { .menu-btn { display: none; } }
+@keyframes drawer-in { from { transform: translateX(-24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { :root[data-drawer="open"] .sidebar { animation: none; } }
+
+/* Sidebar on short screens: only the page list scrolls; Settings and Sign out stay pinned */
+@media (min-width: 600px) { .sidebar { overflow: hidden; } }
+.sidebar > .nav:not(.bottom) { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+.sidebar .bottom { flex: none; }
+@media (max-height: 760px) {
+  .sidebar .nav a, .sidebar .nav button.nav-link { min-height: 36px; padding-top: 6px; padding-bottom: 6px; }
+  .sidebar .nav-group { padding-top: 10px; }
 }
