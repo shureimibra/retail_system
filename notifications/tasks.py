@@ -96,8 +96,9 @@ def send_restock_notification_task(intent_id):
         
         # Update intent status if sent successfully
         if status == 'Sent':
-            intent.status = 'Customer Notified'
-            intent.save(update_fields=['status'])
+            from intents.services import transition
+            if intent.status in (BlockedPurchaseIntent.OPEN, BlockedPurchaseIntent.BACK_IN_STOCK):
+                transition(intent, BlockedPurchaseIntent.NOTIFIED, note='Restock message sent')
             return True
         
         return False

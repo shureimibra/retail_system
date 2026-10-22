@@ -16,9 +16,9 @@ class ReportsAPIView(APIView):
                 'customer': f"{intent.customer.first_name} {intent.customer.last_name}",
                 'product': intent.product.name,
                 'variation': f"{intent.variation.size}/{intent.variation.color}" if intent.variation else "N/A",
-                'constraint_type': intent.constraint_type,
+                'constraint_type': intent.get_constraint_type_display(),
                 'estimated_value': float(intent.estimated_value) if intent.estimated_value else 0.00,
-                'status': intent.status,
+                'status': intent.get_status_display(),
                 'created_at': intent.created_at.strftime('%Y-%m-%d %H:%M:%S')
             })
         return Response(data)

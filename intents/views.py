@@ -3,7 +3,7 @@ from core.shops import ShopViewMixin
 from django.urls import reverse_lazy
 from .models import BlockedPurchaseIntent
 from .forms import BlockedPurchaseIntentForm
-from .services import create_blocked_purchase_intent
+from .services import create_blocked_purchase_intent, transition
 from django.http import HttpResponseRedirect
 
 class IntentListView(ShopViewMixin, ListView):
@@ -60,7 +60,12 @@ class IntentUpdateView(ShopViewMixin, UpdateView):
     def form_valid(self, form):
         if not form.instance.estimated_value:
             form.instance.estimated_value = form.instance.product.base_price * form.instance.requested_quantity
-        return super().form_valid(form)
+        new_status = form.cleaned_data.get('status', self.object.status)
+        form.instance.status = BlockedPurchaseIntent.objects.get(pk=self.object.pk).status
+        response = super().form_valid(form)
+        if new_status != self.object.status:
+            transition(self.object, new_status, actor=self.request.user, note='Changed on the edit page')
+        return response
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

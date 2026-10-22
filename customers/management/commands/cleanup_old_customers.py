@@ -11,9 +11,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         one_year_ago = timezone.now() - timedelta(days=365)
         
-        # Find customers who currently have active (Pending or Monitoring) intents
+        # Find customers who still have a missed sale in progress
         active_customer_ids = BlockedPurchaseIntent.objects.filter(
-            status__in=['Pending', 'Monitoring']
+        ).exclude(
+            status__in=BlockedPurchaseIntent.CLOSED_STATUSES
         ).values_list('customer_id', flat=True).distinct()
         
         # Query customers who do not have any active intents

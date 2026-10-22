@@ -23,13 +23,13 @@ class CustomerCleanupTests(TestCase):
         self.new_cust_no_intents = Customer.objects.create(first_name='New', last_name='NoIntents', phone_number='+254700000002')
 
         # 3. Old customer with old resolved intents (should be deleted)
-        self.old_cust_resolved = Customer.objects.create(first_name='Old', last_name='Resolved', phone_number='+254700000003')
+        self.old_cust_resolved = Customer.objects.create(first_name='Old', last_name='back_in_stock', phone_number='+254700000003')
         Customer.objects.filter(id=self.old_cust_resolved.id).update(created_at=timezone.now() - timedelta(days=370))
         self.old_cust_resolved.refresh_from_db()
         
         self.intent1 = BlockedPurchaseIntent.objects.create(
             customer=self.old_cust_resolved, product=self.product,
-            constraint_type='Out of stock', status='Resolved',
+            constraint_type='out_of_stock', status='declined',
             requested_quantity=1, estimated_value=50.00, recorded_by=self.user
         )
         BlockedPurchaseIntent.objects.filter(id=self.intent1.id).update(
@@ -44,7 +44,7 @@ class CustomerCleanupTests(TestCase):
         
         self.intent2 = BlockedPurchaseIntent.objects.create(
             customer=self.old_cust_active, product=self.product,
-            constraint_type='Out of stock', status='Pending',
+            constraint_type='out_of_stock', status='open',
             requested_quantity=1, estimated_value=50.00, recorded_by=self.user
         )
         BlockedPurchaseIntent.objects.filter(id=self.intent2.id).update(
@@ -59,7 +59,7 @@ class CustomerCleanupTests(TestCase):
         
         self.intent3 = BlockedPurchaseIntent.objects.create(
             customer=self.old_cust_recent_resolved, product=self.product,
-            constraint_type='Out of stock', status='Resolved',
+            constraint_type='out_of_stock', status='declined',
             requested_quantity=1, estimated_value=50.00, recorded_by=self.user
         )
         BlockedPurchaseIntent.objects.filter(id=self.intent3.id).update(

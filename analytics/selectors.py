@@ -27,16 +27,16 @@ def get_dashboard_kpis(shop, start_date=None, end_date=None, status=None):
     total_products = Product.objects.filter(shop=shop).count()
     total_customers = Customer.objects.filter(shop=shop).count()
     total_intents = base_qs.count()
-    active_intents = base_qs.filter(status__in=['Pending', 'Monitoring']).count()
-    recovered_intents = base_qs.filter(status__in=['Resolved', 'Customer Notified', 'Recovered']).count()
+    active_intents = base_qs.filter(status__in=BlockedPurchaseIntent.WAITING_STATUSES).count()
+    recovered_intents = base_qs.filter(status=BlockedPurchaseIntent.RECOVERED).count()
     
-    # Lost revenue is estimated value of intents that are Pending, Monitoring or Closed (unrecovered)
-    lost_revenue = base_qs.exclude(status__in=['Resolved', 'Customer Notified', 'Recovered']).aggregate(
+    # Value of every missed sale that hasn't been paid for (still waiting, or lost)
+    lost_revenue = base_qs.exclude(status=BlockedPurchaseIntent.RECOVERED).aggregate(
         total=Sum('estimated_value')
     )['total'] or 0.00
     
-    # Recovered revenue is estimated value of recovered intents
-    recovered_revenue = base_qs.filter(status__in=['Resolved', 'Customer Notified', 'Recovered']).aggregate(
+    # Recovered revenue counts only sales that were paid in full
+    recovered_revenue = base_qs.filter(status=BlockedPurchaseIntent.RECOVERED).aggregate(
         total=Sum('estimated_value')
     )['total'] or 0.00
     
@@ -52,9 +52,9 @@ def get_dashboard_kpis(shop, start_date=None, end_date=None, status=None):
 
 def get_constraint_distribution(shop, start_date=None, end_date=None, status=None):
     base_qs = _filter_intents(shop, start_date, end_date, status)
-    return list(base_qs.values('constraint_type')
-                .annotate(count=Count('id'))
-                .order_by('-count'))
+    labels = dict(BlockedPurchaseIntent.CONSTRAINT_CHOICES)
+    rows = base_qs.values('constraint_type').annotate(count=Count('id')).order_by('-count')
+    return [{'constraint_type': labels.get(r['constraint_type'], r['constraint_type']), 'count': r['count']} for r in rows]
 
 def get_top_blocked_products(shop, limit=5, start_date=None, end_date=None, status=None):
     base_qs = _filter_intents(shop, start_date, end_date, status)
@@ -68,7 +68,7 @@ def get_monthly_intent_trends(shop, start_date=None, end_date=None, status=None)
     trends = (base_qs
               .annotate(month=TruncMonth('created_at'))
               .values('month')
-              .annotate(count=Count('id'), recovered=Count('id', filter=Q(status__in=['Resolved', 'Customer Notified', 'Recovered'])))
+              .annotate(count=Count('id'), recovered=Count('id', filter=Q(status=BlockedPurchaseIntent.RECOVERED)))
               .order_by('month'))
     
     result = []
@@ -84,12 +84,12 @@ def get_monthly_intent_trends(shop, start_date=None, end_date=None, status=None)
 def get_restock_recommendations(shop, threshold=4, start_date=None, end_date=None, status=None):
     """
     If a product variation (or product) appears more than `threshold` times
-    in blocked purchase intents with status Pending/Monitoring, recommend restocking.
+    in missed sales that are still waiting for stock, recommend restocking.
     """
     base_qs = _filter_intents(shop, start_date, end_date, status)
     # Group by product variation
     variations = (base_qs
-                  .filter(status__in=['Pending', 'Monitoring'])
+                  .filter(status__in=BlockedPurchaseIntent.WAITING_STATUSES)
                   .values('variation_id', 'product__name', 'variation__option1', 'variation__option2')
                   .annotate(blocked_count=Count('id'))
                   .filter(blocked_count__gte=threshold)

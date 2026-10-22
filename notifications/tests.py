@@ -32,7 +32,7 @@ class RestockNotificationTaskTestCase(TestCase):
             customer=self.customer,
             product=self.product,
             variation=self.variation,
-            status="Pending"
+            status='open'
         )
 
     @override_settings(
@@ -55,7 +55,7 @@ class RestockNotificationTaskTestCase(TestCase):
         
         # Verify status update
         self.intent.refresh_from_db()
-        self.assertEqual(self.intent.status, 'Customer Notified')
+        self.assertEqual(self.intent.status, 'notified')
 
     @override_settings(
         TWILIO_ACCOUNT_SID='ACtesting',

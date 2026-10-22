@@ -5,7 +5,7 @@ from django.shortcuts import redirect
 from rest_framework.routers import DefaultRouter
 from products.api_views import CategoryViewSet, ProductTypeViewSet, ProductViewSet, ProductVariationViewSet
 from customers.api_views import CustomerViewSet
-from intents.api_views import BlockedPurchaseIntentViewSet
+from intents.api_views import BlockedPurchaseIntentViewSet, record_bought_visit
 from analytics.api_views import DashboardStatsAPIView, AnalyticsAPIView
 from reports.api_views import ReportsAPIView
 from core.api_views import health_check
@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/dashboard/', DashboardStatsAPIView.as_view(), name='api-dashboard'),
     path('api/analytics/', AnalyticsAPIView.as_view(), name='api-analytics'),
     path('api/reports/', ReportsAPIView.as_view(), name='api-reports'),
+    path('api/visits/bought/', record_bought_visit, name='api-visit-bought'),
     path('api/', include(router.urls)),
     
     path('', lambda req: redirect('dashboard:home')),

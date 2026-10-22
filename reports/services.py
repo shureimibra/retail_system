@@ -17,10 +17,10 @@ def generate_csv_report(response, intents):
             intent.customer.phone_number,
             intent.product.name,
             variation_str,
-            intent.constraint_type,
+            intent.get_constraint_type_display(),
             intent.requested_quantity,
             intent.estimated_value,
-            intent.status,
+            intent.get_status_display(),
             recorded_by_str,
             intent.created_at.strftime('%Y-%m-%d %H:%M:%S')
         ])
@@ -55,9 +55,9 @@ def generate_pdf_report(response, intents):
             str(intent.id),
             cust_name,
             prod_name,
-            intent.constraint_type,
+            intent.get_constraint_type_display(),
             f"${intent.estimated_value:.2f}" if intent.estimated_value else "$0.00",
-            intent.status,
+            intent.get_status_display(),
             intent.created_at.strftime('%Y-%m-%d')
         ])
         

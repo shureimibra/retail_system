@@ -60,7 +60,7 @@ class ShopIsolationTests(TestCase):
     def test_cannot_record_a_missed_sale_with_another_shops_product(self):
         response = self.client.post('/api/intents/', {
             'customer': self.customer_a.id, 'product': self.product_b.id,
-            'constraint_type': 'Out of stock', 'requested_quantity': 1,
+            'constraint_type': 'out_of_stock', 'requested_quantity': 1,
         }, content_type='application/json')
         self.assertEqual(response.status_code, 400)
         self.assertFalse(BlockedPurchaseIntent.objects.exists())
@@ -82,7 +82,7 @@ class CashierRoleTests(TestCase):
     def test_cashier_records_missed_sales_and_customers(self):
         response = self.client.post('/api/intents/', {
             'customer': self.customer.id, 'product': self.product.id, 'variation': self.variation.id,
-            'constraint_type': 'Size unavailable', 'requested_quantity': 1,
+            'constraint_type': 'size_missing', 'requested_quantity': 1,
         }, content_type='application/json')
         self.assertEqual(response.status_code, 201)
         response = self.client.post('/api/customers/', {'first_name': 'A', 'last_name': 'B', 'phone_number': '0733 000 222'}, content_type='application/json')
