@@ -197,3 +197,6 @@ REST_FRAMEWORK = {
 # Tests: a fast password hasher (never used outside the test runner).
 if 'test' in sys.argv:
     PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
+
+# Region used to read local phone numbers (0712 345 678 -> +254712345678).
+DEFAULT_PHONE_REGION = os.environ.get('DEFAULT_PHONE_REGION', 'KE')

@@ -114,7 +114,7 @@ class RPCMSTestCase(TestCase):
         self.assertEqual(recommendations[0]['blocked_count'], 4)
 
     def test_notification_failed_status_invalid_phone(self):
-        invalid_cust = Customer.objects.create(first_name='John', last_name='Doe', phone_number='0711222333')
+        invalid_cust = Customer.objects.create(first_name='John', last_name='Doe', phone_number='12345')
         intent = self._intent(customer=invalid_cust)
         with self.captureOnCommitCallbacks(execute=True):
             set_stock(self.variation.id, 5)

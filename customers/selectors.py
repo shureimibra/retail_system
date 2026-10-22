@@ -1,3 +1,4 @@
+from core.phones import normalize_phone
 from .models import Customer
 
 def get_all_customers():
@@ -5,6 +6,6 @@ def get_all_customers():
 
 def get_customer_by_phone(phone_number):
     try:
-        return Customer.objects.get(phone_number=phone_number)
+        return Customer.objects.get(phone_number=normalize_phone(phone_number) or phone_number)
     except Customer.DoesNotExist:
         return None

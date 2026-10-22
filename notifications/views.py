@@ -7,6 +7,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 
 from .models import NotificationLog, InboundSMSLog
 from customers.models import Customer
+from core.phones import normalize_phone
 
 class NotificationListView(LoginRequiredMixin, ListView):
     model = NotificationLog
@@ -29,12 +30,9 @@ def twilio_webhook(request):
 
     # Try to resolve Customer
     customer = None
-    if from_number:
-        clean_from = from_number.replace('whatsapp:', '') if 'whatsapp:' in from_number else from_number
-        customer = Customer.objects.filter(phone_number=clean_from).first()
-        if not customer:
-            alt_number = clean_from.replace('+', '')
-            customer = Customer.objects.filter(phone_number__icontains=alt_number).first()
+    normalized_from = normalize_phone(from_number)
+    if normalized_from:
+        customer = Customer.objects.filter(phone_number=normalized_from).first()
 
     # Log incoming message
     InboundSMSLog.objects.create(

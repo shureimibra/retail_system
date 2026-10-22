@@ -1,5 +1,6 @@
 from django import forms
-from .models import Customer
+from core.phones import normalize_phone
+from .models import Customer, INVALID_PHONE_MESSAGE
 
 class CustomerForm(forms.ModelForm):
     class Meta:
@@ -11,3 +12,9 @@ class CustomerForm(forms.ModelForm):
             'phone_number': forms.TextInput(attrs={'class': 'w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-darkborder bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary'}),
             'email': forms.EmailInput(attrs={'class': 'w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-darkborder bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary'}),
         }
+
+    def clean_phone_number(self):
+        normalized = normalize_phone(self.cleaned_data.get('phone_number'))
+        if not normalized:
+            raise forms.ValidationError(INVALID_PHONE_MESSAGE)
+        return normalized

@@ -74,3 +74,43 @@ class CustomerCleanupTests(TestCase):
         self.assertTrue(Customer.objects.filter(id=self.new_cust_no_intents.id).exists())
         self.assertTrue(Customer.objects.filter(id=self.old_cust_active.id).exists())
         self.assertTrue(Customer.objects.filter(id=self.old_cust_recent_resolved.id).exists())
+
+
+class PhoneNumberTests(TestCase):
+    def test_local_formats_are_saved_as_one_international_number(self):
+        for raw in ('0712 345 678', '+254 712 345 678', '254712345678', '0712-345-678'):
+            customer = Customer(first_name='A', last_name='B', phone_number=raw)
+            customer.save()
+            self.assertEqual(customer.phone_number, '+254712345678', raw)
+            customer.delete()
+
+    def test_form_rejects_unreadable_number(self):
+        from customers.forms import CustomerForm
+        form = CustomerForm(data={'first_name': 'A', 'last_name': 'B', 'phone_number': '12345'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('phone_number', form.errors)
+
+    def test_form_rejects_same_number_in_another_format(self):
+        from customers.forms import CustomerForm
+        Customer.objects.create(first_name='A', last_name='B', phone_number='+254712345678')
+        form = CustomerForm(data={'first_name': 'C', 'last_name': 'D', 'phone_number': '0712 345 678'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('phone_number', form.errors)
+
+    def test_api_normalizes_and_rejects_duplicates(self):
+        User.objects.create_superuser('ops', password='pw12345!')
+        self.client.login(username='ops', password='pw12345!')
+        r = self.client.post('/api/customers/', {'first_name': 'A', 'last_name': 'B', 'phone_number': '0712 345 678'}, content_type='application/json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data['phone_number'], '+254712345678')
+        r = self.client.post('/api/customers/', {'first_name': 'C', 'last_name': 'D', 'phone_number': '254712345678'}, content_type='application/json')
+        self.assertEqual(r.status_code, 400)
+
+    def test_reply_matches_customer_exactly_not_by_partial_number(self):
+        from notifications.models import InboundSMSLog
+        jane = Customer.objects.create(first_name='Jane', last_name='S', phone_number='+254712345678')
+        Customer.objects.create(first_name='Other', last_name='X', phone_number='+254712345679')
+        self.client.post('/notifications/webhook/', {'From': 'whatsapp:0712345678', 'To': '+1', 'Body': 'Yes'})
+        self.client.post('/notifications/webhook/', {'From': '+2547123456', 'To': '+1', 'Body': 'partial'})
+        self.assertEqual(InboundSMSLog.objects.get(body='Yes').customer, jane)
+        self.assertIsNone(InboundSMSLog.objects.get(body='partial').customer)
