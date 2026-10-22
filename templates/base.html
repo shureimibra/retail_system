@@ -13,7 +13,8 @@
 <body>
 {% include "ui/icon_sprite.svg" %}
 <div class="shell">
-  <aside class="sidebar" aria-label="Main">
+  <aside class="sidebar" id="sidebar" aria-label="Main">
+    <button class="drawer-close" type="button" id="drawerClose" aria-label="Close menu">{% icon "x" %}</button>
     <a class="brand" href="{% url 'dashboard:home' %}">
       <span class="brand-mark">{{ request.shop.name|default:"R"|first|upper }}</span>
       <span class="brand-text"><b>{{ request.shop.name }}</b><small>Retail OS</small></span>
@@ -38,6 +39,7 @@
 
   <div class="page">
     <header class="topbar">
+      <button class="menu-btn" type="button" id="menuBtn" aria-controls="sidebar" aria-expanded="false" aria-label="Open menu">{% icon "menu" %}</button>
       <a class="brand topbar-brand" href="{% url 'dashboard:home' %}">
         <span class="brand-mark">{{ request.shop.name|default:"R"|first|upper }}</span>
         <span class="shop-name">{{ request.shop.name }}</span>
@@ -61,6 +63,7 @@
   <button type="button" id="moreBtn" aria-haspopup="dialog" aria-expanded="false">{% icon "ellipsis" %}More</button>
 </nav>
 
+<div class="sheet-scrim drawer-scrim" id="drawerScrim" hidden></div>
 <div class="sheet-scrim" id="moreScrim" hidden></div>
 <div class="sheet" id="moreSheet" role="dialog" aria-modal="true" aria-label="More" hidden>
   <div class="handle"></div>
@@ -98,6 +101,20 @@
   btn.addEventListener('click', function () { setOpen(sheet.hidden); });
   scrim.addEventListener('click', function () { setOpen(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !sheet.hidden) setOpen(false); });
+
+  // Phones and tablets: the menu button opens the full sidebar as a drawer.
+  var menuBtn = document.getElementById('menuBtn'), drawerScrim = document.getElementById('drawerScrim'), drawerClose = document.getElementById('drawerClose');
+  function setDrawer(open) {
+    if (open) { document.documentElement.dataset.drawer = 'open'; } else { delete document.documentElement.dataset.drawer; }
+    drawerScrim.hidden = !open;
+    menuBtn.setAttribute('aria-expanded', String(open));
+    if (open) { drawerClose.focus(); } else { menuBtn.focus(); }
+  }
+  menuBtn.addEventListener('click', function () { setDrawer(true); });
+  drawerClose.addEventListener('click', function () { setDrawer(false); });
+  drawerScrim.addEventListener('click', function () { setDrawer(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !drawerScrim.hidden) setDrawer(false); });
+  window.matchMedia('(min-width: 1024px)').addEventListener('change', function (e) { if (e.matches && !drawerScrim.hidden) setDrawer(false); });
 
   // Desktop sidebar: fold to icons and back; remembered on this device.
   var toggle = document.getElementById('sidebarToggle'), root = document.documentElement;
