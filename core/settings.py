@@ -208,3 +208,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # How long a unit is put aside for a waiting customer after it arrives (days).
 STOCK_HOLD_DAYS = int(os.environ.get('STOCK_HOLD_DAYS', '8'))
+
+# Default days a reserved item waits for pickup.
+RESERVE_PICKUP_DAYS = int(os.environ.get('RESERVE_PICKUP_DAYS', '5'))

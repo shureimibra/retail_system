@@ -19,6 +19,9 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         
         # Pass filters back to pre-fill form
         context['status_filter'] = status or ''
+        from intents.models import BlockedPurchaseIntent
+        context['status_choices'] = BlockedPurchaseIntent.STATUS_CHOICES
+        context['reason_choices'] = BlockedPurchaseIntent.CONSTRAINT_CHOICES
         context['start_date_filter'] = start_date or ''
         context['end_date_filter'] = end_date or ''
         

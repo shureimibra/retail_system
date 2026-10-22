@@ -27,7 +27,7 @@ class RPCMSTestCase(TestCase):
         self.variation = ProductVariation.objects.create(product=self.product, option1='128GB', option2='Black', stock_quantity=0, sku='IPH15-128-BLK')
         self.customer = Customer.objects.create(first_name='Alex', last_name='Smith', phone_number='+254711222333')
 
-    def _intent(self, customer=None, constraint_type='Out of stock', **kwargs):
+    def _intent(self, customer=None, constraint_type='out_of_stock', **kwargs):
         return create_blocked_purchase_intent(
             customer=customer or self.customer,
             product=self.product,
@@ -42,7 +42,7 @@ class RPCMSTestCase(TestCase):
         self.assertEqual(intent.customer, self.customer)
         self.assertEqual(intent.requested_quantity, 2)
         self.assertEqual(float(intent.estimated_value), 2000.00)
-        self.assertEqual(intent.status, 'Pending')
+        self.assertEqual(intent.status, 'open')
 
     def test_get_or_create_customer_reuses_phone_and_updates_details(self):
         shop = self.product.shop
@@ -61,7 +61,7 @@ class RPCMSTestCase(TestCase):
         self.assertEqual(notifications.count(), 1)
         self.assertEqual(notifications.first().status, 'Sent')
         intent.refresh_from_db()
-        self.assertEqual(intent.status, 'Customer Notified')
+        self.assertEqual(intent.status, 'notified')
 
     def test_saving_a_variation_alone_sends_nothing(self):
         self._intent()
@@ -78,14 +78,14 @@ class RPCMSTestCase(TestCase):
         self.assertEqual(NotificationLog.objects.count(), 0)
 
     def test_restock_does_not_resolve_price_or_budget_reasons(self):
-        price = self._intent(constraint_type='Price too high')
-        budget = self._intent(constraint_type='Budget mismatch')
+        price = self._intent(constraint_type='price_too_high')
+        budget = self._intent(constraint_type='over_budget')
         with self.captureOnCommitCallbacks(execute=True):
             set_stock(self.variation.id, 5)
         price.refresh_from_db()
         budget.refresh_from_db()
-        self.assertEqual(price.status, 'Pending')
-        self.assertEqual(budget.status, 'Pending')
+        self.assertEqual(price.status, 'open')
+        self.assertEqual(budget.status, 'open')
         self.assertEqual(NotificationLog.objects.count(), 0)
 
     def test_restock_resolves_product_level_intents(self):
@@ -93,7 +93,7 @@ class RPCMSTestCase(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             set_stock(self.variation.id, 3)
         intent.refresh_from_db()
-        self.assertEqual(intent.status, 'Customer Notified')
+        self.assertEqual(intent.status, 'notified')
 
     def test_duplicate_notification_prevention(self):
         intent = self._intent()
@@ -123,7 +123,7 @@ class RPCMSTestCase(TestCase):
         self.assertEqual(logs.count(), 1)
         self.assertEqual(logs.first().status, 'Failed')
         intent.refresh_from_db()
-        self.assertEqual(intent.status, 'Resolved')
+        self.assertEqual(intent.status, 'back_in_stock')
 
 
 class RecordMissedSaleFlowTests(TestCase):
@@ -146,40 +146,40 @@ class RecordMissedSaleFlowTests(TestCase):
         self.assertEqual(self.client.get(reverse('intents:create')).status_code, 200)
         response = self.client.post(reverse('intents:create'), {
             'customer': self.customer.id, 'product': self.shoe.id, 'variation': self.variation.id,
-            'constraint_type': 'Size unavailable', 'requested_quantity': 1, 'estimated_value': '',
+            'constraint_type': 'size_missing', 'requested_quantity': 1, 'estimated_value': '',
             'notes': 'Wanted 42 in black',
         })
         self.assertRedirects(response, reverse('intents:list'))
         intent = BlockedPurchaseIntent.objects.get()
         self.assertEqual((intent.variation.size, intent.variation.color), ('42', 'Black'))
-        self.assertEqual(intent.constraint_type, 'Size unavailable')
+        self.assertEqual(intent.constraint_type, 'size_missing')
         self.assertEqual(intent.customer.phone_number, '+254712345678')
         self.assertEqual(float(intent.estimated_value), 12500.00)
-        self.assertEqual(intent.status, 'Pending')
+        self.assertEqual(intent.status, 'open')
         self.assertEqual(intent.recorded_by, self.owner)
         self.assertContains(self.client.get(reverse('intents:list')), 'Nike Air Zoom')
 
     def test_create_form_cannot_set_status_by_hand(self):
         self.client.post(reverse('intents:create'), {
             'customer': self.customer.id, 'product': self.shoe.id, 'variation': self.variation.id,
-            'constraint_type': 'Size unavailable', 'requested_quantity': 1, 'status': 'Recovered',
+            'constraint_type': 'size_missing', 'requested_quantity': 1, 'status': 'Recovered',
         })
-        self.assertEqual(BlockedPurchaseIntent.objects.get().status, 'Pending')
+        self.assertEqual(BlockedPurchaseIntent.objects.get().status, 'open')
 
     def test_owner_records_missed_sale_from_the_quick_record_api(self):
         response = self.client.post('/api/intents/', {
             'customer': self.customer.id, 'product': self.shoe.id, 'variation': self.variation.id,
-            'constraint_type': 'Color unavailable', 'requested_quantity': 1,
+            'constraint_type': 'colour_missing', 'requested_quantity': 1,
         }, content_type='application/json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         intent = BlockedPurchaseIntent.objects.get()
         self.assertEqual(response.data['id'], intent.id)
-        self.assertEqual(response.data['status'], 'Pending')
+        self.assertEqual(response.data['status'], 'open')
 
     def test_quick_restock_api_notifies_waiting_customer(self):
         self.client.post('/api/intents/', {
             'customer': self.customer.id, 'product': self.shoe.id, 'variation': self.variation.id,
-            'constraint_type': 'Size unavailable', 'requested_quantity': 1,
+            'constraint_type': 'size_missing', 'requested_quantity': 1,
         }, content_type='application/json')
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.patch(f'/api/variations/{self.variation.id}/', {'stock_quantity': 10}, content_type='application/json')

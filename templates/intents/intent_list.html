@@ -48,7 +48,7 @@
                     </td>
                     <td class="px-6 py-4">
                         <span class="bg-bgtertiary border border-bordercolor text-textsecondary text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                            {{ intent.constraint_type }}
+                            {{ intent.get_constraint_type_display }}
                         </span>
                     </td>
                     <td class="px-6 py-4 font-bold text-textprimary">
@@ -56,12 +56,11 @@
                     </td>
                     <td class="px-6 py-4">
                         <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide uppercase
-                            {% if intent.status == 'Pending' %}bg-warning/15 text-warning
-                            {% elif intent.status == 'Monitoring' %}bg-primary/15 text-primary
-                            {% elif intent.status == 'Customer Notified' %}bg-secondaryaccent/15 text-secondaryaccent
-                            {% elif intent.status == 'Recovered' %}bg-success/15 text-success
-                            {% else %}bg-textmuted/15 text-textmuted{% endif %}">
-                            {{ intent.status }}
+                            {% if intent.status == 'open' or intent.status == 'on_order' %}bg-warning/15 text-warning
+                            {% elif intent.status == 'recovered' %}bg-success/15 text-success
+                            {% elif intent.status == 'declined' or intent.status == 'expired' %}bg-textmuted/15 text-textmuted
+                            {% else %}bg-primary/15 text-primary{% endif %}">
+                            {{ intent.get_status_display }}
                         </span>
                     </td>
                     <td class="px-6 py-4 text-right">

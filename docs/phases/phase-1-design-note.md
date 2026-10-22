@@ -81,7 +81,7 @@ This is the small step that makes many shops (Track 2) possible later without a 
 | Closed | `declined` (reason "closed before upgrade") |
 | — | `on_order`, `in_conversation`, `reserved`, `expired` (new) |
 
-**Reasons** become a per-shop `Reason` model, editable in Settings. Each reason has a **trigger**: `restock` (size missing, colour missing, out of stock), `price_drop` (price too high, over budget) or `manual` (something else). Old values map one to one.
+**Reasons** stay a fixed list in code, kept simple at the owner's request: size missing, colour missing, out of stock, price too high, over budget, something else. Each one says what fixes it: a restock (the first three), a price drop (price too high, over budget), or staff (something else). Old values map one to one. Making reasons editable per shop is possible later if it's actually needed.
 
 **Transitions.** One function, `intents.services.transition(intent, to, actor, **data)`, with an explicit allowed-moves table that matches the spec's lifecycle diagram. Any other move raises an error. Every move writes an `IntentEvent` (who, when, what, details), which powers the timeline and the audit trail. Nothing else sets `status`.
 

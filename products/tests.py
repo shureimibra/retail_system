@@ -28,7 +28,7 @@ class CatalogTestCase(TestCase):
     def customer(self, n):
         return Customer.objects.create(shop=self.shop, first_name=f'C{n}', last_name='X', phone_number=f'+25471200000{n}')
 
-    def waiting(self, n, constraint_type='Size unavailable', variation='default'):
+    def waiting(self, n, constraint_type='size_missing', variation='default'):
         return create_blocked_purchase_intent(self.customer(n), self.product,
                                               self.variation if variation == 'default' else variation,
                                               constraint_type, recorded_by=self.owner)
@@ -68,7 +68,7 @@ class ReceiveStockTests(CatalogTestCase):
             receive_stock(self.variation.id, 2)
         for intent in (first, second, third):
             intent.refresh_from_db()
-        self.assertEqual([first.status, second.status, third.status], ['Customer Notified', 'Customer Notified', 'Pending'])
+        self.assertEqual([first.status, second.status, third.status], ['notified', 'notified', 'open'])
         self.assertEqual(StockHold.objects.filter(status=StockHold.ACTIVE).count(), 2)
         self.variation.refresh_from_db()
         self.assertEqual((self.variation.stock_quantity, self.variation.available_quantity), (2, 0))
@@ -77,7 +77,7 @@ class ReceiveStockTests(CatalogTestCase):
         with self.captureOnCommitCallbacks(execute=True):
             receive_stock(self.variation.id, 1)
         third.refresh_from_db()
-        self.assertEqual(third.status, 'Customer Notified')
+        self.assertEqual(third.status, 'notified')
         self.assertEqual(NotificationLog.objects.count(), 3)
 
     def test_held_customers_are_not_served_twice(self):
@@ -90,11 +90,11 @@ class ReceiveStockTests(CatalogTestCase):
         self.assertEqual((self.variation.stock_quantity, self.variation.available_quantity), (4, 3))
 
     def test_product_level_request_is_served(self):
-        intent = self.waiting(1, constraint_type='Out of stock', variation=None)
+        intent = self.waiting(1, constraint_type='out_of_stock', variation=None)
         with self.captureOnCommitCallbacks(execute=True):
             receive_stock(self.variation.id, 1)
         intent.refresh_from_db()
-        self.assertEqual(intent.status, 'Customer Notified')
+        self.assertEqual(intent.status, 'notified')
         self.assertEqual(intent.holds.get().variation, self.variation)
 
     def test_stock_count_down_serves_nobody(self):

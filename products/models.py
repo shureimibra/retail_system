@@ -166,9 +166,11 @@ class PriceChange(models.Model):
 class StockMovement(models.Model):
     RECEIVED = 'received'
     ADJUSTED = 'adjusted'
+    SOLD = 'sold'
     KIND_CHOICES = [
         (RECEIVED, 'Received'),
         (ADJUSTED, 'Adjusted'),
+        (SOLD, 'Sold to a waiting customer'),
     ]
 
     variation = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, related_name='stock_movements')
