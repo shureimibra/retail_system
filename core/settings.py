@@ -258,3 +258,14 @@ if 'test' in sys.argv:
     SIMULATOR_ENABLED = True
     WHATSAPP_APP_SECRET = WHATSAPP_VERIFY_TOKEN = ''
     AFRICASTALKING_WEBHOOK_TOKEN = ''
+
+# Follow-ups after a restock or price-drop message with no reply: days after the
+# first message. The request expires this many days after the last one.
+FOLLOW_UP_DAYS = [int(d) for d in os.environ.get('FOLLOW_UP_DAYS', '2,4,7').split(',')]
+EXPIRE_DAYS_AFTER_LAST_FOLLOW_UP = int(os.environ.get('EXPIRE_DAYS_AFTER_LAST_FOLLOW_UP', '1'))
+
+# Periodic work (follow-ups, expiry, message retries). In development without
+# Redis, run: python manage.py process_due
+CELERY_BEAT_SCHEDULE = {
+    'process-due-work': {'task': 'intents.tasks.process_due_task', 'schedule': 15 * 60},
+}

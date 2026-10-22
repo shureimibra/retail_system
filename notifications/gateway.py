@@ -16,7 +16,7 @@ from .providers import provider_for
 
 CHANNEL_ORDER = [Message.WHATSAPP, Message.SMS, Message.EMAIL]
 # Messages that should only ever reach a customer once per request.
-ONCE_PER_REQUEST = {'restock_alert', 'deposit_receipt'}
+ONCE_PER_REQUEST = {'restock_alert', 'price_drop', 'deposit_receipt', 'reminder_1', 'reminder_2', 'reminder_3'}
 WHATSAPP_WINDOW = timedelta(hours=24)
 
 
@@ -59,7 +59,7 @@ def queue_message(intent, template_key, channel=None):
         shop_id=intent.shop_id, conversation=conversation_for(customer), intent=intent,
         direction=Message.OUTBOUND, channel=channel, to_address=address_for(customer, channel),
         body=compose(template_key, intent), template_key=template_key,
-        media_url=_photo_url(intent) if template_key == 'restock_alert' else '',
+        media_url=_photo_url(intent) if template_key in ('restock_alert', 'price_drop') else '',
     )
     return _queue(message)
 
@@ -147,6 +147,8 @@ def _after_success(message):
     intent.refresh_from_db()
     if message.template_key == 'restock_alert' and intent.status in (Intent.OPEN, Intent.BACK_IN_STOCK):
         transition(intent, Intent.NOTIFIED, note=f'Restock message sent by {message.get_channel_display()}')
+    elif message.template_key == 'price_drop' and intent.status in Intent.WAITING_STATUSES:
+        transition(intent, Intent.NOTIFIED, note=f'Price-drop message sent by {message.get_channel_display()}')
     else:
         log_event(intent, 'message_sent', note=f'{message.get_channel_display()}: {message.body[:120]}')
 

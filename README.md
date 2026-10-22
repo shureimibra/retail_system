@@ -43,6 +43,8 @@ To use real channels for free, set these in `.env`:
 | SMS | Africa's Talking sandbox (username `sandbox`) | `SMS_PROVIDER=africastalking`, `AFRICASTALKING_API_KEY`, `AFRICASTALKING_WEBHOOK_TOKEN`. Callback URL: `/notifications/webhooks/africastalking/<token>/` |
 | Email | Mailpit locally (`docker run -p 8025:8025 -p 1025:1025 axllent/mailpit`) | `EMAIL_PROVIDER=email`, `EMAIL_HOST=localhost`, `EMAIL_PORT=1025` |
 
+Follow-ups (days 2, 4 and 7), expiry and message retries run every 15 minutes through Celery beat. Without Redis, run them by hand with `python manage.py process_due`.
+
 Webhooks need a public address. For local testing, run a free tunnel (for example `cloudflared tunnel --url http://localhost:8000`) and set `SITE_URL` to it, so photo links in WhatsApp messages work too.
 
 ## Tests
