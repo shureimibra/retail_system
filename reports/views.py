@@ -1,4 +1,5 @@
 from django.views import View
+from django.views.generic import TemplateView
 from django.http import HttpResponse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .selectors import get_report_data
@@ -32,3 +33,20 @@ class ExportPDFReportView(LoginRequiredMixin, View):
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
         return generate_pdf_report(response, intents)
+
+
+class ReportsIndexView(LoginRequiredMixin, TemplateView):
+    """Choose a period and download the missed-sales report."""
+    template_name = 'reports/index.html'
+
+    def get_context_data(self, **kwargs):
+        from urllib.parse import urlencode
+        from intents.models import BlockedPurchaseIntent
+        context = super().get_context_data(**kwargs)
+        filters = {key: self.request.GET.get(key, '') for key in ('start_date', 'end_date', 'status')}
+        context['filters'] = filters
+        context['query'] = urlencode({k: v for k, v in filters.items() if v})
+        context['status_choices'] = BlockedPurchaseIntent.STATUS_CHOICES
+        context['count'] = get_report_data(self.request.shop, filters['start_date'] or None,
+                                           filters['end_date'] or None, filters['status'] or None).count()
+        return context

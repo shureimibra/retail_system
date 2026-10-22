@@ -1,4 +1,7 @@
+import zoneinfo
+
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.utils import timezone
 from django.http import HttpResponseForbidden
 from django.template.loader import render_to_string
 from rest_framework import permissions
@@ -32,7 +35,16 @@ class CurrentShopMiddleware:
                 request.shop = Shop.objects.order_by('id').first()
             elif not self._is_open_path(request.path):
                 return HttpResponseForbidden(render_to_string('accounts/no_shop.html', request=request))
-        return self.get_response(request)
+        if request.shop is not None:
+            try:
+                timezone.activate(zoneinfo.ZoneInfo(request.shop.timezone))
+            except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+                timezone.deactivate()
+        try:
+            return self.get_response(request)
+        finally:
+            # The active time zone is per thread; never let one shop's leak into the next request.
+            timezone.deactivate()
 
     @staticmethod
     def _is_open_path(path):

@@ -1,99 +1,53 @@
-{% extends 'base.html' %}
-
-{% block title %}Notifications - Retail RMS{% endblock %}
-
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Messages{% endblock %}
 {% block content %}
-<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+<div class="page-head">
+  <div><h1>Messages</h1><p>Replies from customers, and every message the shop sent.</p></div>
+  {% if simulator_enabled %}<div class="actions"><a class="btn" href="{% url 'notifications:simulator' %}">Customer simulator</a></div>{% endif %}
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>Replies from customers</h2>{% if unread_replies %}<span class="badge badge-in_conversation">{{ unread_replies }} unread</span>{% endif %}</div>
+  {% if inbound_logs %}
+  <div class="rows">
+    {% for m in inbound_logs %}
     <div>
-        <h2 class="text-3xl font-extrabold text-textprimary tracking-tight">Notification Logs</h2>
-        <p class="text-sm text-textsecondary mt-1">Review all automated customer re-engagement SMS sent by the system.</p>
+      <span class="avatar">{% if m.conversation %}{{ m.conversation.customer.first_name|first|upper }}{% else %}?{% endif %}</span>
+      <span class="grow"><span class="row-title">{% if m.conversation %}{{ m.conversation.customer.first_name }} {{ m.conversation.customer.last_name }}{% else %}Unknown number{% endif %}
+        <span class="faint small">· {{ m.get_channel_display }} · {{ m.created_at|date:"j M, H:i" }}</span></span>
+        <span class="muted">{{ m.body }}</span></span>
     </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">{% icon "inbox" %}<p>No replies yet. When a customer answers a message, it shows up here.</p></div>
+  {% endif %}
 </div>
 
-<div class="glassmorphism rounded-2xl shadow-soft overflow-hidden border border-bordercolor neon-cyan">
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left text-textsecondary">
-            <thead class="bg-bgtertiary text-textprimary uppercase text-[10px] font-bold tracking-wider">
-                <tr>
-                    <th scope="col" class="px-6 py-4">Sent At</th>
-                    <th scope="col" class="px-6 py-4">Customer Name & Phone</th>
-                    <th scope="col" class="px-6 py-4">Product Details</th>
-                    <th scope="col" class="px-6 py-4">Message Content</th>
-                    <th scope="col" class="px-6 py-4 text-right">Status</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-bordercolor">
-                {% for log in notifications %}
-                <tr class="hover:bg-bgtertiary/40 transition-colors">
-                    <td class="px-6 py-4 whitespace-nowrap text-xs font-medium">{{ log.created_at|date:"M d, Y • H:i" }}</td>
-                    <td class="px-6 py-4">
-                        <div class="font-bold text-textprimary">{{ log.conversation.customer.first_name }} {{ log.conversation.customer.last_name }}</div>
-                        <span class="text-xs text-textmuted block font-normal mt-0.5">{{ log.to_address }}</span>
-                    </td>
-                    <td class="px-6 py-4 font-bold text-textprimary">{{ log.intent.product.name|default:"—" }}</td>
-                    <td class="px-6 py-4 max-w-xs truncate" title="{{ log.body }}">{{ log.body }}</td>
-                    <td class="px-6 py-4 text-right">
-                        <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider
-                            {% if log.succeeded %}bg-success/15 text-success
-                            {% else %}bg-danger/15 text-danger{% endif %}">
-                            {{ log.get_status_display }}
-                        </span>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="px-6 py-8 text-center text-textmuted">
-                        No automated SMS notifications sent yet.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<div class="panel">
+  <div class="panel-head"><h2>Sent</h2></div>
+  {% if notifications %}
+  <div class="table-wrap">
+    <table class="table table-cards">
+      <thead><tr><th>To</th><th>Message</th><th>Channel</th><th>Sent</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for m in notifications %}
+      <tr>
+        <td class="card-title"><span class="primary">{{ m.conversation.customer.first_name }} {{ m.conversation.customer.last_name }}</span><span class="sub mono">{{ m.to_address }}</span></td>
+        <td data-label="Message" class="message-cell">{{ m.body|truncatechars:120 }}</td>
+        <td data-label="Channel">{{ m.get_channel_display }}</td>
+        <td data-label="Sent" class="num">{{ m.created_at|date:"j M, H:i" }}</td>
+        <td data-label="Status"><span class="badge {% if m.succeeded %}badge-ok{% elif m.status == 'queued' %}badge-notified{% else %}badge-failed{% endif %}">{{ m.get_status_display }}</span>
+          {% if m.error_detail %}<span class="sub">{{ m.error_detail }}</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">{% icon "send" %}<p>Nothing sent yet. Messages go out when stock arrives for a customer who's waiting.</p></div>
+  {% endif %}
 </div>
-
-<div class="mb-8 mt-12 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-    <div>
-        <h2 class="text-3xl font-extrabold text-textprimary tracking-tight">Inbound Customer Replies</h2>
-        <p class="text-sm text-textsecondary mt-1">Review incoming messages and replies sent by customers back to our Twilio number.</p>
-    </div>
-</div>
-
-<div class="glassmorphism rounded-2xl shadow-soft overflow-hidden border border-bordercolor neon-purple">
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left text-textsecondary">
-            <thead class="bg-bgtertiary text-textprimary uppercase text-[10px] font-bold tracking-wider">
-                <tr>
-                    <th scope="col" class="px-6 py-4">Received At</th>
-                    <th scope="col" class="px-6 py-4">Customer Name & Phone</th>
-                    <th scope="col" class="px-6 py-4">Twilio Recipient Number</th>
-                    <th scope="col" class="px-6 py-4">Message Content</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-bordercolor">
-                {% for log in inbound_logs %}
-                <tr class="hover:bg-bgtertiary/40 transition-colors">
-                    <td class="px-6 py-4 whitespace-nowrap text-xs font-medium">{{ log.created_at|date:"M d, Y • H:i" }}</td>
-                    <td class="px-6 py-4">
-                        {% if log.conversation %}
-                        <div class="font-bold text-textprimary">{{ log.conversation.customer.first_name }} {{ log.conversation.customer.last_name }}</div>
-                        {% else %}
-                        <div class="font-bold text-textmuted">Unknown Contact</div>
-                        {% endif %}
-                        <span class="text-xs text-textmuted block font-normal mt-0.5">{{ log.from_address }}</span>
-                    </td>
-                    <td class="px-6 py-4 font-bold text-textprimary">{{ log.get_channel_display }}</td>
-                    <td class="px-6 py-4 font-medium text-textprimary" title="{{ log.body }}">{{ log.body }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" class="px-6 py-8 text-center text-textmuted">
-                        No customer replies received yet.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+{% include "ui/pagination.html" %}
 {% endblock %}

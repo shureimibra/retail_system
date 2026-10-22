@@ -1,60 +1,23 @@
-{% extends 'base.html' %}
-
-{% block title %}{% if form.instance.pk %}Edit Product{% else %}Add Product{% endif %} - Retail RMS{% endblock %}
-
-{% block content %}
-<div class="mb-8">
-    <h2 class="text-3xl font-extrabold text-textprimary tracking-tight">{% if form.instance.pk %}Edit Product{% else %}Add Product{% endif %}</h2>
-    <p class="text-sm text-textsecondary mt-1 font-medium">{% if form.instance.pk %}Edit existing product details.{% else %}Add a new product to your catalog.{% endif %}</p>
-</div>
-
-<div class="glassmorphism rounded-2xl shadow-soft p-6 md:p-8 max-w-2xl border border-bordercolor neon-cyan transition-all duration-300">
-    <form method="post" enctype="multipart/form-data" class="space-y-6">
-        {% csrf_token %}
-        
-        {% if form.non_field_errors %}
-        <div class="p-3 bg-danger/10 border border-danger/25 text-danger text-sm rounded-xl font-medium animate-pulse">
-            {{ form.non_field_errors.0 }}
-        </div>
-        {% endif %}
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="col-span-2 space-y-1.5">
-                <label for="{{ form.name.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Product Name</label>
-                {{ form.name }}
-            </div>
-            <div class="space-y-1.5">
-                <label for="{{ form.product_type.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Product type</label>
-                {{ form.product_type }}
-            </div>
-            <div class="space-y-1.5">
-                <label for="{{ form.category.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Category</label>
-                {{ form.category }}
-            </div>
-            <div class="space-y-1.5">
-                <label for="{{ form.base_price.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Base Price (KSh)</label>
-                {{ form.base_price }}
-            </div>
-        </div>
-
-        <div class="space-y-1.5">
-            <label for="{{ form.description.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Description</label>
-            {{ form.description }}
-        </div>
-
-        <div class="space-y-1.5">
-            <label for="{{ form.image.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Photo (sent with restock messages)</label>
-            {{ form.image }}
-        </div>
-        
-        <div class="pt-6 flex justify-end gap-3 border-t border-bordercolor">
-            <a href="{% url 'products:list' %}" class="px-5 py-2.5 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl hover:text-primary transition-all font-semibold text-sm">
-                Cancel
-            </a>
-            <button type="submit" class="px-5 py-2.5 bg-primary text-white rounded-xl shadow-glow-cyan hover-glow transition-all font-semibold text-sm">
-                Save Product
-            </button>
-        </div>
-    </form>
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{% if form.instance.pk %}Edit product{% else %}Add product{% endif %}{% endblock %}
+{% block page %}
+<div class="content narrow">
+  <div>
+    <a class="back" href="{% url 'products:list' %}">{% icon "chevron-left" "sm" %}Products</a>
+    <div class="page-head"><h1>{% if form.instance.pk %}{{ form.instance.name }}{% else %}Add product{% endif %}</h1></div>
+  </div>
+  <form method="post" enctype="multipart/form-data" class="panel panel-body form" novalidate>
+    {% csrf_token %}
+    {% field form.name %}
+    <div class="form-row">{% field form.product_type "Decides which sizes and colours are offered. Change types in Settings." %}{% field form.category %}</div>
+    {% field form.base_price "Price changes are recorded. Lowering it tells customers who said the price was too high." %}
+    {% field form.description %}
+    {% field form.image "Sent with restock messages. Large photos are made smaller automatically." %}
+    <div class="form-actions">
+      <a class="btn" href="{% url 'products:list' %}">Cancel</a>
+      <button type="submit" class="btn btn-primary">Save product</button>
+    </div>
+  </form>
 </div>
 {% endblock %}

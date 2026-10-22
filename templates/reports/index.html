@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Reports{% endblock %}
+{% block page %}
+<div class="content narrow">
+  <div class="page-head"><div><h1>Reports</h1><p>Download your missed sales for a period, to share or keep.</p></div></div>
+  <form method="get" class="panel panel-body form">
+    <div class="form-row">
+      <div class="field"><label for="start_date">From</label><input type="date" id="start_date" name="start_date" value="{{ filters.start_date }}"></div>
+      <div class="field"><label for="end_date">To</label><input type="date" id="end_date" name="end_date" value="{{ filters.end_date }}"></div>
+    </div>
+    <div class="field"><label for="status">Status</label>
+      <select id="status" name="status"><option value="">All statuses</option>
+        {% for value, label in status_choices %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></div>
+    <div class="form-actions"><button type="submit" class="btn">Apply</button></div>
+  </form>
+  <div class="panel">
+    <div class="panel-head"><h2>{{ count }} missed sale{{ count|pluralize }} match</h2></div>
+    <div class="panel-body">
+      <div class="button-row">
+        <a class="btn btn-primary" href="{% url 'reports:export_csv' %}{% if query %}?{{ query }}{% endif %}">{% icon "download" "sm" %}Spreadsheet (CSV)</a>
+        <a class="btn" href="{% url 'reports:export_pdf' %}{% if query %}?{{ query }}{% endif %}">{% icon "download" "sm" %}PDF</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

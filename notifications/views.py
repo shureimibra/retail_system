@@ -30,7 +30,8 @@ class NotificationListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['inbound_logs'] = (Message.objects.filter(shop=self.request.shop, direction=Message.INBOUND)
-                                   .select_related('conversation__customer').order_by('-created_at')[:50])
+                                   .select_related('conversation__customer').order_by('-created_at')[:20])
+        context['simulator_enabled'] = settings.SIMULATOR_ENABLED
         return context
 
 

@@ -1,9 +1,7 @@
-{% extends 'base.html' %}
-{% block title %}No shop yet - Retail OS{% endblock %}
+{% extends "auth_base.html" %}
+{% block title %}No shop yet{% endblock %}
 {% block content %}
-<div class="max-w-md mx-auto mt-24 space-y-3">
-    <h2 class="text-xl font-bold text-textprimary">Your account isn't linked to a shop yet</h2>
-    <p class="text-sm text-textsecondary">Ask the shop owner to add you to their team. Once they do, sign in again.</p>
-    <form action="{% url 'accounts:logout' %}" method="post">{% csrf_token %}<button type="submit" class="text-sm text-primary underline">Sign out</button></form>
-</div>
+<h1>Your account isn't linked to a shop yet</h1>
+<p class="muted">Ask the shop owner to add you in Settings → Team and roles. Then sign in again.</p>
+<form action="{% url 'accounts:logout' %}" method="post">{% csrf_token %}<button type="submit" class="btn">Sign out</button></form>
 {% endblock %}

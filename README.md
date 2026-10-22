@@ -23,6 +23,8 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+To try it with a sample fashion shop, run `python manage.py seed_demo` on an **empty** database and sign in as `amina` / `demo-pass-123`. It refuses to run if any products or customers exist.
+
 Generate a `SECRET_KEY` for `.env` with:
 
 ```bash

@@ -1,0 +1,13 @@
+{% extends "shopsettings/base.html" %}
+{% load ui %}
+{% block pane %}
+<div class="panel">
+  <div class="panel-head"><h2 id="pane-title">{{ section_title }}</h2></div>
+  <form method="post" enctype="multipart/form-data" class="panel-body form" novalidate>
+    {% csrf_token %}
+    {% if intro %}<p class="muted">{{ intro }}</p>{% endif %}
+    {% for f in form %}{% field f %}{% endfor %}
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Save</button></div>
+  </form>
+</div>
+{% endblock %}

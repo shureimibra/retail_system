@@ -12,8 +12,11 @@ class ProductListView(ShopViewMixin, ListView):
     model = Product
     template_name = 'products/product_list.html'
     context_object_name = 'products'
-    paginate_by = 10
+    paginate_by = 20
     ordering = ['name']
+
+    def get_queryset(self):
+        return super().get_queryset().select_related('category', 'product_type').prefetch_related('variations__holds')
 
 
 class ProductCreateView(ShopViewMixin, UserPassesTestMixin, CreateView):
