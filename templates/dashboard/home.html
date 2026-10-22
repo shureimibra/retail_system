@@ -1,141 +1,21 @@
 {% extends "base.html" %}
-{% load static ui %}
+{% load ui %}
 {% block title %}Home{% endblock %}
 {% block content %}
 <div class="page-head">
   <div><h1>{% now "G" as hour %}{% if hour|add:0 < 12 %}Good morning{% elif hour|add:0 < 17 %}Good afternoon{% else %}Good evening{% endif %}{% if user.first_name %}, {{ user.first_name }}{% endif %}</h1>
     <p>{% now "l j F" %}</p></div>
+  {% if uses_period %}
   <form method="get" class="filters" aria-label="Period">
     {% include "ui/period.html" %}
     <button class="btn" type="submit" data-period-submit>Show</button>
   </form>
+  {% endif %}
 </div>
 
-<div class="metrics">
-  <a class="metric" href="{% url 'intents:list' %}?show=waiting"><span class="label">Waiting for stock</span>
-    <span class="value">{{ kpis.waiting_demand|money:request.shop }}</span><span class="foot">{{ kpis.active_intents }} missed sale{{ kpis.active_intents|pluralize }}</span></a>
-  <a class="metric" href="{% url 'notifications:list' %}"><span class="label">In conversation</span>
-    <span class="value">{{ kpis.in_conversation }}</span><span class="foot">{% if unread_replies %}{{ unread_replies }} unread repl{{ unread_replies|pluralize:"y,ies" }}{% else %}No unread replies{% endif %}</span></a>
-  <a class="metric" href="{% url 'intents:list' %}?show=active"><span class="label">Reserved</span>
-    <span class="value">{{ kpis.reserved }}</span><span class="foot">{{ kpis.deposits_held|money:request.shop }} in deposits</span></a>
-  <a class="metric" href="{% url 'intents:list' %}?show=closed"><span class="label">Recovered (paid)</span>
-    <span class="value">{{ kpis.recovered_revenue|money:request.shop }}</span><span class="foot">{% if kpis.recovery_rate is not None %}{{ kpis.recovery_rate }}% of closed missed sales{% else %}Nothing closed yet{% endif %}</span></a>
+<div class="home-grid">
+  {% for key, template in widgets %}{% include template %}{% empty %}
+  <div class="panel w-wide"><div class="empty">{% icon "house" %}<p>Nothing is set to show on your Home. The owner chooses this in Settings → Home layout.</p></div></div>
+  {% endfor %}
 </div>
-
-{% if recommendations %}
-<div class="panel">
-  <div class="panel-head"><h2>Customers waiting for these</h2><span class="faint small">Restock to message them</span></div>
-  <div class="rows">
-    {% for rec in recommendations %}
-    <div>
-      <span class="grow"><span class="row-title">{{ rec.product_name }} · {{ rec.size }} / {{ rec.color }}</span>
-        <span class="row-sub">{{ rec.blocked_count }} waiting · {{ rec.current_stock }} in stock</span></span>
-      {% if is_manager %}
-      <form class="receive" data-variation="{{ rec.variation_id }}">
-        <label class="visually-hidden" for="qty-{{ rec.variation_id }}">Units received</label>
-        <input id="qty-{{ rec.variation_id }}" type="number" inputmode="numeric" min="1" value="{{ rec.blocked_count }}" class="qty">
-        <button class="btn btn-sm" type="submit">Receive</button>
-      </form>
-      {% endif %}
-    </div>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
-
-<div class="grid-2">
-  <div class="panel">
-    <div class="panel-head"><h2>Recent missed sales</h2><a class="btn btn-plain btn-sm" href="{% url 'intents:list' %}?show=all">View all</a></div>
-    {% if recent_intents %}
-    <div class="rows">
-      {% for intent in recent_intents %}
-      <a class="row-link" href="{% url 'intents:update' intent.pk %}">
-        <span class="grow"><span class="row-title">{{ intent.product.name }}{% if intent.variation %} · {{ intent.variation.label }}{% endif %}</span>
-          <span class="row-sub">{{ intent.customer.first_name }} {{ intent.customer.last_name }} · {{ intent.get_constraint_type_display }} · {{ intent.created_at|date:"j M" }}</span></span>
-        <span class="badge badge-{{ intent.status }}">{{ intent.get_status_display }}</span>
-      </a>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty">{% icon "clipboard-list" %}<p>No missed sales in this period. When a customer can't buy, log it in a few taps.</p>
-      <a class="btn" href="{% url 'intents:create' %}">Log missed sale</a></div>
-    {% endif %}
-  </div>
-
-  <div class="panel">
-    <div class="panel-head"><h2>How far they got</h2></div>
-    <div class="panel-body">
-      {% for step in funnel %}
-      <div class="bar-row">
-        <div class="bar-label"><span>{{ step.label }}</span><span class="num">{{ step.count }} · {{ step.percent }}%</span></div>
-        <div class="bar-track"><div class="bar-fill" style="width: {{ step.percent }}%"></div></div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-</div>
-
-<div class="grid-2">
-  <div class="panel">
-    <div class="panel-head"><h2>Missed and recovered by month</h2></div>
-    <div class="panel-body"><div class="chart"><canvas id="trendsChart" aria-label="Missed sales and paid recoveries per month" role="img"></canvas></div></div>
-  </div>
-  <div class="panel">
-    <div class="panel-head"><h2>Why people didn't buy</h2></div>
-    <div class="panel-body"><div class="chart"><canvas id="reasonsChart" aria-label="Missed sales by reason" role="img"></canvas></div></div>
-  </div>
-</div>
-
-{{ chart_labels|json_script:"reasons-labels" }}{{ chart_data|json_script:"reasons-data" }}
-{{ trends_labels|json_script:"trend-labels" }}{{ trends_data|json_script:"trend-data" }}{{ trends_recovered|json_script:"trend-recovered" }}
-{% endblock %}
-
-{% block scripts %}
-<script src="{% static 'js/chart.js' %}" defer></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  var css = getComputedStyle(document.documentElement);
-  var color = function (name) { return css.getPropertyValue(name).trim(); };
-  var read = function (id) { var v = JSON.parse(document.getElementById(id).textContent); return typeof v === 'string' ? JSON.parse(v) : v; };
-
-  if (window.Chart) {
-    Chart.defaults.font.family = color('--font');
-    Chart.defaults.color = color('--fg-3');
-    Chart.defaults.borderColor = color('--border');
-    Chart.defaults.animation = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 200 };
-    var common = { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { boxWidth: 10, color: color('--fg-2') } } },
-                   scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { grid: { display: false } } } };
-
-    new Chart(document.getElementById('trendsChart'), {
-      type: 'bar',
-      data: { labels: read('trend-labels'), datasets: [
-        { label: 'Missed sales', data: read('trend-data'), backgroundColor: color('--border-strong'), borderRadius: 3 },
-        { label: 'Recovered (paid)', data: read('trend-recovered'), backgroundColor: color('--accent'), borderRadius: 3 } ] },
-      options: common
-    });
-    new Chart(document.getElementById('reasonsChart'), {
-      type: 'bar',
-      data: { labels: read('reasons-labels'), datasets: [{ label: 'Missed sales', data: read('reasons-data'), backgroundColor: color('--accent'), borderRadius: 3 }] },
-      options: Object.assign({}, common, { indexAxis: 'y', plugins: { legend: { display: false } },
-                                           scales: { x: { beginAtZero: true, ticks: { precision: 0 } }, y: { grid: { display: false } } } })
-    });
-  }
-
-  var csrf = '{{ csrf_token }}';
-  document.querySelectorAll('form.receive').forEach(function (form) {
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var qty = parseInt(form.querySelector('.qty').value, 10);
-      if (!qty || qty < 1) { form.querySelector('.qty').focus(); return; }
-      var button = form.querySelector('button');
-      button.setAttribute('aria-busy', 'true');
-      fetch('/api/variations/' + form.dataset.variation + '/receive/', {
-        method: 'POST', credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-        body: JSON.stringify({ quantity: qty })
-      }).then(function (r) { if (r.ok) { window.location.reload(); } else { button.removeAttribute('aria-busy'); button.textContent = 'Try again'; } });
-    });
-  });
-});
-</script>
 {% endblock %}

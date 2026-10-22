@@ -13,6 +13,7 @@
     <div class="form-row">{% field form.product_type "Decides which sizes and colours are offered. Change types in Settings." %}{% field form.category %}</div>
     {% field form.base_price "Price changes are recorded. Lowering it tells customers who said the price was too high." %}
     {% field form.description %}
+    {% field form.supplier "Optional. The To order list groups items by supplier so you can send each one their list." %}
     {% field form.image "Sent with restock messages. Large photos are made smaller automatically." %}
     <div class="form-actions">
       <a class="btn" href="{% url 'products:list' %}">Cancel</a>

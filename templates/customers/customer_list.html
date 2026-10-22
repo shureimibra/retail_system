@@ -7,24 +7,31 @@
   <div class="actions"><a class="btn" href="{% url 'customers:create' %}">{% icon "plus" "sm" %}Add customer</a></div>
 </div>
 <div class="panel">
+  <form method="get" class="filter-bar" role="search">
+    <div class="field grow-field"><label for="q">Search</label>
+      <input id="q" name="q" type="search" value="{{ q }}" placeholder="Name, phone or email" autocomplete="off"></div>
+    <div class="filter-actions"><button class="btn" type="submit">Search</button>{% if q %}<a class="btn btn-plain" href="?">Clear</a>{% endif %}</div>
+  </form>
   {% if customers %}
   <div class="table-wrap">
     <table class="table table-cards">
-      <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Messages</th><th class="r">Missed sales</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+      <thead><tr><th>Name</th><th>Phone</th><th class="r">Open items</th><th>Last contact</th><th>Messages</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
       <tbody>
       {% for c in customers %}
       <tr>
-        <td class="card-title"><span class="primary">{{ c.first_name }} {{ c.last_name }}</span></td>
+        <td class="card-title"><a class="primary" href="{% url 'customers:detail' c.pk %}">{{ c.first_name }} {{ c.last_name }}</a>{% if c.email %}<span class="sub">{{ c.email }}</span>{% endif %}</td>
         <td data-label="Phone"><span class="mono">{{ c.phone_number }}</span></td>
-        <td data-label="Email">{{ c.email|default:"—" }}</td>
+        <td data-label="Open items" class="r num">{{ c.open_items }}{% if c.all_items != c.open_items %} <span class="faint">of {{ c.all_items }}</span>{% endif %}</td>
+        <td data-label="Last contact">{% if c.last_contact %}{{ c.last_contact|date:"j M" }}{% else %}<span class="faint">None yet</span>{% endif %}</td>
         <td data-label="Messages">{% if c.marketing_opt_in %}<span class="badge badge-ok">Can message</span>{% else %}<span class="badge badge-declined">Opted out</span>{% endif %}</td>
-        <td data-label="Missed sales" class="r">{{ c.intents.count }}</td>
-        <td class="r"><a class="btn btn-plain btn-sm" href="{% url 'customers:update' c.pk %}">Edit</a></td>
+        <td class="r"><a class="btn btn-plain btn-sm" href="{% url 'customers:detail' c.pk %}">Open</a></td>
       </tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
+  {% elif q %}
+  <div class="empty"><p>No customer matches "{{ q }}".</p><a class="btn" href="?">Clear search</a></div>
   {% else %}
   <div class="empty">{% icon "users" %}<p>No customers yet. They're added when you log a missed sale, or you can add one now.</p>
     <a class="btn" href="{% url 'customers:create' %}">Add customer</a></div>

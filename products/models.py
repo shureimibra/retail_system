@@ -88,6 +88,7 @@ class Product(models.Model):
     description = models.TextField(blank=True)
     base_price = models.DecimalField(max_digits=10, decimal_places=2)
     image = models.ImageField(upload_to='products/', blank=True)
+    supplier = models.CharField(max_length=120, blank=True, help_text='Who you buy it from. Groups the To order list.')
     needs_review = models.BooleanField(default=False, help_text='Added by a cashier; an owner or manager should check price and options.')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -136,7 +137,15 @@ class ProductVariation(models.Model):
 
     @property
     def photo(self):
-        return self.image or self.product.image
+        """This row's own photo, else the photo for one of its option values (e.g. Black), else the product photo."""
+        if self.image:
+            return self.image
+        values = [v for v in (self.option2, self.option1, self.option3) if v]
+        for value in values:
+            match = next((p for p in self.product.option_photos.all() if p.value == value), None)
+            if match:
+                return match.image
+        return self.product.image
 
     @property
     def held_quantity(self):
@@ -206,3 +215,21 @@ class StockHold(models.Model):
 
     class Meta:
         ordering = ['created_at']
+
+
+class ProductOptionPhoto(models.Model):
+    """One photo for every row with this option value, e.g. all sizes of Nike Air Zoom in Black."""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='option_photos')
+    value = models.CharField(max_length=50)
+    image = models.ImageField(upload_to='products/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['product', 'value'], name='unique_option_photo')]
+
+    def save(self, *args, **kwargs):
+        _shrink_photo(self.image)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.product.name} · {self.value}'

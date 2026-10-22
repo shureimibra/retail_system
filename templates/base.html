@@ -26,6 +26,8 @@
         <a href="{% url url_name %}"{% if nav_current == key %} aria-current="page"{% endif %}>
           {% icon icon_name %}<span>{{ label }}</span>
           {% if key == 'notifications' and unread_replies %}<span class="count"><span class="badge-count" aria-label="{{ unread_replies }} unread">{{ unread_replies }}</span></span>{% endif %}
+          {% if key == 'to_order' and to_order_count %}<span class="count" aria-label="{{ to_order_count }} to order">{{ to_order_count }}</span>{% endif %}
+          {% if key == 'intents' and waiting_count %}<span class="count" aria-label="{{ waiting_count }} waiting">{{ waiting_count }}</span>{% endif %}
         </a>
       {% endfor %}
     </nav>
@@ -57,9 +59,9 @@
 
 <nav class="tabbar" aria-label="Main">
   <a href="{% url 'dashboard:home' %}"{% if nav_current == 'dashboard' %} aria-current="page"{% endif %}>{% icon "house" %}Home</a>
-  <a href="{% url 'intents:list' %}"{% if nav_current == 'intents' %} aria-current="page"{% endif %}>{% icon "clipboard-list" %}Missed</a>
+  <a href="{% url 'intents:list' %}"{% if nav_current == 'intents' %} aria-current="page"{% endif %}>{% icon "clipboard-list" %}Waiting</a>
   <a href="{% url 'intents:create' %}" aria-label="Log missed sale"><span class="plus">{% icon "plus" %}</span></a>
-  <a href="{% url 'notifications:list' %}"{% if nav_current == 'notifications' %} aria-current="page"{% endif %}>{% icon "message-circle" %}Messages{% if unread_replies %}<span class="badge-count badge-count-tab">{{ unread_replies }}</span>{% endif %}</a>
+  <a href="{% url 'notifications:list' %}"{% if nav_current == 'notifications' %} aria-current="page"{% endif %}>{% icon "message-circle" %}Chats{% if unread_replies %}<span class="badge-count badge-count-tab">{{ unread_replies }}</span>{% endif %}</a>
   <button type="button" id="moreBtn" aria-haspopup="dialog" aria-expanded="false">{% icon "ellipsis" %}More</button>
 </nav>
 
@@ -68,9 +70,10 @@
 <div class="sheet" id="moreSheet" role="dialog" aria-modal="true" aria-label="More" hidden>
   <div class="handle"></div>
   <nav class="nav">
+    {% if is_manager %}<a href="{% url 'intents:to_order' %}">{% icon "boxes" %}To order{% if to_order_count %}<span class="count">{{ to_order_count }}</span>{% endif %}</a>{% endif %}
     <a href="{% url 'products:list' %}">{% icon "package" %}Products</a>
     <a href="{% url 'customers:list' %}">{% icon "users" %}Customers</a>
-    <a href="{% url 'reports:index' %}">{% icon "chart-column" %}Reports</a>
+    {% if is_manager %}<a href="{% url 'reports:index' %}">{% icon "chart-column" %}Reports</a>{% endif %}
     <a href="{% url 'settings:index' %}">{% icon "settings" %}Settings</a>
     <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
       <button class="nav-link" type="submit">{% icon "log-out" %}Sign out</button>

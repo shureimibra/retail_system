@@ -1,0 +1,15 @@
+{% load ui %}
+<section class="panel" aria-labelledby="recovered-weekly">
+  <div class="panel-head"><h2 id="recovered-weekly">Recovered per week</h2><span class="faint small">Paid in full, last 8 weeks</span></div>
+  <div class="panel-body">
+    <ol class="columns" aria-label="Money recovered each week">
+      {% for week in data.recovered_weekly %}
+      <li title="Week of {{ week.label }}: {{ week.money|money:request.shop }}, {{ week.count }} paid">
+        <span class="col-value">{% if week.money %}{{ week.short }}{% endif %}</span>
+        <span class="col-bar{% if not week.money %} is-zero{% endif %}" style="height: {{ week.percent }}%"></span>
+        <span class="col-label">{{ week.label }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+</section>

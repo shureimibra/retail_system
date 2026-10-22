@@ -1,0 +1,17 @@
+{% load ui %}
+<section class="panel" aria-labelledby="to-order">
+  <div class="panel-head"><h2 id="to-order">To order today</h2>{% if is_manager %}<a class="btn btn-plain btn-sm" href="{% url 'intents:to_order' %}">Full list</a>{% endif %}</div>
+  {% if data.to_order %}
+  <div class="rows">
+    {% for row in data.to_order %}
+    <div>
+      <span class="grow"><span class="row-title">{{ row.product_name }} · {{ row.variation_label }}</span>
+        <span class="row-sub">{{ row.waiting }} waiting · order {{ row.to_order }}{% if row.needed_by %} · needed by {{ row.needed_by|date:"D j M" }}{% endif %}</span></span>
+      <span class="num nowrap">{{ row.money_waiting|money:request.shop }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty"><p>Nothing to order. Everything customers asked for is in stock or on its way.</p></div>
+  {% endif %}
+</section>

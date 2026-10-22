@@ -1,0 +1,16 @@
+{% load ui %}{% with n=data.key_numbers %}
+<div class="metrics w-wide" role="group" aria-label="Key numbers">
+  <a class="metric" href="{% url 'intents:list' %}?show=stock"><span class="label">Waiting demand</span>
+    <span class="value">{{ n.waiting_money|money:request.shop }}</span>
+    <span class="foot">{{ n.waiting_customers }} customer{{ n.waiting_customers|pluralize }}{% if n.due_this_week %} · {{ n.due_this_week }} need it this week{% endif %}</span></a>
+  <a class="metric" href="{% url 'notifications:list' %}"><span class="label">In conversation</span>
+    <span class="value">{{ n.in_conversation }}</span>
+    <span class="foot">{% if n.unanswered %}{{ n.unanswered }} repl{{ n.unanswered|pluralize:"y,ies" }} waiting over 1 hour{% elif unread_replies %}{{ unread_replies }} repl{{ unread_replies|pluralize:"y,ies" }} waiting{% else %}No replies waiting{% endif %}</span></a>
+  <a class="metric" href="{% url 'intents:list' %}?status=reserved"><span class="label">Reserved</span>
+    <span class="value">{{ n.reserved }}</span>
+    <span class="foot">{{ n.deposits|money:request.shop }} in deposits</span></a>
+  <a class="metric" href="{% url 'intents:list' %}?status=recovered"><span class="label">Recovered (paid)</span>
+    <span class="value">{{ n.recovered_money|money:request.shop }}</span>
+    <span class="foot">{% if n.recovered_count %}{{ n.recovered_count }} paid{% if n.recovered_change is not None %} · {% if n.recovered_change >= 0 %}+{% endif %}{{ n.recovered_change }}% on the period before{% endif %}{% else %}Nothing paid {{ period.label|lower }}{% endif %}</span></a>
+</div>
+{% endwith %}

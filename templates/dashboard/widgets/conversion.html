@@ -1,0 +1,14 @@
+{% with c=data.conversion %}
+<section class="panel" aria-labelledby="conversion">
+  <div class="panel-head"><h2 id="conversion">Walk-in conversion</h2><span class="faint small">{{ period.label }}</span></div>
+  <div class="panel-body">
+    {% if c.enough %}
+    <p class="big-number">{{ c.percent }}%</p>
+    <p class="muted">{{ c.bought }} of {{ c.total }} logged visits ended in a sale.</p>
+    <div class="bar-track"><div class="bar-fill" style="width: {{ c.percent }}%"></div></div>
+    {% else %}
+    <p class="muted">Shows once {{ c.minimum }} visits are logged in the period ({{ c.total }} so far).</p>
+    {% endif %}
+  </div>
+</section>
+{% endwith %}

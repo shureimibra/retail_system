@@ -29,6 +29,8 @@ class Shop(models.Model):
     reserve_pickup_days = models.PositiveSmallIntegerField(default=5)
     default_channel = models.CharField(max_length=20, default='whatsapp',
                                        choices=[('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'Email')])
+    # Settings → Home layout: role → ordered widget keys. Empty means the defaults in dashboard/widgets.py.
+    home_layout = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

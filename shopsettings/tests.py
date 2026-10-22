@@ -181,7 +181,10 @@ class TeamTests(SettingsTestCase):
 
 class NewPagesTests(SettingsTestCase):
     def test_reports_page_and_signin_page(self):
-        self.login('cashier')
+        self.login('owner')
         self.assertContains(self.client.get('/reports/'), 'Spreadsheet (CSV)')
+        self.client.logout()
+        self.login('cashier')
+        self.assertEqual(self.client.get('/reports/').status_code, 403)
         self.client.logout()
         self.assertContains(self.client.get('/accounts/login/'), 'Sign in to your shop')
