@@ -107,10 +107,10 @@ class PhoneNumberTests(TestCase):
         self.assertEqual(r.status_code, 400)
 
     def test_reply_matches_customer_exactly_not_by_partial_number(self):
-        from notifications.models import InboundSMSLog
+        from notifications.models import Message
         jane = Customer.objects.create(first_name='Jane', last_name='S', phone_number='+254712345678')
         Customer.objects.create(first_name='Other', last_name='X', phone_number='+254712345679')
         self.client.post('/notifications/webhook/', {'From': 'whatsapp:0712345678', 'To': '+1', 'Body': 'Yes'})
         self.client.post('/notifications/webhook/', {'From': '+2547123456', 'To': '+1', 'Body': 'partial'})
-        self.assertEqual(InboundSMSLog.objects.get(body='Yes').customer, jane)
-        self.assertIsNone(InboundSMSLog.objects.get(body='partial').customer)
+        self.assertEqual(Message.objects.get(body='Yes').conversation.customer, jane)
+        self.assertIsNone(Message.objects.get(body='partial').conversation)

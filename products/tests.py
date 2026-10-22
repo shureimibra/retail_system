@@ -9,7 +9,7 @@ from PIL import Image
 from accounts.models import Membership, Shop, User
 from customers.models import Customer
 from intents.services import create_blocked_purchase_intent
-from notifications.models import NotificationLog
+from notifications.models import Message
 from products.models import Category, PriceChange, Product, ProductType, ProductVariation, StockHold, StockMovement
 from products.services import change_price, receive_stock, set_stock
 
@@ -72,13 +72,13 @@ class ReceiveStockTests(CatalogTestCase):
         self.assertEqual(StockHold.objects.filter(status=StockHold.ACTIVE).count(), 2)
         self.variation.refresh_from_db()
         self.assertEqual((self.variation.stock_quantity, self.variation.available_quantity), (2, 0))
-        self.assertEqual(NotificationLog.objects.count(), 2)
+        self.assertEqual(Message.objects.filter(direction='out').count(), 2)
 
         with self.captureOnCommitCallbacks(execute=True):
             receive_stock(self.variation.id, 1)
         third.refresh_from_db()
         self.assertEqual(third.status, 'notified')
-        self.assertEqual(NotificationLog.objects.count(), 3)
+        self.assertEqual(Message.objects.filter(direction='out').count(), 3)
 
     def test_held_customers_are_not_served_twice(self):
         self.waiting(1)

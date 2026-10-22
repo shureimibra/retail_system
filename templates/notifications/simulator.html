@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer simulator - Retail OS</title>
+<style>
+  :root { --bg: #F5F6F4; --surface: #FFFFFF; --border: #DFE3DE; --fg: #18201D; --fg-3: #6F7A75; --accent: #0B6670; --accent-subtle: #E1EEEF; --crit: #B0261E; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; padding: 20px max(16px, env(safe-area-inset-left)); }
+  main { max-width: 760px; margin: 0 auto; display: grid; gap: 16px; }
+  h1 { font-size: 21px; margin: 0; }
+  p.note { color: var(--fg-3); margin: 0; }
+  form, .msg { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  form { display: grid; gap: 8px; }
+  label { font-size: 13px; font-weight: 600; }
+  select, textarea, button { font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; }
+  button { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; cursor: pointer; justify-self: start; }
+  .msg { display: grid; gap: 6px; }
+  .msg.in { background: var(--accent-subtle); }
+  .meta { font-size: 12px; color: var(--fg-3); }
+  .failed { color: var(--crit); }
+  img { max-width: 220px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Customer simulator</h1>
+  <p class="note">Development only. Messages here never leave this computer. Reply as a customer to test the inbox, STOP and follow-ups.</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <label for="from">Reply as</label>
+    <select id="from" name="from">
+      {% for c in customers %}<option value="{{ c.phone_number }}">{{ c.first_name }} {{ c.last_name }} ({{ c.phone_number }})</option>{% endfor %}
+    </select>
+    <label for="channel">On</label>
+    <select id="channel" name="channel">
+      {% for value, label in channels %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+    </select>
+    <label for="body">Message</label>
+    <textarea id="body" name="body" rows="2">Yes, can I pay a deposit?</textarea>
+    <button type="submit">Send as customer</button>
+  </form>
+
+  {% for m in messages_list %}
+  <div class="msg {{ m.direction }}">
+    <div class="meta">
+      {% if m.direction == 'out' %}To {{ m.conversation.customer.first_name|default:m.to_address }}{% else %}From {{ m.conversation.customer.first_name|default:m.from_address }}{% endif %}
+      · {{ m.get_channel_display }} · {{ m.created_at|date:"d M H:i" }} ·
+      <span class="{% if m.status == 'failed' or m.status == 'skipped' %}failed{% endif %}">{{ m.get_status_display }}{% if m.error_detail %}: {{ m.error_detail }}{% endif %}</span>
+      {% if m.intent %}· {{ m.intent.product.name }}{% endif %}
+    </div>
+    {% if m.media_url %}<img src="{{ m.media_url }}" alt="Item photo">{% endif %}
+    <div>{{ m.body }}</div>
+  </div>
+  {% empty %}
+  <p class="note">No messages yet. Receive stock for an item someone is waiting for, and the restock message appears here.</p>
+  {% endfor %}
+</main>
+</body>
+</html>

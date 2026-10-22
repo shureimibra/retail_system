@@ -25,18 +25,18 @@
             <tbody class="divide-y divide-bordercolor">
                 {% for log in notifications %}
                 <tr class="hover:bg-bgtertiary/40 transition-colors">
-                    <td class="px-6 py-4 whitespace-nowrap text-xs font-medium">{{ log.sent_at|date:"M d, Y • H:i" }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs font-medium">{{ log.created_at|date:"M d, Y • H:i" }}</td>
                     <td class="px-6 py-4">
-                        <div class="font-bold text-textprimary">{{ log.intent.customer.first_name }} {{ log.intent.customer.last_name }}</div>
-                        <span class="text-xs text-textmuted block font-normal mt-0.5">{{ log.intent.customer.phone_number }}</span>
+                        <div class="font-bold text-textprimary">{{ log.conversation.customer.first_name }} {{ log.conversation.customer.last_name }}</div>
+                        <span class="text-xs text-textmuted block font-normal mt-0.5">{{ log.to_address }}</span>
                     </td>
-                    <td class="px-6 py-4 font-bold text-textprimary">{{ log.intent.product.name }}</td>
-                    <td class="px-6 py-4 max-w-xs truncate" title="{{ log.message }}">{{ log.message }}</td>
+                    <td class="px-6 py-4 font-bold text-textprimary">{{ log.intent.product.name|default:"—" }}</td>
+                    <td class="px-6 py-4 max-w-xs truncate" title="{{ log.body }}">{{ log.body }}</td>
                     <td class="px-6 py-4 text-right">
                         <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider
-                            {% if log.status == 'Sent' %}bg-success/15 text-success
+                            {% if log.succeeded %}bg-success/15 text-success
                             {% else %}bg-danger/15 text-danger{% endif %}">
-                            {{ log.status }}
+                            {{ log.get_status_display }}
                         </span>
                     </td>
                 </tr>
@@ -73,16 +73,16 @@
             <tbody class="divide-y divide-bordercolor">
                 {% for log in inbound_logs %}
                 <tr class="hover:bg-bgtertiary/40 transition-colors">
-                    <td class="px-6 py-4 whitespace-nowrap text-xs font-medium">{{ log.received_at|date:"M d, Y • H:i" }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs font-medium">{{ log.created_at|date:"M d, Y • H:i" }}</td>
                     <td class="px-6 py-4">
-                        {% if log.customer %}
-                        <div class="font-bold text-textprimary">{{ log.customer.first_name }} {{ log.customer.last_name }}</div>
+                        {% if log.conversation %}
+                        <div class="font-bold text-textprimary">{{ log.conversation.customer.first_name }} {{ log.conversation.customer.last_name }}</div>
                         {% else %}
                         <div class="font-bold text-textmuted">Unknown Contact</div>
                         {% endif %}
-                        <span class="text-xs text-textmuted block font-normal mt-0.5">{{ log.from_number }}</span>
+                        <span class="text-xs text-textmuted block font-normal mt-0.5">{{ log.from_address }}</span>
                     </td>
-                    <td class="px-6 py-4 font-bold text-textprimary">{{ log.to_number }}</td>
+                    <td class="px-6 py-4 font-bold text-textprimary">{{ log.get_channel_display }}</td>
                     <td class="px-6 py-4 font-medium text-textprimary" title="{{ log.body }}">{{ log.body }}</td>
                 </tr>
                 {% empty %}

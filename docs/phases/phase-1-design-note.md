@@ -146,6 +146,8 @@ It then picks the provider for the channel from the shop's settings.
 
 **Customer simulator.** A development-only page (`/dev/simulator/`) where you play the customer: you see each outbound message with its photo and reply as the customer. Replies go through the same inbound code as a real webhook. Plain styling; it's a developer tool, not part of the redesign.
 
+**As built (kept simple):** providers are chosen per channel in settings (`WHATSAPP_PROVIDER`, `SMS_PROVIDER`, `EMAIL_PROVIDER`), not per shop yet. Message wording lives in `notifications/compose.py`. Temporary failures retry up to 3 times with backoff; permanent ones fall back to the next channel.
+
 **Message templates** are seeded for fashion and editable per shop later:
 - restock alert (with photo)
 - reminders on days 2, 4 and 7

@@ -123,7 +123,7 @@ def resolve_intents_for_variation(variation):
     to Back in stock, and is messaged once the transaction commits. Customers
     beyond the units available keep waiting.
     """
-    from notifications.tasks import send_restock_notification_task
+    from notifications.gateway import queue_message
     from products.models import StockHold
 
     waiting = (Intent.objects
@@ -139,7 +139,7 @@ def resolve_intents_for_variation(variation):
             break
         _hold_unit(intent, variation)
         transition(intent, Intent.BACK_IN_STOCK, note='Stock arrived; one unit put aside', variation=variation.label)
-        transaction.on_commit(lambda intent_id=intent.id: send_restock_notification_task.delay(intent_id))
+        queue_message(intent, 'restock_alert')
         served += 1
     return served
 
@@ -212,7 +212,9 @@ def record_payment(intent, amount, method, reference='', actor=None, pickup_by=N
     if intent.balance == 0:
         transition(intent, Intent.RECOVERED, actor=actor, note='Paid in full')
     else:
+        from notifications.gateway import queue_message
         reserve(intent, pickup_by=pickup_by, actor=actor, note='Deposit paid')
+        queue_message(intent, 'deposit_receipt')
     return payment
 
 
@@ -224,8 +226,7 @@ def decline(intent, reason='', actor=None):
 @transaction.atomic
 def change_item(intent, new_variation, actor=None):
     """The customer wants a different size, colour or product. History keeps the original."""
-    from notifications.tasks import send_restock_notification_task
-
+    from notifications.gateway import queue_message
     from products.models import ProductVariation
 
     if intent.is_closed:
@@ -247,7 +248,7 @@ def change_item(intent, new_variation, actor=None):
         _hold_unit(intent, new_variation)
         if intent.status in Intent.WAITING_STATUSES:
             transition(intent, Intent.BACK_IN_STOCK, actor=actor, note='New item is in stock; one unit put aside')
-            transaction.on_commit(lambda intent_id=intent.id: send_restock_notification_task.delay(intent_id))
+            queue_message(intent, 'restock_alert')
     elif intent.status not in Intent.WAITING_STATUSES:
         transition(intent, Intent.OPEN, actor=actor, note='New item is not in stock yet')
     return intent
