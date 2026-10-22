@@ -69,6 +69,31 @@ def reminder_3(intent):
             f"Reply YES to keep it.")
 
 
+def check_in(intent):
+    """The approved message used when WhatsApp's 24-hour reply window has closed."""
+    name = intent.customer.first_name or 'there'
+    return (f"Hi {name}, this is {intent.shop.name} about the {item_name(intent)}. "
+            f"Reply to this message and we'll help you.")
+
+
+# Quick replies staff can send (or edit first) inside an open conversation.
+def quick_reply(key, intent):
+    name = intent.customer.first_name or 'there'
+    shop = intent.shop
+    if key == 'payment':
+        details = shop.payment_details.strip().rstrip('.') or 'Please ask us how to pay'
+        return f"Hi {name}, you can pay for the {item_name(intent)} here: {details}. Balance {money(shop, intent.balance)}."
+    if key == 'pickup':
+        when = f' until {_day(intent.pickup_by)}' if intent.pickup_by else ''
+        return f"Great, {name}. We're keeping the {item_name(intent)} for you{when}. See you at {shop.name}."
+    if key == 'other':
+        return f"Hi {name}, we also have the {intent.product.name} in other options. Would one of these work for you? "
+    return ''
+
+
+QUICK_REPLIES = [('payment', 'Send payment details'), ('pickup', 'Confirm pickup'), ('other', 'Offer another option')]
+
+
 TEMPLATES = {
     'restock_alert': restock_alert,
     'price_drop': price_drop,
@@ -76,6 +101,7 @@ TEMPLATES = {
     'reminder_1': reminder_1,
     'reminder_2': reminder_2,
     'reminder_3': reminder_3,
+    'check_in': check_in,
 }
 
 

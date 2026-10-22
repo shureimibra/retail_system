@@ -9,19 +9,34 @@ from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonRespon
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.views.generic import ListView
+from decimal import Decimal, InvalidOperation
+
+from django.contrib import messages
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from django.urls import reverse
+from django.views.generic import ListView, TemplateView
+
+from intents.models import BlockedPurchaseIntent as Intent, Payment
+from intents.services import TransitionError, change_item, decline, record_payment
+from products.models import ProductVariation
 from twilio.request_validator import RequestValidator
 from twilio.twiml.messaging_response import MessagingResponse
 
-from . import gateway, inbound
-from .models import Message
+from . import compose, gateway, inbound, selectors, services
+from .models import Conversation, Message
 
 
 class NotificationListView(LoginRequiredMixin, ListView):
+    """Conversations: one row per customer, replies waiting first. The Sent tab keeps the delivery log."""
     model = Message
     template_name = 'notifications/notification_list.html'
     context_object_name = 'notifications'
-    paginate_by = 10
+    paginate_by = 20
+
+    def show(self):
+        show = self.request.GET.get('show', 'all')
+        return show if show in ('needs_reply', 'all', 'sent') else 'all'
 
     def get_queryset(self):
         return (Message.objects.filter(shop=self.request.shop, direction=Message.OUTBOUND)
@@ -29,10 +44,130 @@ class NotificationListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['inbound_logs'] = (Message.objects.filter(shop=self.request.shop, direction=Message.INBOUND)
-                                   .select_related('conversation__customer').order_by('-created_at')[:20])
-        context['simulator_enabled'] = settings.SIMULATOR_ENABLED
+        show = self.show()
+        q = self.request.GET.get('q', '')
+        context.update({
+            'show': show,
+            'q': q,
+            'query': f'show={show}',
+            'conversations': selectors.inbox(self.request.shop, show, q) if show != 'sent' else [],
+            'needs_reply_count': Conversation.objects.filter(shop=self.request.shop, unread_count__gt=0).count(),
+        })
         return context
+
+
+class ConversationView(LoginRequiredMixin, TemplateView):
+    """One customer: the chat, a reply box, and the deal for each open item beside it."""
+    template_name = 'notifications/conversation.html'
+
+    def get_conversation(self):
+        return get_object_or_404(Conversation.objects.select_related('customer', 'shop'),
+                                 pk=self.kwargs['pk'], shop=self.request.shop)
+
+    def get(self, request, *args, **kwargs):
+        self.conversation = services.mark_read(self.get_conversation())
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        conversation = self.conversation
+        last_in = conversation.messages.filter(direction=Message.INBOUND).order_by('-created_at').first()
+        channel = last_in.channel if last_in else Message.WHATSAPP
+        hours_left = selectors.reply_window(conversation)
+        deals = selectors.deals(conversation)
+        context.update({
+            'conversation': conversation,
+            'customer': conversation.customer,
+            'chat': selectors.chat(conversation),
+            'channel': channel,
+            'channel_label': dict(Message.CHANNEL_CHOICES)[channel],
+            'hours_left': hours_left,
+            'can_write': channel != Message.WHATSAPP or hours_left > 0,
+            'deals': deals,
+            'main': deals[0] if deals else None,
+            'quick_replies': [(key, label, compose.quick_reply(key, deals[0])) for key, label in compose.QUICK_REPLIES]
+                             if deals else [],
+            'payment_methods': Payment.METHOD_CHOICES,
+            'inbox': selectors.inbox(self.request.shop, limit=25),
+            'draft': self.request.GET.get('draft', ''),
+        })
+        return context
+
+    def post(self, request, pk):
+        conversation = self.get_conversation()
+        action = request.POST.get('action')
+        here = reverse('notifications:conversation', args=[conversation.pk])
+        intent = None
+        if request.POST.get('intent', '').isdigit():
+            intent = (Intent.objects.filter(pk=request.POST['intent'], customer=conversation.customer, shop=request.shop)
+                      .exclude(status__in=Intent.CLOSED_STATUSES).first())
+            if intent is None:
+                messages.error(request, 'That item is closed or belongs to someone else.')
+                return redirect(here)
+        try:
+            with transaction.atomic():
+                return self.act(request, conversation, intent, action, here)
+        except (ValueError, TransitionError) as error:
+            messages.error(request, str(error))
+            return redirect(here + '#deal')
+
+    def act(self, request, conversation, intent, action, here):
+        if action == 'reply' or (action or '').startswith('quick:'):
+            body = request.POST.get('body', '').strip()
+            if action.startswith('quick:') and intent:
+                # Without JavaScript the quick reply is sent as written; with it, it only fills the box.
+                body = compose.quick_reply(action.split(':', 1)[1], intent)
+            if not body:
+                messages.error(request, 'Write a message first.')
+                return redirect(here + '#composer')
+            last_in = conversation.messages.filter(direction=Message.INBOUND).order_by('-created_at').first()
+            channel = last_in.channel if last_in else Message.WHATSAPP
+            if channel == Message.WHATSAPP and not selectors.reply_window(conversation):
+                messages.error(request, "WhatsApp only allows your own words within 24 hours of the customer's "
+                                        'last message. Send the check-in message instead.')
+                return redirect(here + '#composer')
+            gateway.send_reply(conversation, body[:1000], channel)
+            return redirect(here + '#composer')
+        if intent is None:
+            messages.error(request, 'Choose the item first.')
+            return redirect(here + '#deal')
+        if action == 'check_in':
+            gateway.queue_message(intent, 'check_in')
+            messages.success(request, 'Check-in message sent')
+        elif action == 'deposit':
+            amount = _amount(request.POST.get('amount'))
+            record_payment(intent, amount, _method(request), request.POST.get('reference', '')[:60], actor=request.user)
+            intent.refresh_from_db()
+            messages.success(request, 'Paid in full. Counted as recovered.' if intent.status == Intent.RECOVERED
+                             else 'Deposit saved. The item is reserved and a receipt is on its way.')
+        elif action == 'paid':
+            if intent.balance <= 0:
+                raise ValueError('Nothing is left to pay.')
+            record_payment(intent, intent.balance, _method(request), request.POST.get('reference', '')[:60],
+                           actor=request.user)
+            messages.success(request, 'Paid in full. Counted as recovered.')
+        elif action == 'decline':
+            decline(intent, request.POST.get('reason', '').strip()[:200], actor=request.user)
+            messages.success(request, 'Closed as declined. It is not counted as revenue.')
+        elif action == 'change':
+            variation = get_object_or_404(ProductVariation, pk=request.POST.get('variation'), product=intent.product)
+            change_item(intent, variation, actor=request.user)
+            messages.success(request, f'Changed to {variation.label}')
+        return redirect(here + '#deal')
+
+
+def _amount(value):
+    try:
+        return Decimal(str(value).replace(',', '').strip())
+    except (InvalidOperation, ValueError):
+        raise ValueError('Enter the amount as a number.')
+
+
+def _method(request):
+    method = request.POST.get('method', Payment.MPESA)
+    if method not in dict(Payment.METHOD_CHOICES):
+        raise ValueError('Choose how they paid.')
+    return method
 
 
 # --- Twilio (SMS, and WhatsApp if Twilio is the WhatsApp provider) ------------------------
@@ -139,8 +274,8 @@ def simulator(request):
         inbound.receive(request.POST.get('channel', Message.WHATSAPP), request.POST.get('from', ''),
                         request.POST.get('body', ''))
         return redirect('notifications:simulator')
-    messages = (Message.objects.filter(shop=request.shop).select_related('conversation__customer', 'intent__product')
-                .order_by('-created_at')[:60])
+    sent = (Message.objects.filter(shop=request.shop).select_related('conversation__customer', 'intent__product')
+            .order_by('-created_at')[:60])
     customers = request.shop.customers.order_by('first_name')
-    return render(request, 'notifications/simulator.html', {'messages_list': messages, 'customers': customers,
+    return render(request, 'notifications/simulator.html', {'messages_list': sent, 'customers': customers,
                                                             'channels': Message.CHANNEL_CHOICES})

@@ -263,3 +263,37 @@ def change_item(intent, new_variation, actor=None):
     elif intent.status not in Intent.WAITING_STATUSES:
         transition(intent, Intent.OPEN, actor=actor, note='New item is not in stock yet')
     return intent
+
+
+# --- Floor mode -------------------------------------------------------------
+
+def find_or_add_customer(shop, phone, name='', email=''):
+    """The customer with this phone number, or a new one. Fills in a name or email the shop didn't have yet."""
+    from core.phones import normalize_phone
+    from customers.models import Customer
+    number = normalize_phone(phone, shop.phone_region)
+    if not number:
+        raise ValueError('Enter a phone number we can read, for example 0712 345 678.')
+    first, _, last = (name or '').strip().partition(' ')
+    customer = Customer.objects.filter(shop=shop, phone_number=number).first()
+    if customer is None:
+        return Customer.objects.create(shop=shop, phone_number=number, first_name=first[:100], last_name=last[:100],
+                                       email=email or None)
+    changed = []
+    if first and not customer.first_name:
+        customer.first_name, customer.last_name = first[:100], last[:100]
+        changed += ['first_name', 'last_name']
+    if email and not customer.email:
+        customer.email = email
+        changed.append('email')
+    if changed:
+        customer.save(update_fields=changed)
+    return customer
+
+
+def capture_from_floor(shop, customer, product, variation, constraint_type, needed_by=None, consent_given=True,
+                       recorded_by=None, visit_id=None):
+    """Log a missed sale from Floor mode. "Same customer, another item" reuses the visit so it counts once."""
+    visit = Visit.objects.filter(shop=shop, pk=visit_id, customer=customer).first() if visit_id else None
+    return create_blocked_purchase_intent(customer, product, variation, constraint_type, recorded_by=recorded_by,
+                                          visit=visit, consent_given=consent_given, needed_by=needed_by)

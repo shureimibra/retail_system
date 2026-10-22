@@ -3,29 +3,28 @@
 {% block title %}Conversations{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Conversations</h1><p>Replies from customers, and every message the shop sent.</p></div>
+  <div><h1>Conversations</h1><p>Customers who answered your messages. Reply here, take a deposit or close the sale.</p></div>
 </div>
 
 <div class="panel">
-  <div class="panel-head"><h2>Replies from customers</h2>{% if unread_replies %}<span class="badge badge-in_conversation">{{ unread_replies }} unread</span>{% endif %}</div>
-  {% if inbound_logs %}
-  <div class="rows">
-    {% for m in inbound_logs %}
-    <div>
-      <span class="avatar">{% if m.conversation %}{{ m.conversation.customer.first_name|first|upper }}{% else %}?{% endif %}</span>
-      <span class="grow"><span class="row-title">{% if m.conversation %}{{ m.conversation.customer.first_name }} {{ m.conversation.customer.last_name }}{% else %}Unknown number{% endif %}
-        <span class="faint small">· {{ m.get_channel_display }} · {{ m.created_at|date:"j M, H:i" }}</span></span>
-        <span class="muted">{{ m.body }}</span></span>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty">{% icon "inbox" %}<p>No replies yet. When a customer answers a message, it shows up here.</p></div>
+  <nav class="tabs" aria-label="Show">
+    <a href="?show=needs_reply"{% if show == 'needs_reply' %} aria-current="page"{% endif %}>Needs reply<span>{{ needs_reply_count }}</span></a>
+    <a href="?show=all"{% if show == 'all' %} aria-current="page"{% endif %}>All</a>
+    <a href="?show=sent"{% if show == 'sent' %} aria-current="page"{% endif %}>Sent messages</a>
+  </nav>
+
+  {% if show != 'sent' %}
+  <form method="get" class="filter-bar" role="search">
+    <input type="hidden" name="show" value="{{ show }}">
+    <div class="field grow-field"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Name or phone" autocomplete="off"></div>
+    <div class="filter-actions"><button class="btn" type="submit">Search</button>{% if q %}<a class="btn btn-plain" href="?show={{ show }}">Clear</a>{% endif %}</div>
+  </form>
+  {% include "notifications/_inbox_rows.html" with rows=conversations %}
+  {% if not conversations %}
+  <div class="empty">{% icon "inbox" %}<p>{% if q %}No conversation matches "{{ q }}".{% elif show == 'needs_reply' %}No one is waiting for a reply.{% else %}No replies yet. When a customer answers a message, the conversation starts here.{% endif %}</p></div>
   {% endif %}
-</div>
 
-<div class="panel">
-  <div class="panel-head"><h2>Sent</h2></div>
+  {% else %}
   {% if notifications %}
   <div class="table-wrap">
     <table class="table table-cards">
@@ -33,7 +32,7 @@
       <tbody>
       {% for m in notifications %}
       <tr>
-        <td class="card-title"><span class="primary">{{ m.conversation.customer.first_name }} {{ m.conversation.customer.last_name }}</span><span class="sub mono">{{ m.to_address }}</span></td>
+        <td class="card-title">{% if m.conversation %}<a class="primary" href="{% url 'notifications:conversation' m.conversation.pk %}">{{ m.conversation.customer.first_name }} {{ m.conversation.customer.last_name }}</a>{% endif %}<span class="sub mono">{{ m.to_address }}</span></td>
         <td data-label="Message" class="message-cell">{{ m.body|truncatechars:120 }}</td>
         <td data-label="Channel">{{ m.get_channel_display }}</td>
         <td data-label="Sent" class="num">{{ m.created_at|date:"j M, H:i" }}</td>
@@ -47,6 +46,16 @@
   {% else %}
   <div class="empty">{% icon "send" %}<p>Nothing sent yet. Messages go out when stock arrives for a customer who's waiting.</p></div>
   {% endif %}
+  {% endif %}
 </div>
-{% include "ui/pagination.html" %}
+{% if show == 'sent' %}{% include "ui/pagination.html" %}{% endif %}
 {% endblock %}
+
+{% block scripts %}{% if show != 'sent' %}
+<script>
+// New replies show up without reloading by hand; skipped while someone is typing in the search box.
+setInterval(function () {
+  if (document.visibilityState === 'visible' && document.activeElement.tagName !== 'INPUT') window.location.reload();
+}, 30000);
+</script>
+{% endif %}{% endblock %}

@@ -29,6 +29,8 @@ class Shop(models.Model):
     reserve_pickup_days = models.PositiveSmallIntegerField(default=5)
     default_channel = models.CharField(max_length=20, default='whatsapp',
                                        choices=[('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'Email')])
+    # Sent by the "Send payment details" quick reply in Conversations.
+    payment_details = models.TextField(blank=True, help_text='For example: M-Pesa Till 123456, Kimathi Street Store.')
     # Settings → Home layout: role → ordered widget keys. Empty means the defaults in dashboard/widgets.py.
     home_layout = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

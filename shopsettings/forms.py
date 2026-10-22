@@ -51,7 +51,9 @@ class ShopDetailsForm(forms.ModelForm):
 
     class Meta:
         model = Shop
-        fields = ['name', 'phone_region', 'currency', 'timezone', 'logo']
+        fields = ['name', 'phone_region', 'currency', 'timezone', 'payment_details', 'logo']
+        labels = {'payment_details': 'How customers pay you'}
+        widgets = {'payment_details': forms.Textarea(attrs={'rows': 2})}
         labels = {'name': 'Shop name'}
 
 

@@ -5,6 +5,7 @@ from django.shortcuts import redirect
 from rest_framework.routers import DefaultRouter
 from products.api_views import CategoryViewSet, ProductTypeViewSet, ProductViewSet, ProductVariationViewSet
 from customers.api_views import CustomerViewSet
+from intents.floor import FloorView, customer_lookup
 from intents.api_views import BlockedPurchaseIntentViewSet, record_bought_visit
 from analytics.api_views import DashboardStatsAPIView, AnalyticsAPIView, FunnelAPIView, ToOrderAPIView
 from reports.api_views import ReportsAPIView
@@ -30,6 +31,8 @@ urlpatterns = [
     path('notifications/', include('notifications.urls')),
     path('reports/', include('reports.urls')),
     path('settings/', include('shopsettings.urls')),
+    path('floor/', FloorView.as_view(), name='floor'),
+    path('floor/customer/', customer_lookup, name='floor-customer'),
 
     
     # API endpoints

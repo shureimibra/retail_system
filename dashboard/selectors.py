@@ -80,7 +80,7 @@ def needs_you(shop, limit=8):
         rows.append({'kind': 'reply', 'badge': 'In conversation', 'badge_class': 'in_conversation',
                      'title': f'{conv.customer.first_name or conv.customer.phone_number} replied',
                      'sub': (last.body[:80] if last else ''), 'at': conv.last_inbound_at,
-                     'action': 'Reply', 'url': reverse('notifications:list')})
+                     'action': 'Reply', 'url': reverse('notifications:conversation', args=[conv.pk])})
 
     due = (Intent.objects.filter(shop=shop, status=Intent.OPEN, needed_by__isnull=False,
                                  needed_by__lte=today + timedelta(days=2)))

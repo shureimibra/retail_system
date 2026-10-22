@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-head">
   <div><h1>Waiting</h1><p>Customers who wanted something you couldn't sell them, grouped by customer.</p></div>
-  <div class="actions"><a class="btn" href="{% url 'intents:create' %}">{% icon "plus" "sm" %}Log missed sale</a></div>
+  <div class="actions"><a class="btn" href="{% url 'floor' %}?start=item">{% icon "plus" "sm" %}Log missed sale</a></div>
 </div>
 
 <div class="panel">
@@ -79,7 +79,7 @@
   {% else %}
   <div class="empty">{% icon "clipboard-list" %}
     <p>{% if filtered %}Nothing matches these filters.{% elif current_tab == 'stock' %}No one is waiting. Missed sales you log appear here.{% elif current_tab == 'price' %}No one is waiting for a lower price. Customers who said the price was too high or over their budget appear here and are messaged when you lower the price.{% else %}Nothing here yet.{% endif %}</p>
-    {% if filtered %}<a class="btn" href="?show={{ current_tab }}">Clear filters</a>{% else %}<a class="btn" href="{% url 'intents:create' %}">Log missed sale</a>{% endif %}</div>
+    {% if filtered %}<a class="btn" href="?show={{ current_tab }}">Clear filters</a>{% else %}<a class="btn" href="{% url 'floor' %}?start=item">Log missed sale</a>{% endif %}</div>
   {% endif %}
 </div>
 {% include "ui/pagination.html" %}
