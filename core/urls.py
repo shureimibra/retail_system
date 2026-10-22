@@ -29,6 +29,7 @@ urlpatterns = [
     path('intents/', include('intents.urls')),
     path('notifications/', include('notifications.urls')),
     path('reports/', include('reports.urls')),
+    path('settings/', include('shopsettings.urls')),
 
     
     # API endpoints

@@ -1,81 +1,42 @@
-{% extends 'base.html' %}
-
-{% block title %}Blocked Intents - Retail RMS{% endblock %}
-
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Missed sales{% endblock %}
 {% block content %}
-<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-    <div>
-        <h2 class="text-3xl font-extrabold text-textprimary tracking-tight">Blocked Purchase Intents</h2>
-        <p class="text-sm text-textsecondary mt-1 font-medium">Track customer demand constraints, notify them of stock updates, and monitor recovery.</p>
-    </div>
-    <div>
-        <a href="{% url 'intents:create' %}" class="px-5 py-2.5 bg-primary text-white rounded-xl shadow-glow-cyan hover-glow flex items-center gap-2 text-sm font-bold transition-all">
-            <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-            Record Blocked Purchase
-        </a>
-    </div>
+<div class="page-head">
+  <div><h1>Missed sales</h1><p>Customers who wanted something you couldn't sell them, and where each one stands.</p></div>
+  <div class="actions"><a class="btn" href="{% url 'intents:create' %}">{% icon "plus" "sm" %}Log missed sale</a></div>
 </div>
-
-<div class="glassmorphism rounded-2xl shadow-soft overflow-hidden border border-bordercolor neon-cyan">
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left text-textsecondary">
-            <thead class="bg-bgtertiary text-textprimary uppercase text-[10px] font-bold tracking-wider">
-                <tr>
-                    <th scope="col" class="px-6 py-4">Date</th>
-                    <th scope="col" class="px-6 py-4">Customer</th>
-                    <th scope="col" class="px-6 py-4">Product Details</th>
-                    <th scope="col" class="px-6 py-4">Constraint</th>
-                    <th scope="col" class="px-6 py-4">Est. Lost Value</th>
-                    <th scope="col" class="px-6 py-4">Status</th>
-                    <th scope="col" class="px-6 py-4 text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-bordercolor">
-                {% for intent in intents %}
-                <tr class="hover:bg-bgtertiary/40 transition-colors">
-                    <td class="px-6 py-4 whitespace-nowrap text-xs font-medium">{{ intent.created_at|date:"M d, Y • H:i" }}</td>
-                    <td class="px-6 py-4">
-                        <div class="font-bold text-textprimary">{{ intent.customer.first_name }} {{ intent.customer.last_name }}</div>
-                        <span class="text-xs text-textmuted block font-normal mt-0.5">{{ intent.customer.phone_number }}</span>
-                    </td>
-                    <td class="px-6 py-4">
-                        <span class="font-bold text-textprimary">{{ intent.product.name }}</span>
-                        {% if intent.variation %}
-                        <span class="text-xs text-textmuted block mt-0.5">Size: {{ intent.variation.size }} • Color: {{ intent.variation.color }}</span>
-                        {% else %}
-                        <span class="text-xs text-textmuted block mt-0.5">No variation selected</span>
-                        {% endif %}
-                    </td>
-                    <td class="px-6 py-4">
-                        <span class="bg-bgtertiary border border-bordercolor text-textsecondary text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                            {{ intent.get_constraint_type_display }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 font-bold text-textprimary">
-                        <span class="price-display text-sm" data-value="{{ intent.estimated_value }}">KSh {{ intent.estimated_value|floatformat:2 }}</span>
-                    </td>
-                    <td class="px-6 py-4">
-                        <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide uppercase
-                            {% if intent.status == 'open' or intent.status == 'on_order' %}bg-warning/15 text-warning
-                            {% elif intent.status == 'recovered' %}bg-success/15 text-success
-                            {% elif intent.status == 'declined' or intent.status == 'expired' %}bg-textmuted/15 text-textmuted
-                            {% else %}bg-primary/15 text-primary{% endif %}">
-                            {{ intent.get_status_display }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 text-right">
-                        <a href="{% url 'intents:update' intent.id %}" class="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl transition-all">Update</a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7" class="px-6 py-8 text-center text-textmuted">
-                        No blocked purchase intents recorded.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<div class="panel">
+  <nav class="tabs" aria-label="Filter">
+    {% for key, label, count in tabs %}
+    <a href="?show={{ key }}"{% if current_tab == key %} aria-current="page"{% endif %}>{{ label }}<span>{{ count }}</span></a>
+    {% endfor %}
+  </nav>
+  {% if intents %}
+  <div class="table-wrap">
+    <table class="table table-cards">
+      <thead><tr><th>Item</th><th>Customer</th><th>Reason</th><th class="r">Value</th><th>Logged</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>
+      {% for intent in intents %}
+      <tr>
+        <td class="card-title"><span class="primary">{{ intent.product.name }}{% if intent.variation %} · {{ intent.variation.label }}{% endif %}</span>
+          {% if intent.variation %}<span class="sub sku">{{ intent.variation.sku }}</span>{% endif %}</td>
+        <td data-label="Customer">{{ intent.customer.first_name }} {{ intent.customer.last_name }}<span class="sub mono">{{ intent.customer.phone_number }}</span></td>
+        <td data-label="Reason"><span class="tag">{{ intent.get_constraint_type_display }}</span></td>
+        <td data-label="Value" class="r">{{ intent.estimated_value|money:request.shop }}</td>
+        <td data-label="Logged" class="num">{{ intent.created_at|date:"j M" }}</td>
+        <td data-label="Status"><span class="badge badge-{{ intent.status }}">{{ intent.get_status_display }}</span></td>
+        <td class="r"><a class="btn btn-plain btn-sm" href="{% url 'intents:update' intent.pk %}">Open</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">{% icon "clipboard-list" %}
+    <p>{% if current_tab == 'waiting' %}No one is waiting right now. When a customer can't buy, log it and they'll show up here.{% else %}Nothing here yet.{% endif %}</p>
+    <a class="btn" href="{% url 'intents:create' %}">Log missed sale</a></div>
+  {% endif %}
 </div>
+{% include "ui/pagination.html" %}
 {% endblock %}

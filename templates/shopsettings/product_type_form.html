@@ -1,0 +1,26 @@
+{% extends "shopsettings/base.html" %}
+{% load ui %}
+{% block pane %}
+<a class="back" href="{% url 'settings:product_types' %}">{% icon "chevron-left" "sm" %}Product types</a>
+<div class="panel">
+  <div class="panel-head"><h2 id="pane-title">{% if object.pk %}{{ object.name }}{% else %}New product type{% endif %}</h2></div>
+  <form method="post" class="panel-body form" novalidate>
+    {% csrf_token %}
+    {% field form.name %}
+    <div class="form-row">{% field form.option1_name %}{% field form.option1_values %}</div>
+    <div class="form-row">{% field form.option2_name %}{% field form.option2_values %}</div>
+    <div class="form-row">{% field form.option3_name %}{% field form.option3_values %}</div>
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Save</button></div>
+  </form>
+</div>
+{% if object.pk %}
+<div class="panel"><div class="panel-body">
+  {% if in_use %}
+  <p class="small muted">{{ object.name }} is used by products, so it can't be deleted.</p>
+  {% else %}
+  <form method="post" data-confirm="Delete {{ object.name }}?">{% csrf_token %}<input type="hidden" name="action" value="delete">
+    <button class="btn btn-critical btn-sm" type="submit">{% icon "trash-2" "sm" %}Delete this type</button></form>
+  {% endif %}
+</div></div>
+{% endif %}
+{% endblock %}

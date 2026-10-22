@@ -72,7 +72,7 @@ def transition(intent, to_status, actor=None, note='', **data):
 
 def create_blocked_purchase_intent(customer, product, variation, constraint_type, requested_quantity=1, estimated_value=None,
                                    notes="", recorded_by=None, visit=None, consent_given=True,
-                                   preferred_channel=Intent.WHATSAPP, needed_by=None):
+                                   preferred_channel=None, needed_by=None):
     if customer.shop_id != product.shop_id or (variation and variation.product_id != product.id):
         raise ValueError('Customer, product and variation must belong to the same shop and product.')
     if estimated_value is None:
@@ -94,7 +94,7 @@ def create_blocked_purchase_intent(customer, product, variation, constraint_type
             notes=notes,
             recorded_by=recorded_by,
             consent_given=consent_given,
-            preferred_channel=preferred_channel,
+            preferred_channel=preferred_channel or product.shop.default_channel,
             needed_by=needed_by,
         )
         log_event(intent, 'created', actor=recorded_by, note=intent.get_constraint_type_display())
@@ -154,7 +154,7 @@ def resolve_intents_for_variation(variation, skip_intent_id=None):
 def _hold_unit(intent, variation):
     from products.models import StockHold
     return StockHold.objects.create(variation=variation, intent=intent, quantity=1,
-                                    expires_at=timezone.now() + timedelta(days=settings.STOCK_HOLD_DAYS))
+                                    expires_at=timezone.now() + timedelta(days=intent.shop.stock_hold_days))
 
 
 def _release_holds(intent):
@@ -182,8 +182,8 @@ def _sell_held_units(intent, actor):
 
 # --- Customer agreed: reserve and pay ------------------------------------------
 
-def _default_pickup_by():
-    return timezone.localdate() + timedelta(days=settings.RESERVE_PICKUP_DAYS)
+def _default_pickup_by(shop):
+    return timezone.localdate() + timedelta(days=shop.reserve_pickup_days)
 
 
 def _keep_hold_until(intent, pickup_by):
@@ -195,7 +195,7 @@ def _keep_hold_until(intent, pickup_by):
 @transaction.atomic
 def reserve(intent, pickup_by=None, actor=None, note=''):
     """Customer agreed to come for it (with or without a deposit)."""
-    intent.pickup_by = pickup_by or _default_pickup_by()
+    intent.pickup_by = pickup_by or _default_pickup_by(intent.shop)
     intent.save(update_fields=['pickup_by', 'updated_at'])
     _keep_hold_until(intent, intent.pickup_by)
     if intent.status != Intent.RESERVED:

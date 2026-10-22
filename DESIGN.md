@@ -14,7 +14,7 @@ colors:
   border-strong: "#C6CDC6"
   ink: "#18201D"
   ink-2: "#4A5550"
-  ink-3: "#6F7A75"
+  ink-3: "#626D68"
   ok: "#2B6E37"
   ok-bg: "#E2F0E3"
   warn: "#8F5208"
@@ -138,7 +138,7 @@ Two densities share one system. **Back office** uses 14–15px text and 36–40p
 - **Surface** (#FFFFFF / #161B1A): cards, nav, top bar.
 - **Surface 2** (#F0F2EF / #1C2221): table headers, chips, hover.
 - **Border** (#DFE3DE / #29312F) and **Border strong** (#C6CDC6): every separation.
-- **Ink** (#18201D), **Ink 2** (#4A5550), **Ink 3** (#6F7A75): text, secondary text, captions.
+- **Ink** (#18201D), **Ink 2** (#4A5550), **Ink 3** (#626D68): text, secondary text, captions.
 
 ### Status tones (badges only)
 - **Open:** warn text #8F5208 on #FAEED8.

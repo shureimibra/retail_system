@@ -4,21 +4,74 @@ from django.urls import reverse_lazy
 from .models import BlockedPurchaseIntent
 from .forms import BlockedPurchaseIntentForm
 from .services import create_blocked_purchase_intent, transition
+from django.contrib import messages
 from django.http import HttpResponseRedirect
+
+Intent = BlockedPurchaseIntent
+TABS = [
+    ('waiting', 'Waiting', Intent.WAITING_STATUSES),
+    ('active', 'In progress', [Intent.BACK_IN_STOCK, Intent.NOTIFIED, Intent.IN_CONVERSATION, Intent.RESERVED]),
+    ('closed', 'Closed', Intent.CLOSED_STATUSES),
+    ('all', 'All', None),
+]
+
+
+def _capture_context(request, context):
+    """What the capture form's "add new" dialogs need."""
+    from products.models import ProductType
+    from products.selectors import get_all_categories
+    from core.shops import can_add_products
+    context['all_categories'] = get_all_categories(request.shop)
+    context['product_types'] = ProductType.objects.filter(shop=request.shop)
+    context['can_add_products'] = can_add_products(request)
+    intent = context.get('object')
+    if intent is not None:
+        context['events'] = intent.events.select_related('actor').order_by('-created_at')[:20]
+        context['steps'] = _lifecycle_steps(intent)
+    return context
+
+
+def _lifecycle_steps(intent):
+    """The status bar: done, current and upcoming stages of the main path."""
+    path = [Intent.OPEN, Intent.BACK_IN_STOCK, Intent.NOTIFIED, Intent.IN_CONVERSATION, Intent.RESERVED, Intent.RECOVERED]
+    labels = dict(Intent.STATUS_CHOICES)
+    current = Intent.OPEN if intent.status == Intent.ON_ORDER else intent.status
+    if current not in path:
+        return []
+    index = path.index(current)
+    return [(labels[s] if not (s == Intent.OPEN and intent.status == Intent.ON_ORDER) else labels[Intent.ON_ORDER],
+             'done' if i < index else 'now' if i == index else '') for i, s in enumerate(path)]
+
 
 class IntentListView(ShopViewMixin, ListView):
     model = BlockedPurchaseIntent
     template_name = 'intents/intent_list.html'
     context_object_name = 'intents'
-    paginate_by = 10
+    paginate_by = 20
     ordering = ['-created_at']
 
+    def tab(self):
+        key = self.request.GET.get('show', 'waiting')
+        return next((t for t in TABS if t[0] == key), TABS[0])
+
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related('customer', 'product', 'variation')
+        statuses = self.tab()[2]
+        if statuses:
+            queryset = queryset.filter(status__in=statuses)
         customer_id = self.request.GET.get('customer')
         if customer_id:
             queryset = queryset.filter(customer_id=customer_id)
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        base = BlockedPurchaseIntent.objects.filter(shop=self.request.shop)
+        context['tabs'] = [(key, label, base.filter(status__in=statuses).count() if statuses else base.count())
+                           for key, label, statuses in TABS]
+        context['current_tab'] = self.tab()[0]
+        context['query'] = f'show={self.tab()[0]}'
+        return context
 
 class IntentCreateView(ShopViewMixin, CreateView):
     model = BlockedPurchaseIntent
@@ -43,13 +96,12 @@ class IntentCreateView(ShopViewMixin, CreateView):
             notes=data.get('notes', ''),
             recorded_by=self.request.user,
         )
+        messages.success(self.request, 'Missed sale saved')
         return HttpResponseRedirect(self.get_success_url())
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        from products.selectors import get_all_categories
-        context['all_categories'] = get_all_categories(self.request.shop)
-        return context
+        return _capture_context(self.request, context)
 
 class IntentUpdateView(ShopViewMixin, UpdateView):
     model = BlockedPurchaseIntent
@@ -69,6 +121,4 @@ class IntentUpdateView(ShopViewMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        from products.selectors import get_all_categories
-        context['all_categories'] = get_all_categories(self.request.shop)
-        return context
+        return _capture_context(self.request, context)

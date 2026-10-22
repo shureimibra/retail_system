@@ -1,0 +1,24 @@
+{% extends "shopsettings/base.html" %}
+{% load ui %}
+{% block pane %}
+<div class="panel">
+  <div class="panel-head"><h2 id="pane-title">Profile</h2><span class="faint small">Signed in as {{ user.username }}</span></div>
+  <form method="post" class="panel-body form" novalidate>
+    {% csrf_token %}<input type="hidden" name="form" value="profile">
+    <div class="form-row">{% field profile_form.first_name %}{% field profile_form.last_name %}</div>
+    {% field profile_form.email %}
+    {% field profile_form.phone_number %}
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Save</button></div>
+  </form>
+</div>
+<div class="panel">
+  <div class="panel-head"><h2>Password</h2></div>
+  <form method="post" class="panel-body form" novalidate>
+    {% csrf_token %}<input type="hidden" name="form" value="password">
+    {% field password_form.old_password %}
+    {% field password_form.new_password1 "At least 8 characters, and not only numbers." %}
+    {% field password_form.new_password2 %}
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Change password</button></div>
+  </form>
+</div>
+{% endblock %}

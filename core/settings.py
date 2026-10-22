@@ -64,6 +64,8 @@ INSTALLED_APPS = [
     'analytics',
     'reports',
     'dashboard',
+    'ui',
+    'shopsettings',
 ]
 
 MIDDLEWARE = [
@@ -90,6 +92,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'ui.context.shell',
             ],
         },
     },
@@ -206,12 +209,6 @@ DEFAULT_PHONE_REGION = os.environ.get('DEFAULT_PHONE_REGION', 'KE')
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# How long a unit is put aside for a waiting customer after it arrives (days).
-STOCK_HOLD_DAYS = int(os.environ.get('STOCK_HOLD_DAYS', '8'))
-
-# Default days a reserved item waits for pickup.
-RESERVE_PICKUP_DAYS = int(os.environ.get('RESERVE_PICKUP_DAYS', '5'))
-
 # --- Messaging -------------------------------------------------------------
 # Which provider serves each channel: simulator (default: nothing leaves the
 # machine), whatsapp_cloud, africastalking, twilio, email.
@@ -259,11 +256,8 @@ if 'test' in sys.argv:
     WHATSAPP_APP_SECRET = WHATSAPP_VERIFY_TOKEN = ''
     AFRICASTALKING_WEBHOOK_TOKEN = ''
 
-# Follow-ups after a restock or price-drop message with no reply: days after the
-# first message. The request expires this many days after the last one.
-FOLLOW_UP_DAYS = [int(d) for d in os.environ.get('FOLLOW_UP_DAYS', '2,4,7').split(',')]
-EXPIRE_DAYS_AFTER_LAST_FOLLOW_UP = int(os.environ.get('EXPIRE_DAYS_AFTER_LAST_FOLLOW_UP', '1'))
 
+# Follow-up days, hold days and pickup days are per shop (Settings → Follow-ups and holds).
 # Periodic work (follow-ups, expiry, message retries). In development without
 # Redis, run: python manage.py process_due
 CELERY_BEAT_SCHEDULE = {

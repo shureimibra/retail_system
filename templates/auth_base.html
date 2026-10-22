@@ -1,0 +1,18 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}Sign in{% endblock %} · Retail OS</title>
+  <link rel="icon" href="{% static 'icons/favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+<main class="auth">
+  <div class="auth-card">
+    <div class="brand"><span class="brand-mark">R</span><span class="brand-text"><b>Retail OS</b></span></div>
+    {% block content %}{% endblock %}
+  </div>
+</main>
+</body>
+</html>

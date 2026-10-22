@@ -4,8 +4,11 @@ from django.db import models
 
 
 class User(AbstractUser):
+    THEME_CHOICES = [('system', 'Match my device'), ('light', 'Light'), ('dark', 'Dark')]
+
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     is_staff_member = models.BooleanField(default=False)
+    theme = models.CharField(max_length=10, choices=THEME_CHOICES, default='system')
 
     def __str__(self):
         return self.username
@@ -17,10 +20,24 @@ class Shop(models.Model):
     currency = models.CharField(max_length=3, default='KES')
     timezone = models.CharField(max_length=64, default='Africa/Nairobi')
     cashiers_can_add_products = models.BooleanField(default=True)
+    logo = models.ImageField(upload_to='shops/', blank=True)
+    # How the shop follows up (Settings → Follow-ups and holds).
+    follow_up_days = models.CharField(max_length=40, default='2,4,7',
+                                      help_text='Days after the first message to send reminders, e.g. 2, 4, 7.')
+    expire_days_after_last_follow_up = models.PositiveSmallIntegerField(default=1)
+    stock_hold_days = models.PositiveSmallIntegerField(default=8)
+    reserve_pickup_days = models.PositiveSmallIntegerField(default=5)
+    default_channel = models.CharField(max_length=20, default='whatsapp',
+                                       choices=[('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'Email')])
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
+
+    @property
+    def follow_up_schedule(self):
+        days = sorted({int(d) for d in self.follow_up_days.replace(' ', '').split(',') if d.isdigit() and int(d) > 0})
+        return days
 
 
 def default_shop_id():

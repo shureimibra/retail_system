@@ -1,0 +1,24 @@
+{% extends "shopsettings/base.html" %}
+{% load ui %}
+{% block pane %}
+<div class="panel">
+  <div class="panel-head"><h2 id="pane-title">Messaging</h2></div>
+  <form method="post" class="panel-body form" novalidate>
+    {% csrf_token %}
+    {% for f in form %}{% field f %}{% endfor %}
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Save</button></div>
+  </form>
+</div>
+<div class="panel">
+  <div class="panel-head"><h2>Connected channels</h2></div>
+  <div class="rows">
+    {% for channel, provider in connections %}
+    <div><span class="grow">{{ channel }}</span><span class="{% if 'Simulator' in provider %}faint{% endif %}">{{ provider }}</span></div>
+    {% endfor %}
+  </div>
+  <div class="panel-body divided">
+    <p class="small muted">Channels are connected by whoever runs Retail OS for you. The provider keys live on the server, not here.
+    {% if simulator_enabled %}While testing, see what customers would receive in the <a href="{% url 'notifications:simulator' %}">customer simulator</a>.{% endif %}</p>
+  </div>
+</div>
+{% endblock %}

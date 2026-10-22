@@ -1,0 +1,19 @@
+{% extends "shopsettings/base.html" %}
+{% load ui %}
+{% block pane %}
+<div class="panel">
+  <div class="panel-head"><h2 id="pane-title">Product types and options</h2><a class="btn btn-sm" href="{% url 'settings:product_type_new' %}">{% icon "plus" "sm" %}Add type</a></div>
+  <div class="rows">
+    {% for type in types %}
+    <a class="row-link" href="{% url 'settings:product_type_edit' type.pk %}">
+      <span class="grow"><span class="row-title">{{ type.name }}</span>
+        <span class="row-sub">{% for name, values in type.options %}{{ name }}{% if values %} ({{ values|length }} suggested){% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}</span></span>
+      <span class="faint small">{{ type.products.count }} product{{ type.products.count|pluralize }}</span>
+      {% icon "chevron-right" "sm" %}
+    </a>
+    {% empty %}
+    <div class="empty"><p>No product types yet. Add one to describe the sizes and colours your items come in.</p></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

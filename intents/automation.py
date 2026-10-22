@@ -5,7 +5,6 @@ or by hand with `python manage.py process_due`.
 """
 from datetime import timedelta
 
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -16,27 +15,32 @@ from .services import log_event, transition
 
 def process_due(now=None):
     now = now or timezone.now()
+    # Lapsed holds go first: the expiries below hand freed units to the next customer,
+    # and those brand-new holds must not be mistaken for lapsed ones in the same run.
+    holds_returned = _return_lapsed_holds(now)
     summary = {
         'follow_ups_sent': _send_follow_ups(now),
         'expired_no_reply': _expire_unanswered(now),
         'expired_not_collected': _expire_uncollected(now),
         'expired_waiting': _expire_long_waits(now),
-        'holds_returned': _return_lapsed_holds(now),
+        'holds_returned': holds_returned,
     }
     summary['messages_retried'] = len(retry_due_messages())
     return summary
 
 
-def _schedule():
-    days = sorted(settings.FOLLOW_UP_DAYS)
-    return days, days[-1] + settings.EXPIRE_DAYS_AFTER_LAST_FOLLOW_UP if days else 0
+def _schedule(shop):
+    """The shop's reminder days, and the day the request expires after the last one."""
+    days = shop.follow_up_schedule
+    return days, (days[-1] if days else 0) + shop.expire_days_after_last_follow_up
 
 
 def _send_follow_ups(now):
-    days, _ = _schedule()
     sent = 0
-    for intent in Intent.objects.filter(status=Intent.NOTIFIED, notified_at__isnull=False,
-                                        follow_ups_sent__lt=len(days)).select_related('customer', 'shop'):
+    for intent in Intent.objects.filter(status=Intent.NOTIFIED, notified_at__isnull=False).select_related('customer', 'shop'):
+        days, _ = _schedule(intent.shop)
+        if intent.follow_ups_sent >= len(days):
+            continue
         if now >= intent.notified_at + timedelta(days=days[intent.follow_ups_sent]):
             with transaction.atomic():
                 number = intent.follow_ups_sent + 1
@@ -49,13 +53,12 @@ def _send_follow_ups(now):
 
 
 def _expire_unanswered(now):
-    days, expire_after = _schedule()
     expired = 0
-    for intent in Intent.objects.filter(status=Intent.NOTIFIED, notified_at__isnull=False,
-                                        follow_ups_sent__gte=len(days),
-                                        notified_at__lte=now - timedelta(days=expire_after)):
-        transition(intent, Intent.EXPIRED, note=f'No reply after {len(days)} reminders')
-        expired += 1
+    for intent in Intent.objects.filter(status=Intent.NOTIFIED, notified_at__isnull=False).select_related('shop'):
+        days, expire_after = _schedule(intent.shop)
+        if intent.follow_ups_sent >= len(days) and intent.notified_at <= now - timedelta(days=expire_after):
+            transition(intent, Intent.EXPIRED, note=f'No reply after {len(days)} reminders')
+            expired += 1
     return expired
 
 
@@ -85,7 +88,7 @@ def _return_lapsed_holds(now):
     """A unit was held but the customer could never be reached (message failed). Free it for the next customer."""
     from products.models import StockHold
     returned = 0
-    lapsed = (StockHold.objects.filter(status=StockHold.ACTIVE, expires_at__lte=now,
+    lapsed = (StockHold.objects.filter(status=StockHold.ACTIVE, expires_at__lt=now,
                                        intent__status=Intent.BACK_IN_STOCK).select_related('intent'))
     for hold in lapsed:
         transition(hold.intent, Intent.OPEN, note='Hold ended before the customer could be reached')

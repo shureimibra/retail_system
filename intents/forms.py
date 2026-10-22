@@ -8,19 +8,26 @@ class BlockedPurchaseIntentForm(ShopFormMixin, forms.ModelForm):
     class Meta:
         model = BlockedPurchaseIntent
         fields = ['customer', 'product', 'variation', 'constraint_type', 'requested_quantity', 'estimated_value', 'status', 'notes']
+        labels = {'constraint_type': "Why they didn't buy", 'variation': 'Size and colour',
+                  'requested_quantity': 'Quantity', 'estimated_value': 'Value'}
+        help_texts = {'estimated_value': 'Leave blank to use the price times the quantity.'}
         widgets = {
-            'constraint_type': forms.Select(attrs={'class': 'w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-darkborder bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary'}),
-            'customer': forms.Select(attrs={'class': 'w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-darkborder bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary'}),
-            'product': forms.Select(attrs={'class': 'w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-darkborder bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary'}),
-            'variation': forms.Select(attrs={'class': 'w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-darkborder bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary'}),
-            'requested_quantity': forms.NumberInput(attrs={'class': 'w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-darkborder bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary'}),
-            'estimated_value': forms.NumberInput(attrs={'class': 'w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-darkborder bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary'}),
-            'status': forms.Select(attrs={'class': 'w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-darkborder bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary'}),
-            'notes': forms.Textarea(attrs={'class': 'w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-darkborder bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary', 'rows': 4}),
+            'requested_quantity': forms.NumberInput(attrs={'inputmode': 'numeric', 'min': '1'}),
+            'estimated_value': forms.NumberInput(attrs={'inputmode': 'decimal', 'min': '0'}),
+            'notes': forms.Textarea(attrs={'rows': 3}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Plain words instead of Django's "---------" for empty choices.
+        for name, label in (('customer', 'Choose a customer'), ('product', 'Choose a product'),
+                            ('variation', 'Any size or colour')):
+            if name in self.fields:
+                self.fields[name].empty_label = label
+        if 'variation' in self.fields:
+            self.fields['variation'].label_from_instance = lambda v: v.label or v.sku
+        if 'constraint_type' in self.fields:
+            self.fields['constraint_type'].choices = [('', 'Choose a reason')] + list(BlockedPurchaseIntent.CONSTRAINT_CHOICES)
         if 'status' in self.fields and self.instance.pk:
             from .services import allowed_next_statuses
             allowed = {self.instance.status} | allowed_next_statuses(self.instance)

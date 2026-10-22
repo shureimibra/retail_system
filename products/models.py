@@ -140,7 +140,8 @@ class ProductVariation(models.Model):
 
     @property
     def held_quantity(self):
-        return sum(self.holds.filter(status=StockHold.ACTIVE).values_list('quantity', flat=True))
+        # Uses prefetched holds when a list page loaded them, so it doesn't query per row.
+        return sum(h.quantity for h in self.holds.all() if h.status == StockHold.ACTIVE)
 
     @property
     def available_quantity(self):

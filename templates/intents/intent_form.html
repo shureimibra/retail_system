@@ -1,461 +1,202 @@
-{% extends 'base.html' %}
-
-{% block title %}{% if form.instance.pk %}Update{% else %}Capture{% endif %} Intent - Retail RMS{% endblock %}
-
-{% block content %}
-<div class="mb-8">
-    <h2 class="text-3xl font-extrabold text-textprimary tracking-tight">{% if form.instance.pk %}Update{% else %}Capture{% endif %} Blocked Purchase Intent</h2>
-    <p class="text-sm text-textsecondary mt-1 font-medium">Record or edit failed purchases to identify restocking opportunities and manage customer notifications.</p>
-</div>
-
-<div class="glassmorphism rounded-2xl shadow-soft p-6 md:p-8 max-w-3xl border border-bordercolor neon-cyan transition-all duration-300">
-    <form id="intentMainForm" method="post" class="space-y-6">
-        {% csrf_token %}
-        
-        {% if form.non_field_errors %}
-        <div class="p-3 bg-danger/10 border border-danger/25 text-danger text-sm rounded-xl font-medium animate-pulse">
-            {{ form.non_field_errors.0 }}
-        </div>
-        {% endif %}
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Customer select with inline add -->
-            <div class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                    <label for="{{ form.customer.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Customer</label>
-                    <button type="button" id="inlineAddCustomer" class="text-xs font-bold text-primary hover:underline">+ New Customer</button>
-                </div>
-                {{ form.customer }}
-            </div>
-            
-            <!-- Product select with inline add -->
-            <div class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                    <label for="{{ form.product.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Product</label>
-                    <button type="button" id="inlineAddProduct" class="text-xs font-bold text-primary hover:underline">+ New Product</button>
-                </div>
-                {{ form.product }}
-            </div>
-            
-            <!-- Variation select with inline add -->
-            <div class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                    <label for="{{ form.variation.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Variation (Optional)</label>
-                    <button type="button" id="inlineAddVariation" class="text-xs font-bold text-primary hover:underline">+ New Variation</button>
-                </div>
-                {{ form.variation }}
-            </div>
-            
-            <!-- Constraint Type with inline add -->
-            <div class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                    <label for="{{ form.constraint_type.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Constraint Type</label>
-                    <button type="button" id="inlineAddConstraint" class="text-xs font-bold text-primary hover:underline">+ New Constraint</button>
-                </div>
-                {{ form.constraint_type }}
-            </div>
-            
-            <!-- Quantity -->
-            <div class="space-y-1.5">
-                <label for="{{ form.requested_quantity.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Requested Quantity</label>
-                {{ form.requested_quantity }}
-            </div>
-            
-            <!-- Estimated Value -->
-            <div class="space-y-1.5">
-                <label for="{{ form.estimated_value.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Est. Lost Value (KSh) (Leave blank to auto-calculate)</label>
-                {{ form.estimated_value }}
-            </div>
-            
-            {% if form.status %}
-            <div class="col-span-2 space-y-1.5">
-                <label for="{{ form.status.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Intent Status Lifecycle</label>
-                {{ form.status }}
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="space-y-1.5">
-            <label for="{{ form.notes.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Notes</label>
-            {{ form.notes }}
-            <p class="text-xs text-textmuted mt-1">Provide any additional context or customer feedback details.</p>
-        </div>
-        
-        <div class="pt-6 flex justify-end gap-3 border-t border-bordercolor">
-            <a href="{% url 'intents:list' %}" class="px-5 py-2.5 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl hover:text-primary transition-all font-semibold text-sm">
-                Cancel
-            </a>
-            <button type="submit" class="px-5 py-2.5 bg-primary text-white rounded-xl shadow-glow-cyan hover-glow transition-all font-semibold text-sm">
-                Save Intent
-            </button>
-        </div>
-    </form>
-</div>
-
-<!-- Modal 1: Add Customer Inline -->
-<div id="customerModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
-    <div class="glassmorphism rounded-3xl p-6 md:p-8 max-w-md w-full shadow-soft border border-bordercolor relative neon-cyan">
-        <h3 class="text-xl font-bold text-textprimary mb-4">Register New Customer</h3>
-        <form id="inlineCustomerForm" class="space-y-4">
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">First Name</label>
-                <input type="text" id="custFirstName" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-            </div>
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Last Name</label>
-                <input type="text" id="custLastName" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-            </div>
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Phone Number</label>
-                <input type="text" id="custPhone" required placeholder="e.g. +254..." class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-            </div>
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Email (Optional)</label>
-                <input type="email" id="custEmail" class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-            </div>
-            <div class="pt-4 flex justify-end gap-3 border-t border-bordercolor">
-                <button type="button" id="closeCustomerModal" class="px-4 py-2 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-xl shadow-glow-cyan text-xs font-bold transition-all">Save Customer</button>
-            </div>
-        </form>
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{% if object %}Missed sale{% else %}Log missed sale{% endif %}{% endblock %}
+{% block page %}
+<div class="content narrow">
+  <div>
+    <a class="back" href="{% url 'intents:list' %}">{% icon "chevron-left" "sm" %}Missed sales</a>
+    <div class="page-head">
+      <div>
+        <h1>{% if object %}{{ object.product.name }}{% if object.variation %} · {{ object.variation.label }}{% endif %}{% else %}Log missed sale{% endif %}</h1>
+        {% if object %}<p>{{ object.customer.first_name }} {{ object.customer.last_name }} · logged {{ object.created_at|date:"j M Y" }}</p>
+        {% else %}<p>What did the customer want, and why couldn't they buy it?</p>{% endif %}
+      </div>
+      {% if object %}<span class="badge badge-{{ object.status }}">{{ object.get_status_display }}</span>{% endif %}
     </div>
-</div>
+  </div>
 
-<!-- Modal 2: Add Variation Inline -->
-<div id="variationModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
-    <div class="glassmorphism rounded-3xl p-6 md:p-8 max-w-md w-full shadow-soft border border-bordercolor relative neon-purple">
-        <h3 class="text-xl font-bold text-textprimary mb-4">Add Product Variation</h3>
-        <form id="inlineVariationForm" class="space-y-4">
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Selected Product</label>
-                <input type="text" id="varProductDisplay" readonly class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgtertiary text-textsecondary text-sm font-semibold focus:outline-none">
-                <input type="hidden" id="varProductId">
-            </div>
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Size</label>
-                <input type="text" id="varSize" required placeholder="e.g. 42, M, 128GB" class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-            </div>
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Color</label>
-                <input type="text" id="varColor" required placeholder="e.g. Black, Blue, N/A" class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-            </div>
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Stock Quantity</label>
-                <input type="number" id="varStock" required value="0" min="0" class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-            </div>
-            <div class="space-y-1">
-                <div class="flex items-center justify-between">
-                    <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">SKU</label>
-                    <button type="button" id="generateSkuBtn" class="text-xs font-bold text-primary hover:underline">Auto Generate</button>
-                </div>
-                <input type="text" id="varSku" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-            </div>
-            <div class="pt-4 flex justify-end gap-3 border-t border-bordercolor">
-                <button type="button" id="closeVariationModal" class="px-4 py-2 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-xl shadow-glow-purple text-xs font-bold transition-all">Save Variation</button>
-            </div>
-        </form>
+  {% if steps %}
+  <div class="stepper" aria-label="Progress">{% for label, state in steps %}<span class="{{ state }}">{{ label }}</span>{% endfor %}</div>
+  {% endif %}
+
+  <form method="post" class="panel panel-body form" id="captureForm" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<p class="form-errors" role="alert">{{ form.non_field_errors.0 }}</p>{% endif %}
+
+    <div class="field-with-action">
+      {% field form.customer %}
+      <button type="button" class="btn btn-plain btn-sm" data-open="customerDialog">{% icon "plus" "sm" %}New customer</button>
     </div>
-</div>
-
-<!-- Modal 3: Add Product Inline -->
-<div id="productModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
-    <div class="glassmorphism rounded-3xl p-6 md:p-8 max-w-md w-full shadow-soft border border-bordercolor relative neon-cyan">
-        <h3 class="text-xl font-bold text-textprimary mb-4">Register New Product</h3>
-        <form id="inlineProductForm" class="space-y-4">
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Product Name</label>
-                <input type="text" id="prodName" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-            </div>
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Category</label>
-                <select id="prodCategory" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-                    <option value="">Select Category</option>
-                    {% for category in all_categories %}
-                    <option value="{{ category.id }}">{{ category.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Base Price (KSh)</label>
-                <input type="number" step="0.01" id="prodPrice" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-            </div>
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Description</label>
-                <textarea id="prodDesc" rows="3" required class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm"></textarea>
-            </div>
-            <div class="pt-4 flex justify-end gap-3 border-t border-bordercolor">
-                <button type="button" id="closeProductModal" class="px-4 py-2 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-xl shadow-glow-cyan text-xs font-bold transition-all">Save Product</button>
-            </div>
-        </form>
+    <div class="field-with-action">
+      {% field form.product %}
+      {% if can_add_products %}<button type="button" class="btn btn-plain btn-sm" data-open="productDialog">{% icon "plus" "sm" %}New product</button>{% endif %}
     </div>
-</div>
-
-<!-- Modal 4: Add Constraint Inline -->
-<div id="constraintModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
-    <div class="glassmorphism rounded-3xl p-6 md:p-8 max-w-md w-full shadow-soft border border-bordercolor relative neon-cyan">
-        <h3 class="text-xl font-bold text-textprimary mb-4">Add Custom Constraint Type</h3>
-        <form id="inlineConstraintForm" class="space-y-4">
-            <div class="space-y-1">
-                <label class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Constraint Name</label>
-                <input type="text" id="constraintName" required placeholder="e.g. Shipping delay, Brand restriction..." class="w-full px-3.5 py-2.5 rounded-xl border border-bordercolor bg-bgprimary text-textprimary focus:ring-2 focus:ring-primary focus:outline-none text-sm">
-            </div>
-            <div class="pt-4 flex justify-end gap-3 border-t border-bordercolor">
-                <button type="button" id="closeConstraintModal" class="px-4 py-2 bg-bgtertiary border border-bordercolor text-textsecondary rounded-xl text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-xl shadow-glow-cyan text-xs font-bold transition-all">Add Constraint</button>
-            </div>
-        </form>
+    <div class="field-with-action">
+      {% field form.variation "Leave empty if any size or colour would do." %}
+      {% if can_add_products %}<button type="button" class="btn btn-plain btn-sm" data-open="variationDialog" id="addVariationBtn">{% icon "plus" "sm" %}New size or colour</button>{% endif %}
     </div>
+    {% field form.constraint_type %}
+    <div class="form-row">{% field form.requested_quantity %}{% field form.estimated_value %}</div>
+    {% if form.status %}{% field form.status "Only the next steps that make sense are offered." %}{% endif %}
+    {% field form.notes %}
+
+    <div class="form-actions">
+      <a class="btn" href="{% url 'intents:list' %}">Cancel</a>
+      <button type="submit" class="btn btn-primary">{% if object %}Save changes{% else %}Save missed sale{% endif %}</button>
+    </div>
+  </form>
+
+  {% if events %}
+  <div class="panel">
+    <div class="panel-head"><h2>History</h2></div>
+    <ol class="timeline">
+      {% for e in events %}
+      <li><span class="when num">{{ e.created_at|date:"j M, H:i" }}</span>
+        <span><b>{{ e|event_label }}</b>{% if e.note %}: {{ e.note }}{% endif %}{% if e.actor %} <span class="faint">· {{ e.actor.get_full_name|default:e.actor.username }}</span>{% endif %}</span></li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% endif %}
 </div>
 
+<dialog class="panel" id="customerDialog" aria-labelledby="customerDialogTitle">
+  <form class="panel-body form" data-api="/api/customers/" data-target="id_customer">
+    <h2 id="customerDialogTitle">New customer</h2>
+    <p class="form-errors" data-errors hidden></p>
+    <div class="form-row">
+      <div class="field"><label for="nc_first">First name</label><input id="nc_first" name="first_name" required autocomplete="given-name"></div>
+      <div class="field"><label for="nc_last">Last name <span class="faint">(optional)</span></label><input id="nc_last" name="last_name" autocomplete="family-name"></div>
+    </div>
+    <div class="field"><label for="nc_phone">Phone</label><input id="nc_phone" name="phone_number" type="tel" inputmode="tel" placeholder="0712 345 678" required></div>
+    <div class="field"><label for="nc_email">Email <span class="faint">(optional)</span></label><input id="nc_email" name="email" type="email" autocomplete="email"></div>
+    <div class="form-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn btn-primary">Add customer</button></div>
+  </form>
+</dialog>
+
+{% if can_add_products %}
+<dialog class="panel" id="productDialog" aria-labelledby="productDialogTitle">
+  <form class="panel-body form" data-api="/api/products/" data-target="id_product">
+    <h2 id="productDialogTitle">New product</h2>
+    <p class="form-errors" data-errors hidden></p>
+    <div class="field"><label for="np_name">Name</label><input id="np_name" name="name" required></div>
+    <div class="form-row">
+      <div class="field"><label for="np_type">Type</label><select id="np_type" name="product_type">{% for t in product_types %}<option value="{{ t.pk }}">{{ t.name }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="np_cat">Category</label><select id="np_cat" name="category" required>{% for c in all_categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="field"><label for="np_price">Price</label><input id="np_price" name="base_price" type="number" inputmode="decimal" min="0" step="1" required></div>
+    <div class="form-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn btn-primary">Add product</button></div>
+  </form>
+</dialog>
+
+<dialog class="panel" id="variationDialog" aria-labelledby="variationDialogTitle">
+  <form class="panel-body form" data-api="/api/variations/" data-target="id_variation">
+    <h2 id="variationDialogTitle">New size or colour</h2>
+    <p class="form-errors" data-errors hidden></p>
+    <input type="hidden" name="product" data-product-id>
+    <div class="form-row">
+      <div class="field"><label for="nv_size">Size</label><input id="nv_size" name="option1" placeholder="42, M, 32"></div>
+      <div class="field"><label for="nv_colour">Colour</label><input id="nv_colour" name="option2" placeholder="Black"></div>
+    </div>
+    <div class="field"><label for="nv_sku">SKU</label><input id="nv_sku" name="sku" required class="mono"><p class="help">Filled in for you; change it if you use your own codes.</p></div>
+    <div class="form-actions"><button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn btn-primary">Add</button></div>
+  </form>
+</dialog>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const productSelect = document.getElementById('id_product');
-        const variationSelect = document.getElementById('id_variation');
-        const customerSelect = document.getElementById('id_customer');
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+(function () {
+  var csrf = document.querySelector('#captureForm [name=csrfmiddlewaretoken]').value;
+  var product = document.getElementById('id_product');
+  var variation = document.getElementById('id_variation');
 
-        // Dynamic Variation Filtering based on selected Product
-        async function loadProductVariations() {
-            const productId = productSelect.value;
-            if (!productId) {
-                variationSelect.innerHTML = '<option value="">---------</option>';
-                return;
-            }
-
-            const currentVal = variationSelect.value;
-            try {
-                const response = await fetch(`/api/variations/?product=${productId}`);
-                if (response.ok) {
-                    const variations = await response.json();
-                    let html = '<option value="">---------</option>';
-                    variations.forEach(v => {
-                        const selectedAttr = String(v.id) === String(currentVal) ? 'selected' : '';
-                        html += `<option value="${v.id}" ${selectedAttr}>${v.label} (Stock: ${v.stock_quantity})</option>`;
-                    });
-                    variationSelect.innerHTML = html;
-                }
-            } catch (err) {
-                console.error("Error fetching variations:", err);
-            }
-        }
-
-        productSelect.addEventListener('change', loadProductVariations);
-        if (productSelect.value) {
-            loadProductVariations();
-        }
-
-        // --- Modals Logic ---
-        const customerModal = document.getElementById('customerModal');
-        const variationModal = document.getElementById('variationModal');
-        const productModal = document.getElementById('productModal');
-        const constraintModal = document.getElementById('constraintModal');
-        const constraintSelect = document.getElementById('id_constraint_type');
-
-        // Customer Modal Toggles
-        document.getElementById('inlineAddCustomer').addEventListener('click', () => {
-            customerModal.classList.remove('hidden');
+  // Only offer sizes and colours of the chosen product.
+  function loadVariations(selectId) {
+    if (!product.value) { variation.innerHTML = '<option value="">Any size or colour</option>'; return; }
+    fetch('/api/variations/?product=' + encodeURIComponent(product.value), { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (items) {
+        var keep = selectId || variation.value;
+        variation.innerHTML = '<option value="">Any size or colour</option>';
+        items.forEach(function (v) {
+          var label = (v.label || v.sku) + ' (' + v.available_quantity + ' available)';
+          variation.add(new Option(label, v.id, false, String(v.id) === String(keep)));
         });
-        document.getElementById('closeCustomerModal').addEventListener('click', () => {
-            customerModal.classList.add('hidden');
-            document.getElementById('inlineCustomerForm').reset();
-        });
+      });
+  }
+  if (product && variation) { product.addEventListener('change', function () { loadVariations(); }); }
 
-        // Product Modal Toggles
-        document.getElementById('inlineAddProduct').addEventListener('click', () => {
-            productModal.classList.remove('hidden');
-        });
-        document.getElementById('closeProductModal').addEventListener('click', () => {
-            productModal.classList.add('hidden');
-            document.getElementById('inlineProductForm').reset();
-        });
+  function skuFor(form) {
+    var name = (product.options[product.selectedIndex] || {}).text || 'ITEM';
+    var part = function (s) { return (s || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, ''); };
+    return [part(name).slice(0, 10), part(form.option1.value), part(form.option2.value)].filter(Boolean).join('-');
+  }
 
-        // Constraint Modal Toggles
-        document.getElementById('inlineAddConstraint').addEventListener('click', () => {
-            constraintModal.classList.remove('hidden');
-        });
-        document.getElementById('closeConstraintModal').addEventListener('click', () => {
-            constraintModal.classList.add('hidden');
-            document.getElementById('inlineConstraintForm').reset();
-        });
+  document.querySelectorAll('[data-open]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var dialog = document.getElementById(btn.dataset.open);
+      var form = dialog.querySelector('form');
+      if (btn.dataset.open === 'variationDialog') {
+        if (!product.value) { product.focus(); return; }
+        form.querySelector('[data-product-id]').value = product.value;
+        form.sku.value = skuFor(form);
+      }
+      dialog.showModal();
+      var first = form.querySelector('input:not([type=hidden]), select');
+      if (first) first.focus();
+    });
+  });
+  document.querySelectorAll('dialog [data-close]').forEach(function (btn) {
+    btn.addEventListener('click', function () { btn.closest('dialog').close(); });
+  });
+  var vForm = document.querySelector('#variationDialog form');
+  if (vForm) {
+    ['option1', 'option2'].forEach(function (name) {
+      vForm[name].addEventListener('input', function () { vForm.sku.value = skuFor(vForm); });
+    });
+  }
 
-        // Variation Modal Toggles
-        document.getElementById('inlineAddVariation').addEventListener('click', () => {
-            const productId = productSelect.value;
-            if (!productId) {
-                alert("Please select a Product in the main form first.");
-                return;
-            }
-            const productText = productSelect.options[productSelect.selectedIndex].text;
-            document.getElementById('varProductId').value = productId;
-            document.getElementById('varProductDisplay').value = productText;
-            variationModal.classList.remove('hidden');
-        });
-        document.getElementById('closeVariationModal').addEventListener('click', () => {
-            variationModal.classList.add('hidden');
-            document.getElementById('inlineVariationForm').reset();
-        });
-
-        // Auto Generate SKU
-        document.getElementById('generateSkuBtn').addEventListener('click', () => {
-            const productId = productSelect.value;
-            const size = document.getElementById('varSize').value.replace(/\s+/g, '-').toUpperCase();
-            const color = document.getElementById('varColor').value.replace(/\s+/g, '-').toUpperCase();
-            if (!productId || !size || !color) {
-                alert("Please fill in the Product, Size and Color first to auto generate a SKU.");
-                return;
-            }
-            const randNum = Math.floor(1000 + Math.random() * 9000);
-            document.getElementById('varSku').value = `VAR-P${productId}-${size}-${color}-${randNum}`;
-        });
-
-        // Submit Customer Inline Form
-        document.getElementById('inlineCustomerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = {
-                first_name: document.getElementById('custFirstName').value,
-                last_name: document.getElementById('custLastName').value,
-                phone_number: document.getElementById('custPhone').value,
-                email: document.getElementById('custEmail').value || null
-            };
-
-            try {
-                const response = await fetch('/api/customers/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (response.ok) {
-                    const newCust = await response.json();
-                    
-                    // Add new option to dropdown
-                    const option = new Option(`${newCust.first_name} ${newCust.last_name} (${newCust.phone_number})`, newCust.id, true, true);
-                    customerSelect.add(option);
-                    
-                    // Close modal and reset form
-                    customerModal.classList.add('hidden');
-                    document.getElementById('inlineCustomerForm').reset();
-                } else {
-                    const errData = await response.json();
-                    alert("Error creating customer: " + JSON.stringify(errData));
-                }
-            } catch (err) {
-                console.error("AJAX Error:", err);
-            }
-        });
-
-        // Submit Product Inline Form
-        document.getElementById('inlineProductForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = {
-                name: document.getElementById('prodName').value,
-                category: parseInt(document.getElementById('prodCategory').value),
-                base_price: parseFloat(document.getElementById('prodPrice').value),
-                description: document.getElementById('prodDesc').value
-            };
-
-            try {
-                const response = await fetch('/api/products/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (response.ok) {
-                    const newProd = await response.json();
-                    
-                    // Add new option to dropdown and select it
-                    const option = new Option(newProd.name, newProd.id, true, true);
-                    productSelect.add(option);
-                    productSelect.value = newProd.id;
-                    
-                    // Reload variations for this product
-                    await loadProductVariations();
-                    
-                    // Close modal and reset form
-                    productModal.classList.add('hidden');
-                    document.getElementById('inlineProductForm').reset();
-                } else {
-                    const errData = await response.json();
-                    alert("Error creating product: " + JSON.stringify(errData));
-                }
-            } catch (err) {
-                console.error("AJAX Error:", err);
-            }
-        });
-
-        // Submit Constraint Inline Form
-        document.getElementById('inlineConstraintForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const newConstraintName = document.getElementById('constraintName').value.trim();
-            if (!newConstraintName) return;
-
-            let exists = false;
-            for (let i = 0; i < constraintSelect.options.length; i++) {
-                if (constraintSelect.options[i].value === newConstraintName) {
-                    exists = true;
-                    constraintSelect.selectedIndex = i;
-                    break;
-                }
-            }
-
-            if (!exists) {
-                const option = new Option(newConstraintName, newConstraintName, true, true);
-                constraintSelect.add(option);
-                constraintSelect.value = newConstraintName;
-            }
-
-            constraintModal.classList.add('hidden');
-            document.getElementById('inlineConstraintForm').reset();
-        });
-
-        // Submit Variation Inline Form
-        document.getElementById('inlineVariationForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const data = {
-                product: parseInt(document.getElementById('varProductId').value),
-                option1: document.getElementById('varSize').value,
-                option2: document.getElementById('varColor').value,
-                stock_quantity: parseInt(document.getElementById('varStock').value),
-                sku: document.getElementById('varSku').value
-            };
-
-            try {
-                const response = await fetch('/api/variations/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (response.ok) {
-                    const newVar = await response.json();
-                    
-                    // Reload variations dropdown to display and select new variation
-                    await loadProductVariations();
-                    variationSelect.value = newVar.id;
-                    
-                    // Close modal and reset form
-                    variationModal.classList.add('hidden');
-                    document.getElementById('inlineVariationForm').reset();
-                } else {
-                    const errData = await response.json();
-                    alert("Error creating variation: " + JSON.stringify(errData));
-                }
-            } catch (err) {
-                console.error("AJAX Error:", err);
-            }
+  // "Add new" dialogs save through the API, then select the new record.
+  document.querySelectorAll('dialog form[data-api]').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var data = {};
+      new FormData(form).forEach(function (value, key) { if (value !== '') data[key] = value; });
+      var errors = form.querySelector('[data-errors]');
+      var submit = form.querySelector('[type=submit]');
+      submit.setAttribute('aria-busy', 'true');
+      fetch(form.dataset.api, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify(data)
+      }).then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+        .then(function (res) {
+          submit.removeAttribute('aria-busy');
+          if (!res.ok) {
+            errors.textContent = Object.keys(res.body).map(function (k) { return [].concat(res.body[k]).join(' '); }).join(' ');
+            errors.hidden = false;
+            return;
+          }
+          var target = document.getElementById(form.dataset.target);
+          if (form.dataset.target === 'id_variation') {
+            loadVariations(res.body.id);
+          } else {
+            var label = res.body.name || ((res.body.first_name || '') + ' ' + (res.body.last_name || '') + ' (' + res.body.phone_number + ')');
+            target.add(new Option(label.trim(), res.body.id, true, true));
+            if (form.dataset.target === 'id_product') loadVariations();
+          }
+          errors.hidden = true;
+          form.reset();
+          form.closest('dialog').close();
+        })
+        .catch(function () {
+          submit.removeAttribute('aria-busy');
+          errors.textContent = 'Could not save. Check your connection and try again.';
+          errors.hidden = false;
         });
     });
+  });
+})();
 </script>
 {% endblock %}

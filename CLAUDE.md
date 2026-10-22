@@ -36,6 +36,8 @@ pip install -r requirements.txt
 cp .env.example .env                              # then fill in values
 python manage.py migrate
 python manage.py test
+python manage.py seed_demo                        # sample fashion shop in an EMPTY database (amina / demo-pass-123)
+python manage.py process_due                      # follow-ups, expiry, retries (Celery beat does this every 15 min)
 python manage.py runserver
 ```
 
