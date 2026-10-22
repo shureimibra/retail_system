@@ -19,6 +19,7 @@
       <span class="brand-mark">{{ request.shop.name|default:"R"|first|upper }}</span>
       <span class="brand-text"><b>{{ request.shop.name }}</b><small>Retail OS</small></span>
     </a>
+    <button class="sidebar-toggle" type="button" id="sidebarToggle" aria-pressed="false" aria-label="Collapse menu" title="Collapse menu">{% icon "panel-left" %}</button>
     <nav class="nav">
       {% for key, label, url_name, icon_name, group in nav_items %}
         {% ifchanged group %}{% if group %}<div class="nav-group">{{ group }}</div>{% endif %}{% endifchanged %}
@@ -29,7 +30,6 @@
       {% endfor %}
     </nav>
     <div class="bottom nav">
-      <button class="nav-link sidebar-toggle" type="button" id="sidebarToggle" aria-pressed="false">{% icon "chevron-left" %}<span>Collapse menu</span></button>
       <a href="{% url 'settings:index' %}"{% if nav_current == 'settings' %} aria-current="page"{% endif %}>{% icon "settings" %}<span>Settings</span></a>
       <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
         <button class="nav-link" type="submit">{% icon "log-out" %}<span>Sign out</span></button>
@@ -121,8 +121,8 @@
   function syncToggle() {
     var collapsed = root.dataset.sidebar === 'collapsed';
     toggle.setAttribute('aria-pressed', String(collapsed));
-    toggle.querySelector('span').textContent = collapsed ? 'Expand menu' : 'Collapse menu';
     toggle.setAttribute('aria-label', collapsed ? 'Expand menu' : 'Collapse menu');
+    toggle.title = toggle.getAttribute('aria-label');
   }
   toggle.addEventListener('click', function () {
     if (root.dataset.sidebar === 'collapsed') { delete root.dataset.sidebar; } else { root.dataset.sidebar = 'collapsed'; }

@@ -397,22 +397,25 @@ dialog .form h2 { font-size: 17px; }
   .period select, .period input[type="date"] { width: 100%; }
 }
 
-/* Collapsible desktop sidebar (tablets always use the icon rail) */
-.sidebar .nav button.sidebar-toggle { display: none; }
+/* Collapsible desktop sidebar: toggle sits at the top beside the shop name (tablets use the drawer) */
+.sidebar-toggle { display: none; place-items: center; width: 36px; height: 36px; flex: none; border: 0; border-radius: var(--r-control);
+  background: none; color: var(--fg-3); cursor: pointer; }
+.sidebar-toggle:hover { background: var(--surface-2); color: var(--fg); }
 @media (min-width: 1024px) {
-  .sidebar .nav button.sidebar-toggle { display: flex; }
-  .sidebar-toggle .icon { transition: transform .2s var(--ease); }
+  .sidebar { position: sticky; }
+  .sidebar-toggle { display: grid; position: absolute; top: 12px; right: 8px; }
+  .sidebar .brand { padding-right: 40px; }
   .shell { transition: grid-template-columns .2s var(--ease); }
   :root[data-sidebar="collapsed"] .shell { grid-template-columns: 76px 1fr; }
   :root[data-sidebar="collapsed"] .sidebar { padding: 12px 8px; }
-  :root[data-sidebar="collapsed"] .sidebar .brand { justify-content: center; padding: 0 0 12px; }
+  :root[data-sidebar="collapsed"] .sidebar .brand { justify-content: center; padding: 0 0 8px; margin-bottom: 0; border-bottom: 0; }
+  :root[data-sidebar="collapsed"] .sidebar-toggle { position: static; margin: 0 auto 8px; }
+  :root[data-sidebar="collapsed"] .sidebar > .nav:not(.bottom) { border-top: 1px solid var(--border); padding-top: 8px; }
   :root[data-sidebar="collapsed"] .sidebar .brand-text,
   :root[data-sidebar="collapsed"] .sidebar .nav-group { display: none; }
   :root[data-sidebar="collapsed"] .sidebar .nav a,
   :root[data-sidebar="collapsed"] .sidebar .nav button.nav-link { flex-direction: column; gap: 3px; padding: 8px 4px; font-size: 11px; text-align: center; justify-content: center; }
   :root[data-sidebar="collapsed"] .sidebar .nav .count { margin: 0; }
-  :root[data-sidebar="collapsed"] .sidebar-toggle .icon { transform: rotate(180deg); }
-  :root[data-sidebar="collapsed"] .sidebar-toggle span { display: none; }
 }
 
 /* Phones and tablets: menu button opens the full sidebar as a drawer */
