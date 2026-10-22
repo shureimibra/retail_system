@@ -35,9 +35,11 @@ A permanent regression test for "owner records a missed sale (product, size, col
 - the empty signals in `intents/signals.py`
 - `products/signals.py` and the `save()` overrides on Product and ProductVariation that fire them
 - the synchronous send path in `products.services.update_product_stock`
-- `notifications/services.SMSService` (replaced by the gateway in 1d)
+- `notifications/services.SMSService`
 
-Tests that call the removed code move to the app services.
+Until the gateway arrives in 1d, the Celery task `send_restock_notification_task` is the **single** send path. A stock increase made through `products.services` (the API and dashboard restock buttons) triggers it explicitly, so restock messages keep working. Tests that call the removed code move to the app services.
+
+**Keep it simple:** borrow only what this system needs. From Reatech360 that's only deposits on reserved items and roles with per-shop data. There's no customer balance profile and no setup wizard.
 
 **Phones:** add the `phonenumbers` library. Every customer phone is saved as E.164 (`+254712345678`) using the shop's region, so `0712 345 678`, `+254 712…` and `254712…` all become one number. A data migration normalises existing numbers and reports any that can't be parsed instead of guessing.
 

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
@@ -17,7 +18,7 @@ router.register(r'customers', CustomerViewSet, basename='api-customer')
 router.register(r'intents', BlockedPurchaseIntentViewSet, basename='api-intent')
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path(settings.ADMIN_URL, admin.site.urls),
     path('accounts/', include('accounts.urls')),
     path('dashboard/', include('dashboard.urls')),
     path('products/', include('products.urls')),
