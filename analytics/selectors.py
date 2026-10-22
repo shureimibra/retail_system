@@ -90,7 +90,7 @@ def get_restock_recommendations(shop, threshold=4, start_date=None, end_date=Non
     # Group by product variation
     variations = (base_qs
                   .filter(status__in=['Pending', 'Monitoring'])
-                  .values('variation_id', 'product__name', 'variation__size', 'variation__color')
+                  .values('variation_id', 'product__name', 'variation__option1', 'variation__option2')
                   .annotate(blocked_count=Count('id'))
                   .filter(blocked_count__gte=threshold)
                   .order_by('-blocked_count'))
@@ -108,8 +108,8 @@ def get_restock_recommendations(shop, threshold=4, start_date=None, end_date=Non
             recommendations.append({
                 'variation_id': var['variation_id'],
                 'product_name': var['product__name'],
-                'size': var['variation__size'] or 'N/A',
-                'color': var['variation__color'] or 'N/A',
+                'size': var['variation__option1'] or 'N/A',
+                'color': var['variation__option2'] or 'N/A',
                 'blocked_count': var['blocked_count'],
                 'current_stock': stock,
                 'status': 'RECOMMENDED FOR RESTOCK'

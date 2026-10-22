@@ -17,8 +17,8 @@ class RestockNotificationTaskTestCase(TestCase):
         )
         self.variation = ProductVariation.objects.create(
             product=self.product,
-            size="15-inch",
-            color="Silver",
+            option1="15-inch",
+            option2="Silver",
             stock_quantity=0,
             sku="LAPTOP-SLV-15"
         )
@@ -51,7 +51,7 @@ class RestockNotificationTaskTestCase(TestCase):
         log = NotificationLog.objects.filter(intent=self.intent).first()
         self.assertIsNotNone(log)
         self.assertEqual(log.status, 'Sent')
-        self.assertIn("Hello Alice, the Laptop 15-inch/Silver you requested is now available.", log.message)
+        self.assertIn("Hello Alice, the Laptop 15-inch / Silver you requested is now available.", log.message)
         
         # Verify status update
         self.intent.refresh_from_db()
@@ -79,7 +79,7 @@ class RestockNotificationTaskTestCase(TestCase):
         
         # Check messages.create was called
         mock_instance.messages.create.assert_called_once_with(
-            body="Hello Alice, the Laptop 15-inch/Silver you requested is now available. Reply STOP to opt out.",
+            body="Hello Alice, the Laptop 15-inch / Silver you requested is now available. Reply STOP to opt out.",
             from_="whatsapp:+15555555555",
             to="whatsapp:+1234567890"
         )

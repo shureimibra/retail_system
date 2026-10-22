@@ -24,10 +24,10 @@ p3 = Product.objects.create(category=c2, name="Levi's 511 Slim", description="Cl
 p4 = Product.objects.create(category=c3, name="Leather Messenger Bag", description="Handcrafted genuine leather messenger bag", base_price=150.00)
 
 # Create Variations
-v1 = ProductVariation.objects.create(product=p1, size="42", color="Black", stock_quantity=0, sku="NIKE-AZ-42-BLK")
-v2 = ProductVariation.objects.create(product=p1, size="44", color="White", stock_quantity=5, sku="NIKE-AZ-44-WHT")
-v3 = ProductVariation.objects.create(product=p2, size="42", color="Grey", stock_quantity=0, sku="ADI-UB-42-GRY")
-v4 = ProductVariation.objects.create(product=p3, size="32", color="Blue", stock_quantity=0, sku="LEV-511-32-BLU")
+v1 = ProductVariation.objects.create(product=p1, option1="42", option2="Black", stock_quantity=0, sku="NIKE-AZ-42-BLK")
+v2 = ProductVariation.objects.create(product=p1, option1="44", option2="White", stock_quantity=5, sku="NIKE-AZ-44-WHT")
+v3 = ProductVariation.objects.create(product=p2, option1="42", option2="Grey", stock_quantity=0, sku="ADI-UB-42-GRY")
+v4 = ProductVariation.objects.create(product=p3, option1="32", option2="Blue", stock_quantity=0, sku="LEV-511-32-BLU")
 
 # Create Customers
 cust1 = Customer.objects.create(first_name="John", last_name="Doe", phone_number="+254712345678", email="john.doe@example.com")

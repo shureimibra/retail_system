@@ -24,7 +24,7 @@ class RPCMSTestCase(TestCase):
         self.user = User.objects.create_user(username='staff1', password='password123')
         self.category = Category.objects.create(name='Electronics')
         self.product = Product.objects.create(category=self.category, name='iPhone 15', base_price=1000.00)
-        self.variation = ProductVariation.objects.create(product=self.product, size='128GB', color='Black', stock_quantity=0, sku='IPH15-128-BLK')
+        self.variation = ProductVariation.objects.create(product=self.product, option1='128GB', option2='Black', stock_quantity=0, sku='IPH15-128-BLK')
         self.customer = Customer.objects.create(first_name='Alex', last_name='Smith', phone_number='+254711222333')
 
     def _intent(self, customer=None, constraint_type='Out of stock', **kwargs):
@@ -138,7 +138,7 @@ class RecordMissedSaleFlowTests(TestCase):
         Membership.objects.create(user=self.owner, shop_id=default_shop_id(), role=Membership.OWNER)
         cat = Category.objects.create(name='Footwear')
         self.shoe = Product.objects.create(category=cat, name='Nike Air Zoom', description='Running', base_price=12500)
-        self.variation = ProductVariation.objects.create(product=self.shoe, size='42', color='Black', stock_quantity=0, sku='NIKE-AZ-42-BLK')
+        self.variation = ProductVariation.objects.create(product=self.shoe, option1='42', option2='Black', stock_quantity=0, sku='NIKE-AZ-42-BLK')
         self.customer = Customer.objects.create(first_name='John', last_name='Doe', phone_number='+254712345678', email='john@example.com')
         self.client.login(username='owner', password='pw12345!')
 

@@ -10,7 +10,7 @@ def make_shop(name):
     shop = Shop.objects.create(name=name)
     category = Category.objects.create(shop=shop, name='Footwear')
     product = Product.objects.create(shop=shop, category=category, name=f'{name} sneaker', description='', base_price=5000)
-    variation = ProductVariation.objects.create(product=product, size='42', color='Black', stock_quantity=0, sku=f'{name}-42-BLK')
+    variation = ProductVariation.objects.create(product=product, option1='42', option2='Black', stock_quantity=0, sku=f'{name}-42-BLK')
     customer = Customer.objects.create(shop=shop, first_name='Cust', last_name=name, phone_number='+254712345678')
     return shop, product, variation, customer
 

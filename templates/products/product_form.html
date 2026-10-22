@@ -9,7 +9,7 @@
 </div>
 
 <div class="glassmorphism rounded-2xl shadow-soft p-6 md:p-8 max-w-2xl border border-bordercolor neon-cyan transition-all duration-300">
-    <form method="post" class="space-y-6">
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
         {% csrf_token %}
         
         {% if form.non_field_errors %}
@@ -24,6 +24,10 @@
                 {{ form.name }}
             </div>
             <div class="space-y-1.5">
+                <label for="{{ form.product_type.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Product type</label>
+                {{ form.product_type }}
+            </div>
+            <div class="space-y-1.5">
                 <label for="{{ form.category.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Category</label>
                 {{ form.category }}
             </div>
@@ -36,6 +40,11 @@
         <div class="space-y-1.5">
             <label for="{{ form.description.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Description</label>
             {{ form.description }}
+        </div>
+
+        <div class="space-y-1.5">
+            <label for="{{ form.image.id_for_label }}" class="block text-xs font-bold uppercase tracking-wider text-textsecondary">Photo (sent with restock messages)</label>
+            {{ form.image }}
         </div>
         
         <div class="pt-6 flex justify-end gap-3 border-t border-bordercolor">
