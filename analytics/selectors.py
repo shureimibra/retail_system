@@ -1,6 +1,6 @@
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
-from intents.models import BlockedPurchaseIntent
+from intents.models import BlockedPurchaseIntent, IntentEvent, Payment, Visit
 from products.models import Product, ProductVariation
 from customers.models import Customer
 import datetime
@@ -40,6 +40,24 @@ def get_dashboard_kpis(shop, start_date=None, end_date=None, status=None):
         total=Sum('estimated_value')
     )['total'] or 0.00
     
+    waiting_demand = base_qs.filter(status__in=BlockedPurchaseIntent.WAITING_STATUSES).aggregate(
+        total=Sum('estimated_value'))['total'] or 0
+    deposits_held = Payment.objects.filter(intent__in=base_qs.filter(status=BlockedPurchaseIntent.RESERVED)).aggregate(
+        total=Sum('amount'))['total'] or 0
+    closed = base_qs.filter(status__in=BlockedPurchaseIntent.CLOSED_STATUSES).count()
+
+    visits = Visit.objects.filter(shop=shop)
+    if start_date:
+        d = parse_date(start_date) if isinstance(start_date, str) else start_date
+        if d:
+            visits = visits.filter(created_at__date__gte=d)
+    if end_date:
+        d = parse_date(end_date) if isinstance(end_date, str) else end_date
+        if d:
+            visits = visits.filter(created_at__date__lte=d)
+    total_visits = visits.count()
+    bought_visits = visits.filter(outcome=Visit.BOUGHT).count()
+
     return {
         'total_products': total_products,
         'total_customers': total_customers,
@@ -48,7 +66,60 @@ def get_dashboard_kpis(shop, start_date=None, end_date=None, status=None):
         'recovered_sales': recovered_intents,
         'estimated_lost_revenue': float(lost_revenue),
         'recovered_revenue': float(recovered_revenue),
+        'waiting_demand': float(waiting_demand),
+        'in_conversation': base_qs.filter(status=BlockedPurchaseIntent.IN_CONVERSATION).count(),
+        'reserved': base_qs.filter(status=BlockedPurchaseIntent.RESERVED).count(),
+        'deposits_held': float(deposits_held),
+        # Recovered out of everything that has finished (recovered, declined or expired).
+        'recovery_rate': round(100 * recovered_intents / closed, 1) if closed else None,
+        # Walk-ins who bought, out of all recorded visits.
+        'walk_in_conversion': round(100 * bought_visits / total_visits, 1) if total_visits else None,
     }
+
+
+def get_recovery_funnel(shop, start_date=None, end_date=None, status=None):
+    """How far the period's missed sales got. Every number is counted, none is estimated."""
+    base_qs = _filter_intents(shop, start_date, end_date, status)
+    logged = base_qs.count()
+    told = base_qs.filter(notified_at__isnull=False).count()
+    replied = base_qs.filter(Q(status__in=[BlockedPurchaseIntent.IN_CONVERSATION, BlockedPurchaseIntent.RESERVED,
+                                           BlockedPurchaseIntent.RECOVERED])
+                             | Q(events__to_status=BlockedPurchaseIntent.IN_CONVERSATION)).distinct().count()
+    recovered = base_qs.filter(status=BlockedPurchaseIntent.RECOVERED).count()
+
+    def step(label, count):
+        return {'label': label, 'count': count, 'percent': round(100 * count / logged) if logged else 0}
+
+    return [step('Missed sales logged', logged), step('Customer told it was ready', told),
+            step('Customer replied', replied), step('Paid in full', recovered)]
+
+
+def get_to_order(shop):
+    """The morning list: items customers are waiting for, most money first."""
+    rows = {}
+    waiting = (BlockedPurchaseIntent.objects
+               .filter(shop=shop, status__in=BlockedPurchaseIntent.WAITING_STATUSES,
+                       constraint_type__in=BlockedPurchaseIntent.RESTOCK_REASONS)
+               .select_related('product', 'variation', 'customer'))
+    for intent in waiting:
+        key = (intent.product_id, intent.variation_id)
+        row = rows.setdefault(key, {
+            'product_id': intent.product_id, 'product_name': intent.product.name,
+            'variation_id': intent.variation_id,
+            'variation_label': intent.variation.label if intent.variation else 'Any size or colour',
+            'sku': intent.variation.sku if intent.variation else '',
+            'available': intent.variation.available_quantity if intent.variation else None,
+            'waiting': 0, 'on_order': 0, 'money_waiting': 0, 'needed_by': None, 'customers': [],
+        })
+        row['waiting'] += intent.requested_quantity
+        row['on_order'] += intent.requested_quantity if intent.status == BlockedPurchaseIntent.ON_ORDER else 0
+        row['money_waiting'] += float(intent.estimated_value or 0)
+        if intent.needed_by and (row['needed_by'] is None or intent.needed_by < row['needed_by']):
+            row['needed_by'] = intent.needed_by
+        row['customers'].append(intent.customer.first_name or intent.customer.phone_number)
+    for row in rows.values():
+        row['to_order'] = max(0, row['waiting'] - (row['available'] or 0) - row['on_order'])
+    return sorted(rows.values(), key=lambda r: (-r['money_waiting'], r['product_name']))
 
 def get_constraint_distribution(shop, start_date=None, end_date=None, status=None):
     base_qs = _filter_intents(shop, start_date, end_date, status)

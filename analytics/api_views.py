@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .selectors import get_dashboard_kpis, get_constraint_distribution, get_top_blocked_products, get_monthly_intent_trends, get_restock_recommendations
+from .selectors import (get_dashboard_kpis, get_constraint_distribution, get_top_blocked_products,
+                        get_monthly_intent_trends, get_recovery_funnel, get_restock_recommendations, get_to_order)
 
 class DashboardStatsAPIView(APIView):
     def get(self, request):
@@ -23,3 +24,14 @@ class AnalyticsAPIView(APIView):
             'monthly_trends': trends,
             'restock_recommendations': recommendations
         })
+
+
+class ToOrderAPIView(APIView):
+    def get(self, request):
+        return Response(get_to_order(request.shop))
+
+
+class FunnelAPIView(APIView):
+    def get(self, request):
+        return Response(get_recovery_funnel(request.shop, request.query_params.get('start_date'),
+                                            request.query_params.get('end_date')))

@@ -45,6 +45,9 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         context['trends_data'] = json.dumps([t['count'] for t in trends])
         context['trends_recovered'] = json.dumps([t['recovered'] for t in trends])
         
+        from analytics.selectors import get_recovery_funnel
+        context['funnel'] = get_recovery_funnel(shop, start_date=start_date, end_date=end_date, status=status)
+
         # Restock recommendations (threshold = 4)
         context['recommendations'] = get_restock_recommendations(shop, threshold=4, start_date=start_date, end_date=end_date, status=status)
         

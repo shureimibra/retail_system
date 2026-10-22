@@ -97,6 +97,8 @@ class BlockedPurchaseIntent(models.Model):
     expected_at = models.DateField(null=True, blank=True, help_text='When the ordered stock should arrive.')
     pickup_by = models.DateField(null=True, blank=True, help_text='Reserved items are held until this date.')
     closed_reason = models.CharField(max_length=200, blank=True)
+    notified_at = models.DateTimeField(null=True, blank=True, help_text='When the customer was last told the item is ready.')
+    follow_ups_sent = models.PositiveSmallIntegerField(default=0)
 
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

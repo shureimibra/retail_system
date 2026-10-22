@@ -187,57 +187,27 @@
             </div>
         </div>
 
-        <!-- Custom Conversion Funnel Mockup -->
+        <!-- Recovery funnel: real counts for the selected period -->
         <div class="glassmorphism rounded-2xl p-6 border border-bordercolor relative">
             <div class="flex items-center justify-between mb-4">
                 <div>
-                    <h3 class="text-lg font-bold text-textprimary">Purchase Recovery Funnel</h3>
-                    <p class="text-xs text-textmuted mt-0.5">Overall efficiency of capturing and converting blocked intents</p>
+                    <h3 class="text-lg font-bold text-textprimary">Recovery funnel</h3>
+                    <p class="text-xs text-textmuted mt-0.5">Missed sales logged in this period, and how far each got</p>
                 </div>
-                <span class="text-xs font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">▲ 7.8% Overall</span>
             </div>
-            
+
             <div class="space-y-4 my-6">
-                <!-- Step 1 -->
+                {% for step in funnel %}
                 <div class="space-y-1">
                     <div class="flex justify-between text-xs font-semibold">
-                        <span class="text-textsecondary">1. Customer Blocked Intents</span>
-                        <span class="text-textprimary font-bold">100% Volume</span>
+                        <span class="text-textsecondary">{{ forloop.counter }}. {{ step.label }}</span>
+                        <span class="text-textprimary font-bold">{{ step.count }} ({{ step.percent }}%)</span>
                     </div>
                     <div class="w-full h-2.5 bg-bgtertiary rounded-full overflow-hidden">
-                        <div class="h-full bg-gradient-to-r from-primary to-secondaryaccent rounded-full" style="width: 100%"></div>
+                        <div class="h-full bg-primary rounded-full" style="width: {{ step.percent }}%"></div>
                     </div>
                 </div>
-                <!-- Step 2 -->
-                <div class="space-y-1">
-                    <div class="flex justify-between text-xs font-semibold">
-                        <span class="text-textsecondary">2. Stock Monitored (Resolved)</span>
-                        <span class="text-textprimary font-bold">53% Monitored</span>
-                    </div>
-                    <div class="w-full h-2.5 bg-bgtertiary rounded-full overflow-hidden">
-                        <div class="h-full bg-gradient-to-r from-primary to-secondaryaccent rounded-full" style="width: 53%"></div>
-                    </div>
-                </div>
-                <!-- Step 3 -->
-                <div class="space-y-1">
-                    <div class="flex justify-between text-xs font-semibold">
-                        <span class="text-textsecondary">3. Customer Notified (SMS/Alerts)</span>
-                        <span class="text-textprimary font-bold">23% Re-engaged</span>
-                    </div>
-                    <div class="w-full h-2.5 bg-bgtertiary rounded-full overflow-hidden">
-                        <div class="h-full bg-gradient-to-r from-primary to-secondaryaccent rounded-full" style="width: 23%"></div>
-                    </div>
-                </div>
-                <!-- Step 4 -->
-                <div class="space-y-1">
-                    <div class="flex justify-between text-xs font-semibold">
-                        <span class="text-textsecondary">4. Recovered Sales</span>
-                        <span class="text-textprimary font-bold">8% Completed</span>
-                    </div>
-                    <div class="w-full h-2.5 bg-bgtertiary rounded-full overflow-hidden">
-                        <div class="h-full bg-gradient-to-r from-primary to-secondaryaccent rounded-full" style="width: 8%"></div>
-                    </div>
-                </div>
+                {% endfor %}
             </div>
         </div>
     </div>

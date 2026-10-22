@@ -184,10 +184,14 @@ class StoryTests(LifecycleTestCase):
         services.transition(first, Intent.IN_CONVERSATION, note='Wants to pay a deposit')
         services.record_payment(first, 5000, 'mpesa', reference='SJK4H7Q2LM')
         services.record_payment(self.reload(first), 13700, 'cash')
-        services.decline(self.reload(requests[1]), 'Bought elsewhere')
+        with self.captureOnCommitCallbacks(execute=True):
+            services.decline(self.reload(requests[1]), 'Bought elsewhere')
         self.assertEqual(self.reload(first).status, Intent.RECOVERED)
         self.assertEqual(self.reload(self.grey42).stock_quantity, 3)
-        self.assertEqual(self.grey42.available_quantity, 1)
+        # The declined customer's pair goes straight to the next one waiting.
+        self.assertEqual(self.reload(requests[4]).status, Intent.NOTIFIED)
+        self.assertEqual(self.reload(requests[5]).status, Intent.ON_ORDER)
+        self.assertEqual(self.grey42.available_quantity, 0)
 
         kpis = get_dashboard_kpis(self.shop)
         self.assertEqual((kpis['recovered_sales'], kpis['recovered_revenue']), (1, 18700))

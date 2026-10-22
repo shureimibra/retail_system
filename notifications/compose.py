@@ -41,9 +41,41 @@ def deposit_receipt(intent):
     return f"Thank you {name}. We received {paid} for the {item_name(intent)}. Balance {balance}.{pickup}"
 
 
+def price_drop(intent):
+    name = intent.customer.first_name or 'there'
+    change = intent.product.price_changes.order_by('-created_at').first()
+    was = f' (was {money(intent.shop, change.old_price)})' if change else ''
+    unit = intent.variation.effective_price if intent.variation else intent.product.base_price
+    return (f"Good news {name}: the {item_name(intent)} is now {money(intent.shop, unit)}{was} at {intent.shop.name}. "
+            f"Reply YES to reserve it, or STOP to opt out.")
+
+
+def reminder_1(intent):
+    name = intent.customer.first_name or 'there'
+    return (f"Hi {name}, a reminder that the {item_name(intent)} is waiting for you at {intent.shop.name}. "
+            f"Reply YES to keep it, or STOP to opt out.")
+
+
+def reminder_2(intent):
+    name = intent.customer.first_name or 'there'
+    held = _hold_until(intent)
+    until = f' until {_day(held)}' if held else ''
+    return f"Hi {name}, we're still holding the {item_name(intent)} for you{until}. Reply YES to keep it, or STOP to opt out."
+
+
+def reminder_3(intent):
+    name = intent.customer.first_name or 'there'
+    return (f"Last call, {name}: we can hold the {item_name(intent)} until tomorrow, then it goes back on sale. "
+            f"Reply YES to keep it.")
+
+
 TEMPLATES = {
     'restock_alert': restock_alert,
+    'price_drop': price_drop,
     'deposit_receipt': deposit_receipt,
+    'reminder_1': reminder_1,
+    'reminder_2': reminder_2,
+    'reminder_3': reminder_3,
 }
 
 

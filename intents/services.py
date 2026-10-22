@@ -17,7 +17,7 @@ class TransitionError(ValueError):
 ALLOWED_TRANSITIONS = {
     Intent.OPEN: {Intent.ON_ORDER, Intent.BACK_IN_STOCK, Intent.NOTIFIED, Intent.IN_CONVERSATION,
                   Intent.RESERVED, Intent.RECOVERED, Intent.DECLINED, Intent.EXPIRED},
-    Intent.ON_ORDER: {Intent.OPEN, Intent.BACK_IN_STOCK, Intent.IN_CONVERSATION, Intent.RESERVED,
+    Intent.ON_ORDER: {Intent.OPEN, Intent.BACK_IN_STOCK, Intent.NOTIFIED, Intent.IN_CONVERSATION, Intent.RESERVED,
                       Intent.RECOVERED, Intent.DECLINED, Intent.EXPIRED},
     Intent.BACK_IN_STOCK: {Intent.OPEN, Intent.NOTIFIED, Intent.IN_CONVERSATION, Intent.RESERVED,
                            Intent.RECOVERED, Intent.DECLINED, Intent.EXPIRED},
@@ -50,15 +50,21 @@ def transition(intent, to_status, actor=None, note='', **data):
     if to_status in (Intent.DECLINED, Intent.EXPIRED) and note:
         intent.closed_reason = note[:200]
         update_fields.append('closed_reason')
+    if to_status == Intent.NOTIFIED:
+        intent.notified_at = timezone.now()
+        intent.follow_ups_sent = 0
+        update_fields += ['notified_at', 'follow_ups_sent']
     intent.save(update_fields=update_fields)
-
-    if to_status in (Intent.OPEN, Intent.DECLINED, Intent.EXPIRED):
-        _release_holds(intent)
-    elif to_status == Intent.RECOVERED:
-        _sell_held_units(intent, actor)
 
     IntentEvent.objects.create(intent=intent, kind='status', from_status=from_status, to_status=to_status,
                                note=note, data=data, actor=actor)
+
+    if to_status in (Intent.OPEN, Intent.DECLINED, Intent.EXPIRED):
+        # A unit that was held for this customer goes to the next one waiting.
+        for variation in _release_holds(intent):
+            resolve_intents_for_variation(variation, skip_intent_id=intent.id)
+    elif to_status == Intent.RECOVERED:
+        _sell_held_units(intent, actor)
     return intent
 
 
@@ -116,7 +122,7 @@ def mark_ordered(intents, expected_at=None, actor=None):
     return moved
 
 
-def resolve_intents_for_variation(variation):
+def resolve_intents_for_variation(variation, skip_intent_id=None):
     """
     Stock arrived for this variation. Waiting customers (restock reasons only,
     not expired) are served oldest first: each gets one unit put aside, moves
@@ -131,6 +137,7 @@ def resolve_intents_for_variation(variation):
                        constraint_type__in=Intent.RESTOCK_REASONS, expires_at__gt=timezone.now())
                .filter(Q(variation=variation) | Q(variation__isnull=True))
                .exclude(holds__status=StockHold.ACTIVE)
+               .exclude(id=skip_intent_id)
                .order_by('created_at', 'id'))
     available = variation.available_quantity
     served = 0
@@ -151,8 +158,12 @@ def _hold_unit(intent, variation):
 
 
 def _release_holds(intent):
-    from products.models import StockHold
-    intent.holds.filter(status=StockHold.ACTIVE).update(status=StockHold.RELEASED)
+    """Free this customer's held units. Returns the variations that got a unit back."""
+    from products.models import ProductVariation, StockHold
+    holds = intent.holds.filter(status=StockHold.ACTIVE)
+    variation_ids = list(holds.values_list('variation_id', flat=True))
+    holds.update(status=StockHold.RELEASED)
+    return list(ProductVariation.objects.filter(id__in=variation_ids))
 
 
 def _sell_held_units(intent, actor):

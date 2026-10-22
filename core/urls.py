@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 from products.api_views import CategoryViewSet, ProductTypeViewSet, ProductViewSet, ProductVariationViewSet
 from customers.api_views import CustomerViewSet
 from intents.api_views import BlockedPurchaseIntentViewSet, record_bought_visit
-from analytics.api_views import DashboardStatsAPIView, AnalyticsAPIView
+from analytics.api_views import DashboardStatsAPIView, AnalyticsAPIView, FunnelAPIView, ToOrderAPIView
 from reports.api_views import ReportsAPIView
 from notifications.api_views import ConversationViewSet
 from core.api_views import health_check
@@ -37,7 +37,14 @@ urlpatterns = [
     path('api/analytics/', AnalyticsAPIView.as_view(), name='api-analytics'),
     path('api/reports/', ReportsAPIView.as_view(), name='api-reports'),
     path('api/visits/bought/', record_bought_visit, name='api-visit-bought'),
+    path('api/to-order/', ToOrderAPIView.as_view(), name='api-to-order'),
+    path('api/funnel/', FunnelAPIView.as_view(), name='api-funnel'),
     path('api/', include(router.urls)),
+    # The same API under a versioned path, for integrations (POS plug-ins, the capture widget).
+    path('api/v1/to-order/', ToOrderAPIView.as_view()),
+    path('api/v1/funnel/', FunnelAPIView.as_view()),
+    path('api/v1/visits/bought/', record_bought_visit),
+    path('api/v1/', include((router.urls, 'api-v1'))),
     
     path('', lambda req: redirect('dashboard:home')),
 ]

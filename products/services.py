@@ -100,5 +100,9 @@ def change_price(product, new_price, changed_by=None, variation=None):
         product.save(update_fields=['base_price', 'updated_at'])
     if new_price == old_price:
         return None
-    return PriceChange.objects.create(product=product, variation=variation, old_price=old_price,
-                                      new_price=new_price, changed_by=changed_by)
+    change = PriceChange.objects.create(product=product, variation=variation, old_price=old_price,
+                                        new_price=new_price, changed_by=changed_by)
+    if change.is_drop:
+        from intents.automation import notify_price_drop
+        notify_price_drop(change)
+    return change
