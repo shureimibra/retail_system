@@ -1,6 +1,6 @@
 # Phase 3 design brief: the working screens
 
-**Status:** draft for the owner's confirmation · 22 Oct 2026
+**Status:** open questions answered; waiting for the owner's approval · 22 Oct 2026
 **Inputs:** `PRODUCT.md`, `DESIGN.md`, the approved spec (`docs/design/retail-os-design-spec.html`, sections 8 and 9), the Phase 2 shell, and the owner's notes so far:
 - keep it simple and borrow only what's needed
 - no customer balance profile
@@ -193,11 +193,11 @@ No changes to the lifecycle, holds or messaging rules.
 - Per-staff reports and deposits held.
 - Paid channels and M-Pesa confirmation (Phase 4).
 
-## 10. Open questions for the owner
+## 10. Decisions (owner, 22 Oct)
 
-1. **Three slices (3a → 3b → 3c), one PR each?** Recommended.
-2. **Supplier:** a simple optional text on each product (recommended), or skip suppliers entirely for now?
-3. **Phone tab bar:** switch to the spec's Home · Waiting · + · Chats · More (recommended), or keep today's Home · Missed · + · Messages · More?
+1. **Delivery:** three slices, 3a → 3b → 3c, one PR each.
+2. **Supplier:** an optional supplier name on each product; To order can group and share by supplier.
+3. **Phone tab bar:** Home · Waiting · + · Chats · More, as in the spec.
 
 ## Done when (per slice)
 
