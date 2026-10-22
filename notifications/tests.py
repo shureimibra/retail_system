@@ -4,9 +4,9 @@ from customers.models import Customer
 from products.models import Category, Product, ProductVariation
 from intents.models import BlockedPurchaseIntent
 from notifications.models import NotificationLog
-from notifications.services import SMSService
+from notifications.tasks import send_restock_notification_task
 
-class SMSServiceTestCase(TestCase):
+class RestockNotificationTaskTestCase(TestCase):
     def setUp(self):
         self.category = Category.objects.create(name="Electronics")
         self.product = Product.objects.create(
@@ -42,9 +42,9 @@ class SMSServiceTestCase(TestCase):
     )
     def test_send_sms_simulation_fallback(self):
         """
-        When Twilio settings are missing, SMSService should fall back to simulation mode.
+        When Twilio settings are missing, the task should fall back to simulation mode.
         """
-        success = SMSService.send_restock_notification(self.intent.id)
+        success = send_restock_notification_task(self.intent.id)
         self.assertTrue(success)
         
         # Verify database record
@@ -62,16 +62,16 @@ class SMSServiceTestCase(TestCase):
         TWILIO_AUTH_TOKEN='test_token',
         TWILIO_PHONE_NUMBER='+15555555555'
     )
-    @patch('notifications.services.Client')
+    @patch('notifications.tasks.Client')
     def test_send_sms_with_twilio_success(self, mock_twilio_client):
         """
-        When Twilio settings are configured, SMSService should dispatch SMS using Twilio Client.
+        When Twilio settings are configured, the task should dispatch using the Twilio client.
         """
         # Set up mock client
         mock_instance = MagicMock()
         mock_twilio_client.return_value = mock_instance
         
-        success = SMSService.send_restock_notification(self.intent.id)
+        success = send_restock_notification_task(self.intent.id)
         self.assertTrue(success)
         
         # Check client was instantiated with correct keys
@@ -79,7 +79,7 @@ class SMSServiceTestCase(TestCase):
         
         # Check messages.create was called
         mock_instance.messages.create.assert_called_once_with(
-            body="Hello Alice, the Laptop 15-inch/Silver you requested is now available.",
+            body="Hello Alice, the Laptop 15-inch/Silver you requested is now available. Reply STOP to opt out.",
             from_="whatsapp:+15555555555",
             to="whatsapp:+1234567890"
         )
@@ -94,7 +94,7 @@ class SMSServiceTestCase(TestCase):
         TWILIO_AUTH_TOKEN='test_token',
         TWILIO_PHONE_NUMBER='+15555555555'
     )
-    @patch('notifications.services.Client')
+    @patch('notifications.tasks.Client')
     def test_send_sms_with_twilio_failure(self, mock_twilio_client):
         """
         When Twilio client raises an exception, the notification status is set to Failed.
@@ -104,7 +104,7 @@ class SMSServiceTestCase(TestCase):
         mock_instance.messages.create.side_effect = Exception("Twilio API Error")
         mock_twilio_client.return_value = mock_instance
         
-        success = SMSService.send_restock_notification(self.intent.id)
+        success = send_restock_notification_task(self.intent.id)
         self.assertFalse(success)
         
         # Check DB log

@@ -18,11 +18,6 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        from products.signals import on_product_stock_update
-        on_product_stock_update.send(sender=self.__class__, instance=self)
-
     def __str__(self):
         return self.name
 
@@ -33,11 +28,6 @@ class ProductVariation(models.Model):
     stock_quantity = models.PositiveIntegerField(default=0)
     sku = models.CharField(max_length=100, unique=True)
     
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        from products.signals import on_variation_update
-        on_variation_update.send(sender=self.__class__, instance=self)
-                
     def __str__(self):
         return f"{self.product.name} - {self.size} / {self.color}"
 

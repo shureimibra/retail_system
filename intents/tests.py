@@ -4,13 +4,15 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from accounts.models import User
 from products.models import Category, Product, ProductVariation
+from products.services import set_stock, adjust_stock
 from customers.models import Customer
+from customers.services import get_or_create_customer
 from intents.models import BlockedPurchaseIntent
+from intents.services import create_blocked_purchase_intent
 from notifications.models import NotificationLog
-from services.intent_service import create_blocked_purchase_intent, resolve_blocked_intents_for_variation
-from services.customer_service import create_customer
-from services.notification_service import send_resolution_notification
+from notifications.tasks import send_restock_notification_task
 from analytics.selectors import get_dashboard_kpis, get_restock_recommendations
+
 
 @override_settings(
     TWILIO_ACCOUNT_SID='',
@@ -19,171 +21,175 @@ from analytics.selectors import get_dashboard_kpis, get_restock_recommendations
 )
 class RPCMSTestCase(TestCase):
     def setUp(self):
-        # Create standard User
         self.user = User.objects.create_user(username='staff1', password='password123')
-        
-        # Create Categories & Products
         self.category = Category.objects.create(name='Electronics')
         self.product = Product.objects.create(category=self.category, name='iPhone 15', base_price=1000.00)
         self.variation = ProductVariation.objects.create(product=self.product, size='128GB', color='Black', stock_quantity=0, sku='IPH15-128-BLK')
-        
-        # Create Customer
         self.customer = Customer.objects.create(first_name='Alex', last_name='Smith', phone_number='+254711222333')
 
-    def test_service_create_blocked_purchase_intent(self):
-        # Test creation of intent with auto-calculated estimated value
-        intent = create_blocked_purchase_intent(
-            customer=self.customer,
+    def _intent(self, customer=None, constraint_type='Out of stock', **kwargs):
+        return create_blocked_purchase_intent(
+            customer=customer or self.customer,
             product=self.product,
-            variation=self.variation,
-            constraint_type='Out of stock',
-            requested_quantity=2,
-            notes='Urgent purchase',
-            recorded_by=self.user
+            variation=kwargs.pop('variation', self.variation),
+            constraint_type=constraint_type,
+            recorded_by=self.user,
+            **kwargs
         )
-        
+
+    def test_service_create_blocked_purchase_intent(self):
+        intent = self._intent(requested_quantity=2, notes='Urgent purchase')
         self.assertEqual(intent.customer, self.customer)
-        self.assertEqual(intent.product, self.product)
         self.assertEqual(intent.requested_quantity, 2)
-        # 1000.00 * 2 = 2000.00
         self.assertEqual(float(intent.estimated_value), 2000.00)
         self.assertEqual(intent.status, 'Pending')
 
-    def test_customer_creation_service(self):
-        # Test create or get logic in customer_service
-        cust = create_customer('Jane', 'Doe', '+254700000000', 'jane@example.com')
-        self.assertEqual(cust.first_name, 'Jane')
-        self.assertEqual(cust.phone_number, '+254700000000')
+    def test_get_or_create_customer_reuses_phone_and_updates_details(self):
+        cust = get_or_create_customer('+254700000000', 'Jane', 'Doe', 'jane@example.com')
+        again = get_or_create_customer('+254700000000', 'Jane Updated', '', None)
+        self.assertEqual(again.id, cust.id)
+        self.assertEqual(again.first_name, 'Jane Updated')
+        self.assertEqual(again.last_name, 'Doe')
+        self.assertEqual(again.email, 'jane@example.com')
 
-        # Create again with same phone, should update details
-        cust_updated = create_customer('Jane Updated', 'Doe', '+254700000000', 'jane.up@example.com')
-        self.assertEqual(cust_updated.id, cust.id)
-        self.assertEqual(cust_updated.first_name, 'Jane Updated')
-
-    def test_stock_trigger_signal_and_resolution(self):
-        # Create a pending intent for the out of stock variation
-        intent = create_blocked_purchase_intent(
-            customer=self.customer,
-            product=self.product,
-            variation=self.variation,
-            constraint_type='Out of stock',
-            recorded_by=self.user
-        )
-        
-        # Update stock quantity of variation from 0 to 5.
-        # This will fire the on_variation_update signal, triggering inventory_service,
-        # which will resolve the intent and trigger notification_service.
-        self.variation.stock_quantity = 5
-        self.variation.save() 
-        
-        # Check that NotificationLog was created
+    def test_restock_notifies_waiting_customer(self):
+        intent = self._intent()
+        with self.captureOnCommitCallbacks(execute=True):
+            set_stock(self.variation.id, 5)
         notifications = NotificationLog.objects.filter(intent=intent)
         self.assertEqual(notifications.count(), 1)
         self.assertEqual(notifications.first().status, 'Sent')
-        
-        # Check that intent status was updated to "Customer Notified" by the notification service
+        intent.refresh_from_db()
+        self.assertEqual(intent.status, 'Customer Notified')
+
+    def test_saving_a_variation_alone_sends_nothing(self):
+        self._intent()
+        self.variation.stock_quantity = 5
+        self.variation.save()
+        self.assertEqual(NotificationLog.objects.count(), 0)
+
+    def test_stock_decrease_sends_nothing(self):
+        self.variation.stock_quantity = 5
+        self.variation.save()
+        self._intent()
+        with self.captureOnCommitCallbacks(execute=True):
+            adjust_stock(self.variation.id, -1)
+        self.assertEqual(NotificationLog.objects.count(), 0)
+
+    def test_restock_does_not_resolve_price_or_budget_reasons(self):
+        price = self._intent(constraint_type='Price too high')
+        budget = self._intent(constraint_type='Budget mismatch')
+        with self.captureOnCommitCallbacks(execute=True):
+            set_stock(self.variation.id, 5)
+        price.refresh_from_db()
+        budget.refresh_from_db()
+        self.assertEqual(price.status, 'Pending')
+        self.assertEqual(budget.status, 'Pending')
+        self.assertEqual(NotificationLog.objects.count(), 0)
+
+    def test_restock_resolves_product_level_intents(self):
+        intent = self._intent(variation=None)
+        with self.captureOnCommitCallbacks(execute=True):
+            set_stock(self.variation.id, 3)
         intent.refresh_from_db()
         self.assertEqual(intent.status, 'Customer Notified')
 
     def test_duplicate_notification_prevention(self):
-        # Create a pending intent
-        intent = create_blocked_purchase_intent(
-            customer=self.customer,
-            product=self.product,
-            variation=self.variation,
-            constraint_type='Out of stock',
-            recorded_by=self.user
-        )
-        
-        # Send first notification
-        log1 = send_resolution_notification(intent)
-        self.assertIsNotNone(log1)
-        
-        # Attempt to send second notification for the same intent
-        log2 = send_resolution_notification(intent)
-        self.assertIsNone(log2) # Duplicate check should prevent creation of new logs
-        
-        # Ensure only 1 log entry exists
+        intent = self._intent()
+        self.assertTrue(send_restock_notification_task(intent.id))
+        self.assertFalse(send_restock_notification_task(intent.id))
         self.assertEqual(NotificationLog.objects.filter(intent=intent).count(), 1)
 
     def test_analytics_selectors(self):
-        # Create blocked intents to trigger restock recommendation threshold (>=4)
         for i in range(4):
             cust = Customer.objects.create(first_name=f'Cust{i}', last_name='Test', phone_number=f'+25471100000{i}')
-            create_blocked_purchase_intent(
-                customer=cust,
-                product=self.product,
-                variation=self.variation,
-                constraint_type='Out of stock',
-                recorded_by=self.user
-            )
-            
+            self._intent(customer=cust)
         kpis = get_dashboard_kpis()
         self.assertEqual(kpis['total_blocked_purchases'], 4)
         self.assertEqual(kpis['active_intents'], 4)
         self.assertEqual(kpis['estimated_lost_revenue'], 4000.00)
-        
         recommendations = get_restock_recommendations(threshold=4)
         self.assertEqual(len(recommendations), 1)
         self.assertEqual(recommendations[0]['product_name'], 'iPhone 15')
         self.assertEqual(recommendations[0]['blocked_count'], 4)
 
     def test_notification_failed_status_invalid_phone(self):
-        # Create customer with invalid phone format (no + prefix)
-        invalid_cust = Customer.objects.create(
-            first_name='John', last_name='Doe', phone_number='0711222333'
-        )
-        # Create pending intent
-        intent = create_blocked_purchase_intent(
-            customer=invalid_cust,
-            product=self.product,
-            variation=self.variation,
-            constraint_type='Out of stock',
-            recorded_by=self.user
-        )
-        
-        # Trigger resolution (which sends notification)
-        self.variation.stock_quantity = 5
-        self.variation.save()
-        
-        # Verify that NotificationLog exists with status 'Failed'
+        invalid_cust = Customer.objects.create(first_name='John', last_name='Doe', phone_number='0711222333')
+        intent = self._intent(customer=invalid_cust)
+        with self.captureOnCommitCallbacks(execute=True):
+            set_stock(self.variation.id, 5)
         logs = NotificationLog.objects.filter(intent=intent)
         self.assertEqual(logs.count(), 1)
         self.assertEqual(logs.first().status, 'Failed')
-        
-        # Since it failed, the intent status should remain 'Resolved' (not Customer Notified)
         intent.refresh_from_db()
         self.assertEqual(intent.status, 'Resolved')
 
-    def test_notification_log_signal_updates_intent_status(self):
-        # Create pending intent
-        intent = create_blocked_purchase_intent(
-            customer=self.customer,
-            product=self.product,
-            variation=self.variation,
-            constraint_type='Out of stock',
-            recorded_by=self.user
-        )
-        
-        # Manually create a NotificationLog with status='Sent'
-        NotificationLog.objects.create(
-            intent=intent,
-            message="Manual message",
-            status='Sent'
-        )
-        
-        # Verify that the intent status was automatically updated to 'Customer Notified' by the signal
-        intent.refresh_from_db()
-        self.assertEqual(intent.status, 'Customer Notified')
 
+class RecordMissedSaleFlowTests(TestCase):
+    """
+    Regression guard for the shop's core flow: a customer doesn't buy, and the
+    owner records what they wanted (product, size, colour, reason, phone).
+    This must keep working through every phase.
+    """
+
+    def setUp(self):
+        self.owner = User.objects.create_user('owner', password='pw12345!')
+        cat = Category.objects.create(name='Footwear')
+        self.shoe = Product.objects.create(category=cat, name='Nike Air Zoom', description='Running', base_price=12500)
+        self.variation = ProductVariation.objects.create(product=self.shoe, size='42', color='Black', stock_quantity=0, sku='NIKE-AZ-42-BLK')
+        self.customer = Customer.objects.create(first_name='John', last_name='Doe', phone_number='+254712345678', email='john@example.com')
+        self.client.login(username='owner', password='pw12345!')
+
+    def test_owner_records_missed_sale_from_the_form(self):
+        self.assertEqual(self.client.get(reverse('intents:create')).status_code, 200)
+        response = self.client.post(reverse('intents:create'), {
+            'customer': self.customer.id, 'product': self.shoe.id, 'variation': self.variation.id,
+            'constraint_type': 'Size unavailable', 'requested_quantity': 1, 'estimated_value': '',
+            'notes': 'Wanted 42 in black',
+        })
+        self.assertRedirects(response, reverse('intents:list'))
+        intent = BlockedPurchaseIntent.objects.get()
+        self.assertEqual((intent.variation.size, intent.variation.color), ('42', 'Black'))
+        self.assertEqual(intent.constraint_type, 'Size unavailable')
+        self.assertEqual(intent.customer.phone_number, '+254712345678')
+        self.assertEqual(float(intent.estimated_value), 12500.00)
+        self.assertEqual(intent.status, 'Pending')
+        self.assertEqual(intent.recorded_by, self.owner)
+        self.assertContains(self.client.get(reverse('intents:list')), 'Nike Air Zoom')
+
+    def test_create_form_cannot_set_status_by_hand(self):
+        self.client.post(reverse('intents:create'), {
+            'customer': self.customer.id, 'product': self.shoe.id, 'variation': self.variation.id,
+            'constraint_type': 'Size unavailable', 'requested_quantity': 1, 'status': 'Recovered',
+        })
+        self.assertEqual(BlockedPurchaseIntent.objects.get().status, 'Pending')
+
+    def test_owner_records_missed_sale_from_the_quick_record_api(self):
+        response = self.client.post('/api/intents/', {
+            'customer': self.customer.id, 'product': self.shoe.id, 'variation': self.variation.id,
+            'constraint_type': 'Color unavailable', 'requested_quantity': 1,
+        }, content_type='application/json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        intent = BlockedPurchaseIntent.objects.get()
+        self.assertEqual(response.data['id'], intent.id)
+        self.assertEqual(response.data['status'], 'Pending')
+
+    def test_quick_restock_api_notifies_waiting_customer(self):
+        self.client.post('/api/intents/', {
+            'customer': self.customer.id, 'product': self.shoe.id, 'variation': self.variation.id,
+            'constraint_type': 'Size unavailable', 'requested_quantity': 1,
+        }, content_type='application/json')
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.patch(f'/api/variations/{self.variation.id}/', {'stock_quantity': 10}, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['stock_quantity'], 10)
+        self.assertEqual(NotificationLog.objects.count(), 1)
 
 
 class RPCMSAPITestCase(APITestCase):
     def setUp(self):
         self.user = User.objects.create_superuser(username='admin', password='adminpassword')
         self.client.login(username='admin', password='adminpassword')
-        
-        # Category, Product, Customer for API tests
         self.category = Category.objects.create(name='Electronics')
         self.product = Product.objects.create(category=self.category, name='iPhone 15', base_price=1000.00)
         self.customer = Customer.objects.create(first_name='Alex', last_name='Smith', phone_number='+254711222333')

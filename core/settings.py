@@ -193,3 +193,7 @@ REST_FRAMEWORK = {
     ],
 }
 
+
+# Tests: a fast password hasher (never used outside the test runner).
+if 'test' in sys.argv:
+    PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']

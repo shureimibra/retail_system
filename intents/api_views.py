@@ -9,7 +9,7 @@ class BlockedPurchaseIntentViewSet(viewsets.ModelViewSet):
     filterset_fields = ['customer', 'product', 'variation', 'constraint_type', 'status']
 
     def perform_create(self, serializer):
-        create_blocked_purchase_intent(
+        serializer.instance = create_blocked_purchase_intent(
             customer=serializer.validated_data['customer'],
             product=serializer.validated_data['product'],
             variation=serializer.validated_data.get('variation'),

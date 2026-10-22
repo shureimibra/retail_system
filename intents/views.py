@@ -3,6 +3,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from .models import BlockedPurchaseIntent
 from .forms import BlockedPurchaseIntentForm
+from .services import create_blocked_purchase_intent
+from django.http import HttpResponseRedirect
 
 class IntentListView(LoginRequiredMixin, ListView):
     model = BlockedPurchaseIntent
@@ -24,11 +26,24 @@ class IntentCreateView(LoginRequiredMixin, CreateView):
     template_name = 'intents/intent_form.html'
     success_url = reverse_lazy('intents:list')
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields.pop('status', None)
+        return form
+
     def form_valid(self, form):
-        form.instance.recorded_by = self.request.user
-        if not form.instance.estimated_value:
-            form.instance.estimated_value = form.instance.product.base_price * form.instance.requested_quantity
-        return super().form_valid(form)
+        data = form.cleaned_data
+        self.object = create_blocked_purchase_intent(
+            customer=data['customer'],
+            product=data['product'],
+            variation=data.get('variation'),
+            constraint_type=data['constraint_type'],
+            requested_quantity=data.get('requested_quantity') or 1,
+            estimated_value=data.get('estimated_value'),
+            notes=data.get('notes', ''),
+            recorded_by=self.request.user,
+        )
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
