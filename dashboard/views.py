@@ -1,5 +1,6 @@
 from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from core.periods import resolve_period
 from analytics.selectors import get_dashboard_kpis, get_constraint_distribution, get_top_blocked_products, get_monthly_intent_trends, get_restock_recommendations
 
 class DashboardHomeView(LoginRequiredMixin, TemplateView):
@@ -11,16 +12,15 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         
         # Get query filters
         status = self.request.GET.get('status')
-        start_date = self.request.GET.get('start_date')
-        end_date = self.request.GET.get('end_date')
+        period = resolve_period(self.request.GET)
+        context['period'] = period
+        start_date, end_date = period['start'], period['end']
         
         # Pass filters back to pre-fill form
         context['status_filter'] = status or ''
         from intents.models import BlockedPurchaseIntent
         context['status_choices'] = BlockedPurchaseIntent.STATUS_CHOICES
         context['reason_choices'] = BlockedPurchaseIntent.CONSTRAINT_CHOICES
-        context['start_date_filter'] = start_date or ''
-        context['end_date_filter'] = end_date or ''
         
         # KPIs
         kpis = get_dashboard_kpis(shop, start_date=start_date, end_date=end_date, status=status)
@@ -50,7 +50,7 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         
         # Recent intents (last 5) filtered by parameters
         from reports.selectors import get_report_data
-        context['recent_intents'] = get_report_data(shop, start_date_str=start_date, end_date_str=end_date, status=status)[:5]
+        context['recent_intents'] = get_report_data(shop, start_date_str=period['start_str'], end_date_str=period['end_str'], status=status)[:5]
         
         
         return context

@@ -48,3 +48,48 @@ class CurrentPagesSmokeTests(TestCase):
                     '/notifications/', '/reports/csv/', '/reports/pdf/', '/api/dashboard/', '/api/analytics/', '/api/reports/']:
             with self.subTest(url=url):
                 self.assertEqual(self.client.get(url).status_code, 200)
+
+
+class PeriodTests(TestCase):
+    """The period picker on Home and Reports never accepts impossible dates."""
+
+    def setUp(self):
+        from django.utils import timezone
+        self.today = timezone.localdate()
+
+    def resolve(self, **params):
+        from core.periods import resolve_period
+        return resolve_period(params)
+
+    def test_default_is_all_time(self):
+        period = self.resolve()
+        self.assertEqual((period['key'], period['start'], period['end']), ('all', None, None))
+
+    def test_presets(self):
+        from datetime import timedelta
+        self.assertEqual(self.resolve(period='today')['start'], self.today)
+        self.assertEqual(self.resolve(period='7d')['start'], self.today - timedelta(days=6))
+        self.assertEqual(self.resolve(period='30d')['start'], self.today - timedelta(days=29))
+        self.assertEqual(self.resolve(period='month')['start'], self.today.replace(day=1))
+
+    def test_unknown_period_falls_back(self):
+        self.assertEqual(self.resolve(period='forever')['key'], 'all')
+
+    def test_absurd_year_is_ignored(self):
+        period = self.resolve(start_date='275760-04-25')
+        self.assertEqual((period['key'], period['start']), ('all', None))
+
+    def test_dates_are_clamped_and_swapped(self):
+        from datetime import date
+        period = self.resolve(period='custom', start_date='2999-01-01', end_date='2010-05-05')
+        self.assertEqual((period['start'], period['end']), (date(2020, 1, 1), self.today))
+
+    def test_pages_accept_any_period(self):
+        from accounts.models import Membership, default_shop_id
+        owner = User.objects.create_user('owner', password='pw12345!')
+        Membership.objects.create(user=owner, shop_id=default_shop_id(), role=Membership.OWNER)
+        self.client.login(username='owner', password='pw12345!')
+        for query in ['', 'period=7d', 'period=custom&start_date=275760-04-25', 'start_date=2024-13-40', 'period=junk']:
+            for url in ['/dashboard/', '/reports/']:
+                with self.subTest(url=url, query=query):
+                    self.assertEqual(self.client.get(f'{url}?{query}').status_code, 200)

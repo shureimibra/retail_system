@@ -6,10 +6,8 @@
   <div><h1>{% now "G" as hour %}{% if hour|add:0 < 12 %}Good morning{% elif hour|add:0 < 17 %}Good afternoon{% else %}Good evening{% endif %}{% if user.first_name %}, {{ user.first_name }}{% endif %}</h1>
     <p>{% now "l j F" %}</p></div>
   <form method="get" class="filters" aria-label="Period">
-    <label class="visually-hidden" for="start_date">From</label><input type="date" id="start_date" name="start_date" value="{{ start_date_filter }}">
-    <label class="visually-hidden" for="end_date">To</label><input type="date" id="end_date" name="end_date" value="{{ end_date_filter }}">
-    <button class="btn" type="submit">Show</button>
-    {% if start_date_filter or end_date_filter %}<a class="btn btn-plain" href="{% url 'dashboard:home' %}">All time</a>{% endif %}
+    {% include "ui/period.html" %}
+    <button class="btn" type="submit" data-period-submit>Show</button>
   </form>
 </div>
 

@@ -1,0 +1,15 @@
+{# Period picker: plain choices, with dates only for a custom range. Works without JavaScript. #}
+<div class="period" data-period>
+  <div class="field">
+    <label for="period">Period</label>
+    <select id="period" name="period">
+      {% for value, label in period.choices %}<option value="{{ value }}"{% if period.key == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="period-custom" data-custom{% if period.key != 'custom' %} hidden{% endif %}>
+    <div class="field"><label for="start_date">From</label>
+      <input type="date" id="start_date" name="start_date" value="{{ period.start_str }}" min="{{ period.min }}" max="{{ period.max }}"></div>
+    <div class="field"><label for="end_date">To</label>
+      <input type="date" id="end_date" name="end_date" value="{{ period.end_str }}" min="{{ period.min }}" max="{{ period.max }}"></div>
+  </div>
+</div>

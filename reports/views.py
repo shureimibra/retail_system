@@ -43,10 +43,14 @@ class ReportsIndexView(LoginRequiredMixin, TemplateView):
         from urllib.parse import urlencode
         from intents.models import BlockedPurchaseIntent
         context = super().get_context_data(**kwargs)
-        filters = {key: self.request.GET.get(key, '') for key in ('start_date', 'end_date', 'status')}
+        from core.periods import resolve_period
+        period = resolve_period(self.request.GET)
+        status = self.request.GET.get('status', '')
+        filters = {'start_date': period['start_str'], 'end_date': period['end_str'], 'status': status}
+        context['period'] = period
         context['filters'] = filters
         context['query'] = urlencode({k: v for k, v in filters.items() if v})
         context['status_choices'] = BlockedPurchaseIntent.STATUS_CHOICES
-        context['count'] = get_report_data(self.request.shop, filters['start_date'] or None,
-                                           filters['end_date'] or None, filters['status'] or None).count()
+        context['count'] = get_report_data(self.request.shop, period['start_str'] or None,
+                                           period['end_str'] or None, status or None).count()
         return context
