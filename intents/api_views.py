@@ -1,15 +1,20 @@
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+
+from core.shops import ManagersDeletePermission, ShopScopedViewSetMixin
 from .models import BlockedPurchaseIntent
 from .serializers import BlockedPurchaseIntentSerializer
 from .services import create_blocked_purchase_intent
 
-class BlockedPurchaseIntentViewSet(viewsets.ModelViewSet):
+
+class BlockedPurchaseIntentViewSet(ShopScopedViewSetMixin, viewsets.ModelViewSet):
     queryset = BlockedPurchaseIntent.objects.all().select_related('customer', 'product', 'variation', 'recorded_by')
     serializer_class = BlockedPurchaseIntentSerializer
     filterset_fields = ['customer', 'product', 'variation', 'constraint_type', 'status']
+    permission_classes = [IsAuthenticated, ManagersDeletePermission]
 
     def perform_create(self, serializer):
-        create_blocked_purchase_intent(
+        serializer.instance = create_blocked_purchase_intent(
             customer=serializer.validated_data['customer'],
             product=serializer.validated_data['product'],
             variation=serializer.validated_data.get('variation'),

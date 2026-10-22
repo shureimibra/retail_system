@@ -7,6 +7,7 @@ from twilio.twiml.messaging_response import MessagingResponse
 
 from .models import NotificationLog, InboundSMSLog
 from customers.models import Customer
+from core.phones import normalize_phone
 
 class NotificationListView(LoginRequiredMixin, ListView):
     model = NotificationLog
@@ -15,9 +16,12 @@ class NotificationListView(LoginRequiredMixin, ListView):
     paginate_by = 10
     ordering = ['-sent_at']
 
+    def get_queryset(self):
+        return super().get_queryset().filter(intent__shop=self.request.shop)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['inbound_logs'] = InboundSMSLog.objects.all().order_by('-received_at')
+        context['inbound_logs'] = InboundSMSLog.objects.filter(customer__shop=self.request.shop).order_by('-received_at')
         return context
 
 @csrf_exempt
@@ -29,12 +33,11 @@ def twilio_webhook(request):
 
     # Try to resolve Customer
     customer = None
-    if from_number:
-        clean_from = from_number.replace('whatsapp:', '') if 'whatsapp:' in from_number else from_number
-        customer = Customer.objects.filter(phone_number=clean_from).first()
-        if not customer:
-            alt_number = clean_from.replace('+', '')
-            customer = Customer.objects.filter(phone_number__icontains=alt_number).first()
+    normalized_from = normalize_phone(from_number)
+    if normalized_from:
+        matches = list(Customer.objects.filter(phone_number=normalized_from)[:2])
+        # Only attach the reply when exactly one shop knows this number.
+        customer = matches[0] if len(matches) == 1 else None
 
     # Log incoming message
     InboundSMSLog.objects.create(

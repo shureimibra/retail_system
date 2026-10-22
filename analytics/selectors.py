@@ -7,8 +7,8 @@ import datetime
 
 from django.utils.dateparse import parse_date
 
-def _filter_intents(start_date=None, end_date=None, status=None):
-    qs = BlockedPurchaseIntent.objects.all()
+def _filter_intents(shop, start_date=None, end_date=None, status=None):
+    qs = BlockedPurchaseIntent.objects.filter(shop=shop)
     if start_date:
         d = parse_date(start_date) if isinstance(start_date, str) else start_date
         if d:
@@ -21,11 +21,11 @@ def _filter_intents(start_date=None, end_date=None, status=None):
         qs = qs.filter(status=status)
     return qs
 
-def get_dashboard_kpis(start_date=None, end_date=None, status=None):
-    base_qs = _filter_intents(start_date, end_date, status)
+def get_dashboard_kpis(shop, start_date=None, end_date=None, status=None):
+    base_qs = _filter_intents(shop, start_date, end_date, status)
     
-    total_products = Product.objects.filter(active=True).count() if hasattr(Product, 'active') else Product.objects.count()
-    total_customers = Customer.objects.count()
+    total_products = Product.objects.filter(shop=shop).count()
+    total_customers = Customer.objects.filter(shop=shop).count()
     total_intents = base_qs.count()
     active_intents = base_qs.filter(status__in=['Pending', 'Monitoring']).count()
     recovered_intents = base_qs.filter(status__in=['Resolved', 'Customer Notified', 'Recovered']).count()
@@ -50,20 +50,20 @@ def get_dashboard_kpis(start_date=None, end_date=None, status=None):
         'recovered_revenue': float(recovered_revenue),
     }
 
-def get_constraint_distribution(start_date=None, end_date=None, status=None):
-    base_qs = _filter_intents(start_date, end_date, status)
+def get_constraint_distribution(shop, start_date=None, end_date=None, status=None):
+    base_qs = _filter_intents(shop, start_date, end_date, status)
     return list(base_qs.values('constraint_type')
                 .annotate(count=Count('id'))
                 .order_by('-count'))
 
-def get_top_blocked_products(limit=5, start_date=None, end_date=None, status=None):
-    base_qs = _filter_intents(start_date, end_date, status)
+def get_top_blocked_products(shop, limit=5, start_date=None, end_date=None, status=None):
+    base_qs = _filter_intents(shop, start_date, end_date, status)
     return list(base_qs.values('product__name')
                 .annotate(count=Count('id'), total_value=Sum('estimated_value'))
                 .order_by('-count')[:limit])
 
-def get_monthly_intent_trends(start_date=None, end_date=None, status=None):
-    base_qs = _filter_intents(start_date, end_date, status)
+def get_monthly_intent_trends(shop, start_date=None, end_date=None, status=None):
+    base_qs = _filter_intents(shop, start_date, end_date, status)
     # Group by month and count
     trends = (base_qs
               .annotate(month=TruncMonth('created_at'))
@@ -81,12 +81,12 @@ def get_monthly_intent_trends(start_date=None, end_date=None, status=None):
         })
     return result
 
-def get_restock_recommendations(threshold=4, start_date=None, end_date=None, status=None):
+def get_restock_recommendations(shop, threshold=4, start_date=None, end_date=None, status=None):
     """
     If a product variation (or product) appears more than `threshold` times
     in blocked purchase intents with status Pending/Monitoring, recommend restocking.
     """
-    base_qs = _filter_intents(start_date, end_date, status)
+    base_qs = _filter_intents(shop, start_date, end_date, status)
     # Group by product variation
     variations = (base_qs
                   .filter(status__in=['Pending', 'Monitoring'])

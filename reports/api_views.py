@@ -8,7 +8,7 @@ class ReportsAPIView(APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         
-        intents = get_report_data(start_date, end_date, status)
+        intents = get_report_data(request.shop, start_date, end_date, status)
         data = []
         for intent in intents:
             data.append({

@@ -1,7 +1,10 @@
 from django import forms
+from core.shops import ShopFormMixin
 from .models import Product
 
-class ProductForm(forms.ModelForm):
+class ProductForm(ShopFormMixin, forms.ModelForm):
+    shop_scoped_fields = {'category': 'shop'}
+
     class Meta:
         model = Product
         fields = ['name', 'category', 'description', 'base_price']

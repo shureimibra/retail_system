@@ -1,8 +1,8 @@
 from intents.models import BlockedPurchaseIntent
 from django.utils.dateparse import parse_date
 
-def get_report_data(start_date_str=None, end_date_str=None, status=None):
-    qs = BlockedPurchaseIntent.objects.all().select_related('customer', 'product', 'variation', 'recorded_by')
+def get_report_data(shop, start_date_str=None, end_date_str=None, status=None):
+    qs = BlockedPurchaseIntent.objects.filter(shop=shop).select_related('customer', 'product', 'variation', 'recorded_by')
     
     if start_date_str:
         start_date = parse_date(start_date_str)

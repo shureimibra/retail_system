@@ -11,7 +11,7 @@ class ExportCSVReportView(LoginRequiredMixin, View):
         start_date = request.GET.get('start_date')
         end_date = request.GET.get('end_date')
         
-        intents = get_report_data(start_date, end_date, status)
+        intents = get_report_data(request.shop, start_date, end_date, status)
         
         response = HttpResponse(content_type='text/csv')
         filename = f"blocked_intents_report_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
@@ -25,7 +25,7 @@ class ExportPDFReportView(LoginRequiredMixin, View):
         start_date = request.GET.get('start_date')
         end_date = request.GET.get('end_date')
         
-        intents = get_report_data(start_date, end_date, status)
+        intents = get_report_data(request.shop, start_date, end_date, status)
         
         response = HttpResponse(content_type='application/pdf')
         filename = f"blocked_intents_report_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"

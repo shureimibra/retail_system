@@ -4,8 +4,8 @@ from .selectors import get_dashboard_kpis, get_constraint_distribution, get_top_
 
 class DashboardStatsAPIView(APIView):
     def get(self, request):
-        kpis = get_dashboard_kpis()
-        recent_recommendations = get_restock_recommendations(threshold=4)
+        kpis = get_dashboard_kpis(request.shop)
+        recent_recommendations = get_restock_recommendations(request.shop, threshold=4)
         return Response({
             'kpis': kpis,
             'recommendations': recent_recommendations
@@ -13,10 +13,10 @@ class DashboardStatsAPIView(APIView):
 
 class AnalyticsAPIView(APIView):
     def get(self, request):
-        distribution = get_constraint_distribution()
-        top_products = get_top_blocked_products()
-        trends = get_monthly_intent_trends()
-        recommendations = get_restock_recommendations(threshold=4)
+        distribution = get_constraint_distribution(request.shop)
+        top_products = get_top_blocked_products(request.shop)
+        trends = get_monthly_intent_trends(request.shop)
+        recommendations = get_restock_recommendations(request.shop, threshold=4)
         return Response({
             'constraint_distribution': distribution,
             'top_blocked_products': top_products,
