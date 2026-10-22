@@ -1,6 +1,7 @@
 from django.db import models
 from products.models import Product, ProductVariation
 from customers.models import Customer
+from accounts.models import default_shop_id
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
@@ -26,6 +27,7 @@ class BlockedPurchaseIntent(models.Model):
         ('Budget mismatch', 'Budget mismatch'),
     ]
 
+    shop = models.ForeignKey('accounts.Shop', on_delete=models.CASCADE, default=default_shop_id, related_name='intents')
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='intents')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='intents')
     variation = models.ForeignKey(ProductVariation, on_delete=models.SET_NULL, null=True, blank=True, related_name='intents')

@@ -2,7 +2,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
-from accounts.models import User
+from accounts.models import Membership, User, default_shop_id
 from products.models import Category, Product, ProductVariation
 from products.services import set_stock, adjust_stock
 from customers.models import Customer
@@ -45,8 +45,9 @@ class RPCMSTestCase(TestCase):
         self.assertEqual(intent.status, 'Pending')
 
     def test_get_or_create_customer_reuses_phone_and_updates_details(self):
-        cust = get_or_create_customer('+254700000000', 'Jane', 'Doe', 'jane@example.com')
-        again = get_or_create_customer('+254700000000', 'Jane Updated', '', None)
+        shop = self.product.shop
+        cust = get_or_create_customer(shop, '+254700000000', 'Jane', 'Doe', 'jane@example.com')
+        again = get_or_create_customer(shop, '0700 000 000', 'Jane Updated', '', None)
         self.assertEqual(again.id, cust.id)
         self.assertEqual(again.first_name, 'Jane Updated')
         self.assertEqual(again.last_name, 'Doe')
@@ -104,11 +105,11 @@ class RPCMSTestCase(TestCase):
         for i in range(4):
             cust = Customer.objects.create(first_name=f'Cust{i}', last_name='Test', phone_number=f'+25471100000{i}')
             self._intent(customer=cust)
-        kpis = get_dashboard_kpis()
+        kpis = get_dashboard_kpis(self.product.shop)
         self.assertEqual(kpis['total_blocked_purchases'], 4)
         self.assertEqual(kpis['active_intents'], 4)
         self.assertEqual(kpis['estimated_lost_revenue'], 4000.00)
-        recommendations = get_restock_recommendations(threshold=4)
+        recommendations = get_restock_recommendations(self.product.shop, threshold=4)
         self.assertEqual(len(recommendations), 1)
         self.assertEqual(recommendations[0]['product_name'], 'iPhone 15')
         self.assertEqual(recommendations[0]['blocked_count'], 4)
@@ -134,6 +135,7 @@ class RecordMissedSaleFlowTests(TestCase):
 
     def setUp(self):
         self.owner = User.objects.create_user('owner', password='pw12345!')
+        Membership.objects.create(user=self.owner, shop_id=default_shop_id(), role=Membership.OWNER)
         cat = Category.objects.create(name='Footwear')
         self.shoe = Product.objects.create(category=cat, name='Nike Air Zoom', description='Running', base_price=12500)
         self.variation = ProductVariation.objects.create(product=self.shoe, size='42', color='Black', stock_quantity=0, sku='NIKE-AZ-42-BLK')

@@ -2,13 +2,14 @@ from core.phones import normalize_phone
 from .models import Customer
 
 
-def get_or_create_customer(phone_number, first_name='', last_name='', email=None):
+def get_or_create_customer(shop, phone_number, first_name='', last_name='', email=None):
     """
     Find a customer by phone number or create one. Details that are supplied
     update the existing record; blank ones leave it unchanged.
     """
     phone_number = normalize_phone(phone_number) or phone_number
     customer, created = Customer.objects.get_or_create(
+        shop=shop,
         phone_number=phone_number,
         defaults={'first_name': first_name, 'last_name': last_name, 'email': email},
     )

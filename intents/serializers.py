@@ -1,9 +1,11 @@
 from rest_framework import serializers
+from core.shops import ShopScopedSerializerMixin
 from .models import BlockedPurchaseIntent
 from customers.serializers import CustomerSerializer
 from products.serializers import ProductSerializer, ProductVariationSerializer
 
-class BlockedPurchaseIntentSerializer(serializers.ModelSerializer):
+class BlockedPurchaseIntentSerializer(ShopScopedSerializerMixin, serializers.ModelSerializer):
+    shop_scoped_fields = {'customer': 'shop', 'product': 'shop', 'variation': 'product__shop'}
     customer_detail = CustomerSerializer(source='customer', read_only=True)
     product_detail = ProductSerializer(source='product', read_only=True)
     variation_detail = ProductVariationSerializer(source='variation', read_only=True)

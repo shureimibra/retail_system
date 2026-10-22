@@ -1,6 +1,9 @@
 from django.db import models
 
+from accounts.models import default_shop_id
+
 class Category(models.Model):
+    shop = models.ForeignKey('accounts.Shop', on_delete=models.CASCADE, default=default_shop_id, related_name='categories')
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
 
@@ -11,6 +14,7 @@ class Category(models.Model):
         return self.name
 
 class Product(models.Model):
+    shop = models.ForeignKey('accounts.Shop', on_delete=models.CASCADE, default=default_shop_id, related_name='products')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     name = models.CharField(max_length=200)
     description = models.TextField()

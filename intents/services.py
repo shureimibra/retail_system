@@ -11,10 +11,13 @@ RESTOCK_CONSTRAINTS = ['Size unavailable', 'Color unavailable', 'Out of stock']
 
 
 def create_blocked_purchase_intent(customer, product, variation, constraint_type, requested_quantity=1, estimated_value=None, notes="", recorded_by=None):
+    if customer.shop_id != product.shop_id or (variation and variation.product_id != product.id):
+        raise ValueError('Customer, product and variation must belong to the same shop and product.')
     if estimated_value is None:
         estimated_value = product.base_price * requested_quantity
 
     return BlockedPurchaseIntent.objects.create(
+        shop_id=product.shop_id,
         customer=customer,
         product=product,
         variation=variation,

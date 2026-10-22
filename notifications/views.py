@@ -16,9 +16,12 @@ class NotificationListView(LoginRequiredMixin, ListView):
     paginate_by = 10
     ordering = ['-sent_at']
 
+    def get_queryset(self):
+        return super().get_queryset().filter(intent__shop=self.request.shop)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['inbound_logs'] = InboundSMSLog.objects.all().order_by('-received_at')
+        context['inbound_logs'] = InboundSMSLog.objects.filter(customer__shop=self.request.shop).order_by('-received_at')
         return context
 
 @csrf_exempt
@@ -32,7 +35,9 @@ def twilio_webhook(request):
     customer = None
     normalized_from = normalize_phone(from_number)
     if normalized_from:
-        customer = Customer.objects.filter(phone_number=normalized_from).first()
+        matches = list(Customer.objects.filter(phone_number=normalized_from)[:2])
+        # Only attach the reply when exactly one shop knows this number.
+        customer = matches[0] if len(matches) == 1 else None
 
     # Log incoming message
     InboundSMSLog.objects.create(

@@ -1,12 +1,12 @@
 from django.views.generic import ListView, CreateView, UpdateView
-from django.contrib.auth.mixins import LoginRequiredMixin
+from core.shops import ShopViewMixin
 from django.urls import reverse_lazy
 from .models import BlockedPurchaseIntent
 from .forms import BlockedPurchaseIntentForm
 from .services import create_blocked_purchase_intent
 from django.http import HttpResponseRedirect
 
-class IntentListView(LoginRequiredMixin, ListView):
+class IntentListView(ShopViewMixin, ListView):
     model = BlockedPurchaseIntent
     template_name = 'intents/intent_list.html'
     context_object_name = 'intents'
@@ -20,7 +20,7 @@ class IntentListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(customer_id=customer_id)
         return queryset
 
-class IntentCreateView(LoginRequiredMixin, CreateView):
+class IntentCreateView(ShopViewMixin, CreateView):
     model = BlockedPurchaseIntent
     form_class = BlockedPurchaseIntentForm
     template_name = 'intents/intent_form.html'
@@ -48,10 +48,10 @@ class IntentCreateView(LoginRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from products.selectors import get_all_categories
-        context['all_categories'] = get_all_categories()
+        context['all_categories'] = get_all_categories(self.request.shop)
         return context
 
-class IntentUpdateView(LoginRequiredMixin, UpdateView):
+class IntentUpdateView(ShopViewMixin, UpdateView):
     model = BlockedPurchaseIntent
     form_class = BlockedPurchaseIntentForm
     template_name = 'intents/intent_form.html'
@@ -65,5 +65,5 @@ class IntentUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from products.selectors import get_all_categories
-        context['all_categories'] = get_all_categories()
+        context['all_categories'] = get_all_categories(self.request.shop)
         return context

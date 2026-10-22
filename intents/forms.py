@@ -1,7 +1,10 @@
 from django import forms
+from core.shops import ShopFormMixin
 from .models import BlockedPurchaseIntent
 
-class BlockedPurchaseIntentForm(forms.ModelForm):
+class BlockedPurchaseIntentForm(ShopFormMixin, forms.ModelForm):
+    shop_scoped_fields = {'customer': 'shop', 'product': 'shop', 'variation': 'product__shop'}
+
     constraint_type = forms.CharField(
         widget=forms.Select(
             choices=BlockedPurchaseIntent.CONSTRAINT_CHOICES,
