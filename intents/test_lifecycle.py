@@ -8,7 +8,7 @@ from analytics.selectors import get_dashboard_kpis
 from customers.models import Customer
 from intents import services
 from intents.models import BlockedPurchaseIntent as Intent, Visit
-from notifications.models import NotificationLog
+from notifications.models import Message
 from products.models import Category, Product, ProductType, ProductVariation, StockHold, StockMovement
 from products.services import receive_stock
 
@@ -94,7 +94,7 @@ class OrderAndRestockTests(LifecycleTestCase):
         intent = self.intent(customer=bad)
         self.restock(self.grey42, 1)
         self.assertEqual(self.reload(intent).status, Intent.BACK_IN_STOCK)
-        self.assertEqual(NotificationLog.objects.get().status, 'Failed')
+        self.assertEqual(Message.objects.filter(direction='out').get().status, 'skipped')
 
 
 class PaymentTests(LifecycleTestCase):
@@ -178,7 +178,7 @@ class StoryTests(LifecycleTestCase):
         self.restock(self.grey42, 4)
         statuses = [self.reload(r).status for r in requests]
         self.assertEqual(statuses, [Intent.NOTIFIED] * 4 + [Intent.ON_ORDER] * 2)
-        self.assertEqual(NotificationLog.objects.count(), 4)
+        self.assertEqual(Message.objects.filter(direction='out').count(), 4)
 
         first = requests[0]
         services.transition(first, Intent.IN_CONVERSATION, note='Wants to pay a deposit')

@@ -9,8 +9,8 @@ from customers.models import Customer
 from customers.services import get_or_create_customer
 from intents.models import BlockedPurchaseIntent
 from intents.services import create_blocked_purchase_intent
-from notifications.models import NotificationLog
-from notifications.tasks import send_restock_notification_task
+from notifications.gateway import queue_message
+from notifications.models import Message
 from analytics.selectors import get_dashboard_kpis, get_restock_recommendations
 
 
@@ -57,9 +57,9 @@ class RPCMSTestCase(TestCase):
         intent = self._intent()
         with self.captureOnCommitCallbacks(execute=True):
             set_stock(self.variation.id, 5)
-        notifications = NotificationLog.objects.filter(intent=intent)
+        notifications = Message.objects.filter(direction='out').filter(intent=intent)
         self.assertEqual(notifications.count(), 1)
-        self.assertEqual(notifications.first().status, 'Sent')
+        self.assertEqual(notifications.first().status, 'delivered')
         intent.refresh_from_db()
         self.assertEqual(intent.status, 'notified')
 
@@ -67,7 +67,7 @@ class RPCMSTestCase(TestCase):
         self._intent()
         self.variation.stock_quantity = 5
         self.variation.save()
-        self.assertEqual(NotificationLog.objects.count(), 0)
+        self.assertEqual(Message.objects.filter(direction='out').count(), 0)
 
     def test_stock_decrease_sends_nothing(self):
         self.variation.stock_quantity = 5
@@ -75,7 +75,7 @@ class RPCMSTestCase(TestCase):
         self._intent()
         with self.captureOnCommitCallbacks(execute=True):
             adjust_stock(self.variation.id, -1)
-        self.assertEqual(NotificationLog.objects.count(), 0)
+        self.assertEqual(Message.objects.filter(direction='out').count(), 0)
 
     def test_restock_does_not_resolve_price_or_budget_reasons(self):
         price = self._intent(constraint_type='price_too_high')
@@ -86,7 +86,7 @@ class RPCMSTestCase(TestCase):
         budget.refresh_from_db()
         self.assertEqual(price.status, 'open')
         self.assertEqual(budget.status, 'open')
-        self.assertEqual(NotificationLog.objects.count(), 0)
+        self.assertEqual(Message.objects.filter(direction='out').count(), 0)
 
     def test_restock_resolves_product_level_intents(self):
         intent = self._intent(variation=None)
@@ -97,9 +97,12 @@ class RPCMSTestCase(TestCase):
 
     def test_duplicate_notification_prevention(self):
         intent = self._intent()
-        self.assertTrue(send_restock_notification_task(intent.id))
-        self.assertFalse(send_restock_notification_task(intent.id))
-        self.assertEqual(NotificationLog.objects.filter(intent=intent).count(), 1)
+        with self.captureOnCommitCallbacks(execute=True):
+            first = queue_message(intent, 'restock_alert')
+            second = queue_message(intent, 'restock_alert')
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual((first.status, second.status, second.error_detail), ('delivered', 'skipped', 'Already sent'))
 
     def test_analytics_selectors(self):
         for i in range(4):
@@ -119,9 +122,9 @@ class RPCMSTestCase(TestCase):
         intent = self._intent(customer=invalid_cust)
         with self.captureOnCommitCallbacks(execute=True):
             set_stock(self.variation.id, 5)
-        logs = NotificationLog.objects.filter(intent=intent)
+        logs = Message.objects.filter(direction='out').filter(intent=intent)
         self.assertEqual(logs.count(), 1)
-        self.assertEqual(logs.first().status, 'Failed')
+        self.assertEqual(logs.first().status, 'skipped')
         intent.refresh_from_db()
         self.assertEqual(intent.status, 'back_in_stock')
 
@@ -185,7 +188,7 @@ class RecordMissedSaleFlowTests(TestCase):
             response = self.client.patch(f'/api/variations/{self.variation.id}/', {'stock_quantity': 10}, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['stock_quantity'], 10)
-        self.assertEqual(NotificationLog.objects.count(), 1)
+        self.assertEqual(Message.objects.filter(direction='out').count(), 1)
 
 
 class RPCMSAPITestCase(APITestCase):

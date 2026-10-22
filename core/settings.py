@@ -211,3 +211,50 @@ STOCK_HOLD_DAYS = int(os.environ.get('STOCK_HOLD_DAYS', '8'))
 
 # Default days a reserved item waits for pickup.
 RESERVE_PICKUP_DAYS = int(os.environ.get('RESERVE_PICKUP_DAYS', '5'))
+
+# --- Messaging -------------------------------------------------------------
+# Which provider serves each channel: simulator (default: nothing leaves the
+# machine), whatsapp_cloud, africastalking, twilio, email.
+MESSAGING_PROVIDERS = {
+    'whatsapp': os.environ.get('WHATSAPP_PROVIDER', 'simulator'),
+    'sms': os.environ.get('SMS_PROVIDER', 'simulator'),
+    'email': os.environ.get('EMAIL_PROVIDER', 'simulator'),
+}
+MESSAGE_MAX_ATTEMPTS = int(os.environ.get('MESSAGE_MAX_ATTEMPTS', '3'))
+# Public address of this site, used for photo links in WhatsApp messages.
+SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
+SIMULATOR_ENABLED = os.environ.get('SIMULATOR_ENABLED', str(DEBUG)).lower() in ('true', '1', 'yes')
+
+# Meta WhatsApp Cloud API (free test number for development)
+WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN', '')
+WHATSAPP_PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID', '')
+WHATSAPP_APP_SECRET = os.environ.get('WHATSAPP_APP_SECRET', '')
+WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', '')
+WHATSAPP_API_VERSION = os.environ.get('WHATSAPP_API_VERSION', 'v21.0')
+WHATSAPP_TEMPLATE_LANGUAGE = os.environ.get('WHATSAPP_TEMPLATE_LANGUAGE', 'en')
+# Approved template name per message; hello_world is Meta's pre-approved test template.
+WHATSAPP_TEMPLATES = {'restock_alert': os.environ.get('WHATSAPP_TEMPLATE_RESTOCK', 'hello_world')}
+
+# Africa's Talking (free sandbox for development)
+AFRICASTALKING_USERNAME = os.environ.get('AFRICASTALKING_USERNAME', 'sandbox')
+AFRICASTALKING_API_KEY = os.environ.get('AFRICASTALKING_API_KEY', '')
+AFRICASTALKING_SENDER_ID = os.environ.get('AFRICASTALKING_SENDER_ID', '')
+AFRICASTALKING_SANDBOX = os.environ.get('AFRICASTALKING_SANDBOX', 'True').lower() in ('true', '1', 'yes')
+AFRICASTALKING_WEBHOOK_TOKEN = os.environ.get('AFRICASTALKING_WEBHOOK_TOKEN', '')
+
+# Email: console in development unless EMAIL_HOST is set (Mailpit: localhost:1025).
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '1025'))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False').lower() in ('true', '1', 'yes')
+EMAIL_BACKEND = ('django.core.mail.backends.smtp.EmailBackend' if EMAIL_HOST
+                 else 'django.core.mail.backends.console.EmailBackend')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Retail OS <no-reply@localhost>')
+EMAIL_SUBJECT_PREFIX = ''
+
+if 'test' in sys.argv:
+    MESSAGING_PROVIDERS = {'whatsapp': 'simulator', 'sms': 'simulator', 'email': 'simulator'}
+    SIMULATOR_ENABLED = True
+    WHATSAPP_APP_SECRET = WHATSAPP_VERIFY_TOKEN = ''
+    AFRICASTALKING_WEBHOOK_TOKEN = ''

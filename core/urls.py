@@ -8,6 +8,7 @@ from customers.api_views import CustomerViewSet
 from intents.api_views import BlockedPurchaseIntentViewSet, record_bought_visit
 from analytics.api_views import DashboardStatsAPIView, AnalyticsAPIView
 from reports.api_views import ReportsAPIView
+from notifications.api_views import ConversationViewSet
 from core.api_views import health_check
 
 router = DefaultRouter()
@@ -17,6 +18,7 @@ router.register(r'product-types', ProductTypeViewSet, basename='api-product-type
 router.register(r'variations', ProductVariationViewSet, basename='api-variation')
 router.register(r'customers', CustomerViewSet, basename='api-customer')
 router.register(r'intents', BlockedPurchaseIntentViewSet, basename='api-intent')
+router.register(r'conversations', ConversationViewSet, basename='api-conversation')
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
