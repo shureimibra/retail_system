@@ -232,7 +232,7 @@
                     let html = '<option value="">---------</option>';
                     variations.forEach(v => {
                         const selectedAttr = String(v.id) === String(currentVal) ? 'selected' : '';
-                        html += `<option value="${v.id}" ${selectedAttr}>${v.size} / ${v.color} (Stock: ${v.stock_quantity})</option>`;
+                        html += `<option value="${v.id}" ${selectedAttr}>${v.label} (Stock: ${v.stock_quantity})</option>`;
                     });
                     variationSelect.innerHTML = html;
                 }
@@ -422,8 +422,8 @@
             e.preventDefault();
             const data = {
                 product: parseInt(document.getElementById('varProductId').value),
-                size: document.getElementById('varSize').value,
-                color: document.getElementById('varColor').value,
+                option1: document.getElementById('varSize').value,
+                option2: document.getElementById('varColor').value,
                 stock_quantity: parseInt(document.getElementById('varStock').value),
                 sku: document.getElementById('varSku').value
             };

@@ -963,7 +963,7 @@
                 if (response.ok) {
                     const vars = await response.json();
                     vars.forEach(v => {
-                        const opt = new Option(`${v.size} / ${v.color} (Stock: ${v.stock_quantity})`, v.id);
+                        const opt = new Option(`${v.label} (Stock: ${v.stock_quantity})`, v.id);
                         modalVariation.add(opt);
                     });
                 }
@@ -1048,8 +1048,8 @@
             e.preventDefault();
             const data = {
                 product: parseInt(document.getElementById('subVarProductId').value),
-                size: document.getElementById('subVarSize').value,
-                color: document.getElementById('subVarColor').value,
+                option1: document.getElementById('subVarSize').value,
+                option2: document.getElementById('subVarColor').value,
                 stock_quantity: parseInt(document.getElementById('subVarStock').value),
                 sku: document.getElementById('subVarSku').value
             };
@@ -1125,8 +1125,9 @@
         });
 
         // Quick restock function for recommendation banner cards
-        window.quickRestock = async function(variationId) {
-            const qtyInput = document.getElementById(`restock-qty-${variationId}`);
+        // Receive stock on the server, which adds to the current count, so two
+        // people restocking at once can't overwrite each other.
+        async function receiveStock(variationId, qtyInput) {
             const qtyVal = parseInt(qtyInput.value);
             if (!qtyVal || qtyVal <= 0) {
                 alert("Please enter a valid stock quantity (> 0) to restock.");
@@ -1134,73 +1135,34 @@
             }
 
             try {
-                // Fetch current variation to check if we can add/update
-                const getResponse = await fetch(`/api/variations/${variationId}/`);
-                if (!getResponse.ok) {
-                    alert("Failed to fetch variation details.");
-                    return;
-                }
-                const currentVar = await getResponse.json();
-                const newQty = currentVar.stock_quantity + qtyVal;
-
-                const patchResponse = await fetch(`/api/variations/${variationId}/`, {
-                    method: 'PATCH',
+                const response = await fetch(`/api/variations/${variationId}/receive/`, {
+                    method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrfToken
                     },
-                    body: JSON.stringify({ stock_quantity: newQty })
+                    body: JSON.stringify({ quantity: qtyVal })
                 });
 
-                if (patchResponse.ok) {
-                    alert("Stock updated successfully! Restock notifications triggered.");
+                if (response.ok) {
+                    alert("Stock received. Waiting customers will be messaged.");
                     window.location.reload();
                 } else {
-                    alert("Error updating stock: " + JSON.stringify(await patchResponse.json()));
+                    alert("Error updating stock: " + JSON.stringify(await response.json()));
                 }
             } catch (err) {
                 console.error(err);
                 alert("Request failed: " + err);
             }
+        }
+
+        window.quickRestock = function(variationId) {
+            return receiveStock(variationId, document.getElementById(`restock-qty-${variationId}`));
         };
 
         // Direct restock function for the recent captured intents table
-        window.directRestock = async function(intentId, variationId) {
-            const qtyInput = document.getElementById(`direct-restock-qty-${intentId}`);
-            const qtyVal = parseInt(qtyInput.value);
-            if (!qtyVal || qtyVal <= 0) {
-                alert("Please enter a valid stock quantity (> 0) to restock.");
-                return;
-            }
-
-            try {
-                const getResponse = await fetch(`/api/variations/${variationId}/`);
-                if (!getResponse.ok) {
-                    alert("Failed to fetch variation details.");
-                    return;
-                }
-                const currentVar = await getResponse.json();
-                const newQty = currentVar.stock_quantity + qtyVal;
-
-                const patchResponse = await fetch(`/api/variations/${variationId}/`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({ stock_quantity: newQty })
-                });
-
-                if (patchResponse.ok) {
-                    alert("Stock updated successfully! Restock notifications triggered.");
-                    window.location.reload();
-                } else {
-                    alert("Error updating stock: " + JSON.stringify(await patchResponse.json()));
-                }
-            } catch (err) {
-                console.error(err);
-                alert("Request failed: " + err);
-            }
+        window.directRestock = function(intentId, variationId) {
+            return receiveStock(variationId, document.getElementById(`direct-restock-qty-${intentId}`));
         };
         // Bind quick-restock buttons
         document.querySelectorAll('.quick-restock-btn').forEach(btn => {

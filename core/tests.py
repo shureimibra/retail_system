@@ -37,7 +37,7 @@ class CurrentPagesSmokeTests(TestCase):
         Membership.objects.create(user=owner, shop_id=default_shop_id(), role=Membership.OWNER)
         category = Category.objects.create(name='Footwear')
         product = Product.objects.create(category=category, name='Nike Air Zoom', description='Running', base_price=12500)
-        variation = ProductVariation.objects.create(product=product, size='42', color='Black', stock_quantity=0, sku='NIKE-AZ-42-BLK')
+        variation = ProductVariation.objects.create(product=product, option1='42', option2='Black', stock_quantity=0, sku='NIKE-AZ-42-BLK')
         customer = Customer.objects.create(first_name='John', last_name='Doe', phone_number='+254712345678')
         intent = create_blocked_purchase_intent(customer, product, variation, 'Size unavailable', recorded_by=owner)
         self.client.login(username='owner', password='pw12345!')

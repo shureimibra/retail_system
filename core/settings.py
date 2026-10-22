@@ -202,3 +202,9 @@ if 'test' in sys.argv:
 
 # Region used to read local phone numbers (0712 345 678 -> +254712345678).
 DEFAULT_PHONE_REGION = os.environ.get('DEFAULT_PHONE_REGION', 'KE')
+
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# How long a unit is put aside for a waiting customer after it arrives (days).
+STOCK_HOLD_DAYS = int(os.environ.get('STOCK_HOLD_DAYS', '8'))

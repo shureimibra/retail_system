@@ -38,7 +38,7 @@ def send_restock_notification_task(intent_id):
         product_name = intent.product.name
         variation_str = ""
         if intent.variation:
-            variation_str = f" {intent.variation.size}/{intent.variation.color}"
+            variation_str = f" {intent.variation.label}"
         
         message = f"Hello {customer.first_name}, the {product_name}{variation_str} you requested is now available. Reply STOP to opt out."
         

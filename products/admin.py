@@ -1,7 +1,13 @@
 from django.contrib import admin
-from .models import Category, Product, ProductVariation
+from .models import Category, Product, ProductType, ProductVariation
 
 admin.site.register(Category)
+
+
+@admin.register(ProductType)
+class ProductTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'shop', 'option1_name', 'option2_name', 'option3_name')
+    list_filter = ('shop',)
 
 class ProductVariationInline(admin.TabularInline):
     model = ProductVariation
@@ -9,11 +15,11 @@ class ProductVariationInline(admin.TabularInline):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'base_price', 'created_at')
+    list_display = ('name', 'product_type', 'category', 'base_price', 'needs_review', 'created_at')
     inlines = [ProductVariationInline]
 
 @admin.register(ProductVariation)
 class ProductVariationAdmin(admin.ModelAdmin):
-    list_display = ('product', 'size', 'color', 'stock_quantity', 'sku')
-    list_editable = ('stock_quantity',)
+    list_display = ('product', 'option1', 'option2', 'option3', 'stock_quantity', 'sku')
+    readonly_fields = ('stock_quantity',)
 

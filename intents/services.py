@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -38,22 +41,29 @@ def update_intent_status(intent_id, status, user=None):
 
 def resolve_intents_for_variation(variation):
     """
-    Mark active, unexpired restock-type intents for this variation (and
-    product-level intents for its product) as Resolved, and queue one restock
-    notification per intent once the transaction commits.
+    Stock arrived for this variation. Waiting customers (restock reasons only,
+    not expired) are served oldest first: each gets one unit put aside, is
+    marked Resolved, and is messaged once the transaction commits. Customers
+    beyond the units available keep waiting.
     """
     from notifications.tasks import send_restock_notification_task
+    from products.models import StockHold
 
-    intents = list(
-        BlockedPurchaseIntent.objects.filter(
-            product=variation.product,
-            status__in=ACTIVE_STATUSES,
-            constraint_type__in=RESTOCK_CONSTRAINTS,
-            expires_at__gt=timezone.now(),
-        ).filter(Q(variation=variation) | Q(variation__isnull=True))
-    )
-    for intent in intents:
+    waiting = (BlockedPurchaseIntent.objects
+               .filter(product=variation.product, status__in=ACTIVE_STATUSES,
+                       constraint_type__in=RESTOCK_CONSTRAINTS, expires_at__gt=timezone.now())
+               .filter(Q(variation=variation) | Q(variation__isnull=True))
+               .exclude(holds__status=StockHold.ACTIVE)
+               .order_by('created_at', 'id'))
+    available = variation.available_quantity
+    hold_until = timezone.now() + timedelta(days=settings.STOCK_HOLD_DAYS)
+    served = 0
+    for intent in waiting:
+        if served >= available:
+            break
+        StockHold.objects.create(variation=variation, intent=intent, quantity=1, expires_at=hold_until)
         intent.status = 'Resolved'
         intent.save(update_fields=['status', 'updated_at'])
         transaction.on_commit(lambda intent_id=intent.id: send_restock_notification_task.delay(intent_id))
-    return len(intents)
+        served += 1
+    return served

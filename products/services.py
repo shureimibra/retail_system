@@ -1,53 +1,104 @@
+from decimal import Decimal
+
 from django.db import transaction
 
-from .models import Category, Product, ProductVariation
+from .models import (FASHION_PRODUCT_TYPES, Category, PriceChange, Product, ProductType,
+                     ProductVariation, StockMovement)
+
+
+def seed_product_types(shop):
+    """Give a shop the starter fashion product types (safe to run twice)."""
+    for name, o1, v1, o2, v2, o3, v3 in FASHION_PRODUCT_TYPES:
+        ProductType.objects.get_or_create(
+            shop=shop, name=name,
+            defaults=dict(option1_name=o1, option1_values=v1, option2_name=o2,
+                          option2_values=v2, option3_name=o3, option3_values=v3))
+
+
+def seed_product_types_for_new_shop(sender, instance, created, **kwargs):
+    if created:
+        seed_product_types(instance)
 
 
 def create_category(name, description=""):
     return Category.objects.create(name=name, description=description)
 
 
-def create_product(category, name, description, base_price):
+def create_product(category, name, description, base_price, product_type=None):
     return Product.objects.create(
+        shop=category.shop,
         category=category,
+        product_type=product_type,
         name=name,
         description=description,
         base_price=base_price
     )
 
 
-def create_product_variation(product, size, color, stock_quantity, sku):
+def create_product_variation(product, option1, option2, stock_quantity, sku, option3=None, recorded_by=None):
     variation = ProductVariation.objects.create(
-        product=product,
-        size=size,
-        color=color,
-        stock_quantity=stock_quantity,
-        sku=sku
+        product=product, option1=option1, option2=option2, option3=option3, sku=sku,
     )
-    if variation.stock_quantity > 0:
-        _notify_waiting_customers(variation)
+    if stock_quantity:
+        receive_stock(variation.id, stock_quantity, recorded_by=recorded_by)
+        variation.refresh_from_db()
     return variation
 
 
 @transaction.atomic
-def set_stock(variation_id, new_quantity):
-    """Set a variation's stock. If stock went up, waiting customers are notified."""
+def receive_stock(variation_id, quantity, recorded_by=None, reference=''):
+    """A delivery arrived. Adds stock and puts units aside for waiting customers."""
+    if quantity <= 0:
+        raise ValueError('Received quantity must be more than zero.')
     variation = ProductVariation.objects.select_for_update().get(id=variation_id)
-    old_quantity = variation.stock_quantity
-    variation.stock_quantity = max(0, new_quantity)
-    variation.save(update_fields=['stock_quantity'])
-    if variation.stock_quantity > old_quantity:
-        _notify_waiting_customers(variation)
-    return variation
+    return _apply_stock_change(variation, variation.stock_quantity + quantity,
+                               StockMovement.RECEIVED, recorded_by, reference)
 
 
 @transaction.atomic
-def adjust_stock(variation_id, quantity_change):
+def set_stock(variation_id, new_quantity, recorded_by=None, reference=''):
+    """A stock count: set the quantity on hand. If it went up, waiting customers are notified."""
+    variation = ProductVariation.objects.select_for_update().get(id=variation_id)
+    return _apply_stock_change(variation, max(0, new_quantity), StockMovement.ADJUSTED, recorded_by, reference)
+
+
+@transaction.atomic
+def adjust_stock(variation_id, quantity_change, recorded_by=None, reference=''):
     """Add (or remove, if negative) stock without a read-then-write race."""
     variation = ProductVariation.objects.select_for_update().get(id=variation_id)
-    return set_stock(variation.id, variation.stock_quantity + quantity_change)
+    return _apply_stock_change(variation, max(0, variation.stock_quantity + quantity_change),
+                               StockMovement.ADJUSTED, recorded_by, reference)
 
 
-def _notify_waiting_customers(variation):
-    from intents.services import resolve_intents_for_variation
-    return resolve_intents_for_variation(variation)
+def _apply_stock_change(variation, new_quantity, kind, recorded_by, reference):
+    old_quantity = variation.stock_quantity
+    if new_quantity == old_quantity:
+        return variation
+    variation.stock_quantity = new_quantity
+    variation.save(update_fields=['stock_quantity'])
+    StockMovement.objects.create(
+        variation=variation, kind=kind, quantity_change=new_quantity - old_quantity,
+        stock_after=new_quantity, reference=reference, recorded_by=recorded_by,
+    )
+    if new_quantity > old_quantity:
+        from intents.services import resolve_intents_for_variation
+        resolve_intents_for_variation(variation)
+    return variation
+
+
+@transaction.atomic
+def change_price(product, new_price, changed_by=None, variation=None):
+    """Change a product's price (or one variation's own price) and record it."""
+    new_price = Decimal(str(new_price))
+    if variation is not None:
+        old_price = variation.effective_price
+        variation.price = new_price
+        variation.save(update_fields=['price'])
+    else:
+        old_price = product.base_price
+        product.base_price = new_price
+        product.save(update_fields=['base_price', 'updated_at'])
+    if new_price == old_price:
+        return None
+    return PriceChange.objects.create(product=product, variation=variation, old_price=old_price,
+                                      new_price=new_price, changed_by=changed_by)
