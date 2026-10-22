@@ -1,47 +1,50 @@
-# Retail Purchase Constraint Management System
+# Retail OS
 
-A retail decision-support and sales recovery platform that helps retailers capture failed purchase opportunities, monitor unresolved purchase constraints, and automatically re-engage customers once constraints are resolved.
+Missed-sale recovery for local fashion shops. When a customer can't buy what they came for (wrong size, colour, out of stock, price), staff record it in seconds. When the item is back, the customer is messaged, and the sale counts as recovered only when it's paid.
 
-## Technology Stack
+> **Status:** being rebuilt in phases from the earlier "Retail Purchase Constraint Management System". See `docs/design/retail-os-design-spec.html` for the approved design and build plan. The current UI is the old one until Phase 2.
 
-* **Backend**: Django 5.2, Python
-* **Database**: SQLite (local) / PostgreSQL (production via dj-database-url)
-* **Frontend**: HTML5, Tailwind CSS, Chart.js
-* **Deployment**: Render-ready (Procfile, build.sh, whitenoise configured)
+## Stack
 
-## Modules
+- Python 3.11, Django 5.2, Django REST Framework
+- Celery + Redis for background messaging
+- SQLite locally, PostgreSQL in production (`DATABASE_URL`)
+- Server-rendered templates, Chart.js, ReportLab (PDF exports)
 
-1. **Accounts**: Custom user model and authentication.
-2. **Products**: Catalog management with product variations.
-3. **Customers**: Customer records.
-4. **Intents**: The core module capturing "Blocked Purchase Intents" (e.g. Size Unavailable, Price Too High).
-5. **Dashboard**: Analytics and KPI tracking using Chart.js.
-6. **Notifications**: Signal-based inventory engine simulating SMS sending when constraints are resolved.
+## Setup
 
-## Setup Instructions
+```bash
+python -m venv venv
+venv\Scripts\activate          # Windows (use: source venv/bin/activate on macOS/Linux)
+pip install -r requirements.txt
+copy .env.example .env         # macOS/Linux: cp .env.example .env
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+```
 
-1. Create a virtual environment and install dependencies:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
+Generate a `SECRET_KEY` for `.env` with:
 
-2. Run migrations:
-   ```bash
-   python manage.py migrate
-   ```
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(50))"
+```
 
-3. Create a superuser:
-   ```bash
-   python manage.py createsuperuser
-   ```
+Leave the Twilio values blank to run messaging in simulation mode.
 
-4. Run the development server:
-   ```bash
-   python manage.py runserver
-   ```
+## Tests
 
-## Architecture
+```bash
+python manage.py test
+```
 
-This project follows a Modular Monolith architecture, separating business logic into decoupled apps, using Django Signals to trigger automated workflows (Inventory Engine -> Notifications), and providing a clean, responsive UI with Tailwind CSS.
+CI runs the same checks on every push and pull request (`.github/workflows/tests.yml`).
+
+## Docs
+
+| File | What it is |
+|---|---|
+| `PRODUCT.md` | Users, purpose, brand personality, principles |
+| `DESIGN.md` | Colours, type, components, do's and don'ts |
+| `CLAUDE.md` | How work is done in this repo, and which design skills are used |
+| `docs/design/retail-os-design-spec.html` | Approved design spec with screen mockups |
+| `docs/CLAUDE_AI_SYSTEM_HANDOVER.md` | Handover from the previous build (partly outdated; see the spec) |

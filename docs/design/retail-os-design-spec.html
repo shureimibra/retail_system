@@ -1,0 +1,1335 @@
+<title>Retail OS Design Spec</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: working spec. Sticky section bar, 1060px column, mockups in sideways-scrollable frames. */
+:root {
+  /* Neutrals: green-grey stone, biased toward petrol */
+  --bg: #F5F6F4;
+  --surface: #FFFFFF;
+  --surface-2: #F0F2EF;
+  --border: #DFE3DE;
+  --border-strong: #C6CDC6;
+  --fg: #18201D;
+  --fg-2: #4A5550;
+  --fg-3: #6F7A75;
+  /* Brand: petrol */
+  --accent: #0B6670;
+  --accent-hover: #08525A;
+  --accent-subtle: #E1EEEF;
+  --accent-ink: #0A5C65;
+  --accent-fg: #FFFFFF;
+  /* The one borrowed touch: clay, only for "a customer is waiting on you" */
+  --clay: #B4491F;
+  --clay-fg: #FFFFFF;
+  /* Status tones (no blue, no violet) */
+  --ok: #2B6E37;      --ok-bg: #E2F0E3;
+  --warn: #8F5208;    --warn-bg: #FAEED8;
+  --crit: #B0261E;    --crit-bg: #FAE6E4;
+  --neutral: #4A5550; --neutral-bg: #EAEDE9;
+  --photo-bg: #E7EAE5;
+  --shadow-pop: 0 6px 20px rgba(18, 28, 24, .12), 0 1px 3px rgba(18, 28, 24, .08);
+  /* Type */
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  /* Shape */
+  --r-control: 6px;
+  --r-card: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1312; --surface: #161B1A; --surface-2: #1C2221; --border: #29312F; --border-strong: #3B4542;
+    --fg: #E6EBE9; --fg-2: #AAB4B0; --fg-3: #85908C;
+    --accent: #5DB6BE; --accent-hover: #7FC7CD; --accent-subtle: #163236; --accent-ink: #7FC7CD; --accent-fg: #062629;
+    --clay: #E5875D; --clay-fg: #2A1105;
+    --ok: #7FC48B; --ok-bg: #17301F; --warn: #E2A858; --warn-bg: #33260F; --crit: #F08C82; --crit-bg: #3A1A17;
+    --neutral: #AAB4B0; --neutral-bg: #232A28; --photo-bg: #D7DCD6;
+    --shadow-pop: 0 8px 24px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1312; --surface: #161B1A; --surface-2: #1C2221; --border: #29312F; --border-strong: #3B4542;
+  --fg: #E6EBE9; --fg-2: #AAB4B0; --fg-3: #85908C;
+  --accent: #5DB6BE; --accent-hover: #7FC7CD; --accent-subtle: #163236; --accent-ink: #7FC7CD; --accent-fg: #062629;
+  --clay: #E5875D; --clay-fg: #2A1105;
+  --ok: #7FC48B; --ok-bg: #17301F; --warn: #E2A858; --warn-bg: #33260F; --crit: #F08C82; --crit-bg: #3A1A17;
+  --neutral: #AAB4B0; --neutral-bg: #232A28; --photo-bg: #D7DCD6;
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, .5), 0 1px 3px rgba(0, 0, 0, .4);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 15.5px; line-height: 1.58; -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+.wrap { max-width: 1060px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Top bar */
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--border); }
+.topbar .wrap { display: flex; align-items: center; gap: 16px; padding-block: 10px; }
+.brandmark { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14.5px; white-space: nowrap; }
+.sqlogo { width: 22px; height: 22px; border-radius: 5px; background: var(--accent); display: grid; place-items: center; color: var(--accent-fg); font-size: 12px; font-weight: 700; flex: none; }
+.toc { display: flex; gap: 2px; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; }
+.toc a { color: var(--fg-2); text-decoration: none; font-size: 13.5px; padding: 5px 9px; border-radius: var(--r-control); white-space: nowrap; }
+.toc a:hover { background: var(--surface-2); color: var(--fg); }
+.theme-btn { font: inherit; font-size: 12.5px; color: var(--fg-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-control); padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+.theme-btn:hover { border-color: var(--border-strong); color: var(--fg); }
+
+/* Doc type */
+header.hero { padding-block: 48px 30px; border-bottom: 1px solid var(--border); }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-3); }
+h1 { font-size: clamp(30px, 4.4vw, 42px); line-height: 1.14; font-weight: 600; letter-spacing: -.015em; margin: 8px 0 12px; text-wrap: balance; }
+h2 { font-size: 25px; line-height: 1.25; font-weight: 600; letter-spacing: -.01em; margin: 0 0 6px; text-wrap: balance; }
+h3 { font-size: 16.5px; font-weight: 600; margin: 0 0 8px; }
+p { margin: 0; max-width: 68ch; }
+.lede { font-size: 18px; color: var(--fg-2); max-width: 64ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 20px; font-size: 13.5px; color: var(--fg-3); }
+.meta b { color: var(--fg); font-weight: 500; }
+section.sec { padding-block: 46px; border-bottom: 1px solid var(--border); scroll-margin-top: 64px; }
+.sec-head { display: grid; gap: 6px; margin-bottom: 24px; }
+.sec-head p { color: var(--fg-2); }
+.stack { display: grid; gap: 16px; }
+.muted { color: var(--fg-2); }
+.small { font-size: 14px; }
+code, .mono { font-family: var(--font-mono); font-size: .88em; }
+code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+ul.clean { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+ul.clean li { max-width: 68ch; }
+.changed { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent-subtle); padding: 1px 7px; border-radius: 4px; vertical-align: middle; margin-left: 6px; }
+
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card); }
+.panel-pad { padding: 18px 20px; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.grid-2 > *, .grid-3 > * { min-width: 0; }
+.tscroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); }
+table.doc { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+table.doc th { text-align: left; font-size: 12px; font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: .04em; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap; }
+table.doc td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.doc tr:last-child td { border-bottom: 0; }
+.nowrap { white-space: nowrap; }
+
+/* Story */
+.story { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; background: var(--surface); }
+.story-step { padding: 18px 20px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); display: grid; gap: 4px; align-content: start; min-width: 0; }
+.story-step .n { font-size: 12px; font-weight: 600; color: var(--fg-3); letter-spacing: .04em; text-transform: uppercase; }
+.story-step b { font-size: 15.5px; font-weight: 600; }
+.story-step p { font-size: 14px; color: var(--fg-2); }
+.quote-card { border-left: 3px solid var(--accent); padding: 12px 16px; background: var(--surface); border-radius: 0 var(--r-card) var(--r-card) 0; font-size: 16px; color: var(--fg-2); }
+.quote-card b { color: var(--fg); font-weight: 600; }
+
+/* Principles */
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); overflow: hidden; }
+.principle { padding: 18px 20px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); min-width: 0; }
+.principle h3 { margin-bottom: 4px; }
+.principle p { color: var(--fg-2); font-size: 14px; }
+
+/* Swatches */
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.swatch { border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; background: var(--surface); }
+.swatch .chip { height: 56px; border-bottom: 1px solid var(--border); }
+.swatch .info { padding: 8px 10px; display: grid; gap: 2px; }
+.swatch .name { font-size: 13.5px; font-weight: 500; }
+.swatch .hex { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
+
+/* Type scale */
+.typerow { display: grid; grid-template-columns: 140px 1fr; gap: 16px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.typerow:last-child { border-bottom: 0; }
+.typerow .spec { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); line-height: 1.5; }
+.typerow > div:last-child { min-width: 0; overflow-wrap: anywhere; }
+
+/* ===== Components ===== */
+.btn { font: inherit; font-size: 14.5px; font-weight: 500; line-height: 20px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 14px; border-radius: var(--r-control); border: 1px solid var(--border-strong); background: var(--surface); color: var(--fg); cursor: pointer; white-space: nowrap; transition: background-color .15s ease-out, border-color .15s ease-out, transform .1s ease-out; }
+.btn:hover { background: var(--surface-2); }
+.btn:active { transform: scale(.97); }
+.btn:focus-visible, .input:focus-visible, .toc a:focus-visible, .theme-btn:focus-visible, .chipbtn:focus-visible, .key:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-plain { border-color: transparent; background: transparent; color: var(--accent-ink); padding-inline: 8px; }
+.btn-plain:hover { background: var(--accent-subtle); }
+.btn-critical { color: var(--crit); }
+.btn-sm { font-size: 13.5px; padding: 4px 10px; }
+.btn-lg { font-size: 17px; padding: 13px 22px; border-radius: var(--r-card); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.field { display: grid; gap: 5px; min-width: 0; }
+.label { font-size: 13.5px; font-weight: 500; }
+.help { font-size: 12.5px; color: var(--fg-3); }
+.err { font-size: 12.5px; color: var(--crit); }
+.input { font: inherit; font-size: 14.5px; width: 100%; padding: 7px 10px; border-radius: var(--r-control); border: 1px solid var(--border-strong); background: var(--surface); color: var(--fg); }
+.input.is-error { border-color: var(--crit); }
+.input-prefix { display: flex; }
+.input-prefix span { font-size: 14.5px; padding: 7px 10px; border: 1px solid var(--border-strong); border-right: 0; border-radius: var(--r-control) 0 0 var(--r-control); background: var(--surface-2); color: var(--fg-2); }
+.input-prefix .input { border-radius: 0 var(--r-control) var(--r-control) 0; }
+
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; line-height: 18px; padding: 1px 8px 1px 7px; border-radius: 999px; white-space: nowrap; transition: background-color .3s ease-out, color .3s ease-out; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.b-open { background: var(--warn-bg); color: var(--warn); }
+.b-ordered { background: transparent; color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent); }
+.b-stock { background: var(--accent-subtle); color: var(--accent-ink); }
+.b-notified { background: var(--neutral-bg); color: var(--fg-2); }
+.b-talking { background: var(--clay); color: var(--clay-fg); }
+.b-reserved { background: transparent; color: var(--ok); box-shadow: inset 0 0 0 1px var(--ok); }
+.b-recovered { background: var(--ok-bg); color: var(--ok); }
+.b-declined { background: var(--neutral-bg); color: var(--neutral); }
+.b-expired { background: transparent; color: var(--fg-3); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.b-failed { background: var(--crit-bg); color: var(--crit); }
+.tag { display: inline-block; font-size: 12.5px; padding: 0 7px; line-height: 21px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--border); color: var(--fg-2); white-space: nowrap; }
+
+.kpi { padding: 16px 18px; display: grid; gap: 4px; min-width: 0; }
+.kpi .k-label { font-size: 13.5px; color: var(--fg-2); }
+.kpi .k-value { font-size: 27px; font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.kpi .k-foot { font-size: 12.5px; color: var(--fg-3); }
+.delta-up { color: var(--ok); font-weight: 500; }
+
+.toast { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--r-card); background: var(--fg); color: var(--bg); font-size: 14.5px; box-shadow: var(--shadow-pop); max-width: 420px; }
+.toast button { font: inherit; font-size: 13.5px; font-weight: 600; color: var(--bg); background: transparent; border: 0; text-decoration: underline; cursor: pointer; padding: 0; }
+
+.stepper { display: flex; border: 1px solid var(--border); border-radius: var(--r-control); overflow: hidden; width: fit-content; max-width: 100%; overflow-x: auto; }
+.stepper span { font-size: 12.5px; font-weight: 500; padding: 5px 14px; color: var(--fg-3); background: var(--surface); white-space: nowrap; }
+.stepper span + span { border-left: 1px solid var(--border); }
+.stepper span.done { color: var(--fg-2); background: var(--surface-2); }
+.stepper span.now { color: var(--accent-fg); background: var(--accent); }
+
+.timeline { display: grid; }
+.tl { display: grid; grid-template-columns: 20px 1fr; gap: 10px; position: relative; padding-bottom: 14px; }
+.tl::before { content: ""; position: absolute; left: 9px; top: 18px; bottom: 0; width: 1px; background: var(--border); }
+.tl:last-child::before { display: none; }
+.tl .dot { width: 9px; height: 9px; border-radius: 50%; margin: 6px 0 0 5px; background: var(--border-strong); }
+.tl .dot.acc { background: var(--accent); } .tl .dot.clay { background: var(--clay); } .tl .dot.warn { background: var(--warn); }
+.tl .what { font-size: 14.5px; }
+.tl .when { font-size: 12.5px; color: var(--fg-3); }
+
+/* Lifecycle */
+.flow { display: flex; align-items: stretch; overflow-x: auto; padding: 2px 2px 8px; }
+.state { flex: none; width: 148px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); padding: 12px; display: grid; gap: 6px; align-content: start; }
+.state p { font-size: 12.5px; color: var(--fg-2); }
+.state.money { border-color: var(--ok); }
+.arrow { flex: none; width: 30px; display: grid; place-items: center; color: var(--fg-3); }
+.exits { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+.exit { border: 1px dashed var(--border-strong); border-radius: var(--r-card); padding: 12px 14px; display: grid; gap: 6px; background: var(--surface); }
+.exit p { font-size: 13.5px; color: var(--fg-2); }
+
+/* ===== Mockups ===== */
+.frame-scroll { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--bg); }
+.frame-cap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; margin-bottom: 10px; align-items: baseline; }
+.frame-cap .tagline { font-size: 13.5px; color: var(--fg-3); }
+.sample { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--warn); background: var(--warn-bg); padding: 1px 7px; border-radius: 4px; margin-left: 6px; }
+.app { display: grid; grid-template-columns: 220px 1fr; min-width: 1020px; min-height: 580px; font-size: 14.5px; }
+.nav { background: var(--surface); border-right: 1px solid var(--border); padding: 12px 10px; display: grid; align-content: start; gap: 2px; }
+.nav .store { display: flex; align-items: center; gap: 8px; padding: 6px 8px 12px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.nav .store .sq { width: 28px; height: 28px; border-radius: 6px; background: var(--accent); color: var(--accent-fg); font-weight: 700; font-size: 12px; display: grid; place-items: center; }
+.nav .store b { font-size: 13.5px; display: block; line-height: 1.25; font-weight: 600; }
+.nav .store small { font-size: 11.5px; color: var(--fg-3); }
+.nav a { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; border-radius: var(--r-control); color: var(--fg-2); text-decoration: none; font-size: 14px; }
+.nav a.on { background: var(--surface-2); color: var(--fg); font-weight: 500; }
+.nav .count { font-size: 11.5px; color: var(--fg-3); font-variant-numeric: tabular-nums; }
+.nav .count.hot { color: var(--clay-fg); background: var(--clay); padding: 0 6px; border-radius: 999px; line-height: 18px; font-weight: 600; }
+.nav .grp { font-size: 11px; color: var(--fg-3); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 14px 8px 4px; }
+.main { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.bar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.search { flex: 1; max-width: 420px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--r-control); color: var(--fg-3); font-size: 13.5px; background: var(--surface-2); }
+.kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; color: var(--fg-2); background: var(--surface); margin-left: auto; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--neutral-bg); color: var(--fg-2); display: grid; place-items: center; font-size: 12px; font-weight: 600; flex: none; }
+.content { padding: 20px; display: grid; gap: 16px; align-content: start; }
+.page-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.page-head h4 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -.01em; }
+.page-head .sub { font-size: 13.5px; color: var(--fg-3); }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); }
+.kpis .kpi + .kpi { border-left: 1px solid var(--border); }
+.split { display: grid; grid-template-columns: 1.45fr 1fr; gap: 16px; }
+.split > * { min-width: 0; }
+.card-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.card-h b { font-size: 14.5px; font-weight: 600; }
+.queue-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--border); align-items: center; }
+.queue-row:last-child { border-bottom: 0; }
+.queue-row .t { font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.queue-row .s { font-size: 12.5px; color: var(--fg-3); margin-top: 2px; }
+table.idx { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.idx th { text-align: left; font-weight: 500; color: var(--fg-3); font-size: 12.5px; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap; }
+table.idx td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.idx tr:last-child td { border-bottom: 0; }
+table.idx .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.item-name { font-weight: 500; color: var(--fg); }
+.sku { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-3); }
+.who { display: flex; gap: 4px; }
+.who span { width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); font-size: 10.5px; font-weight: 600; color: var(--fg-2); display: grid; place-items: center; }
+.bar-track { height: 8px; border-radius: 4px; background: var(--surface-2); }
+.bar-fill { height: 100%; border-radius: 4px; background: var(--accent); }
+
+/* Customise mode */
+.widget { position: relative; }
+.customizing .widget { outline: 1.5px dashed var(--accent); outline-offset: 3px; border-radius: var(--r-card); }
+.w-handle { position: absolute; top: -11px; left: 12px; z-index: 1; font-size: 11.5px; font-weight: 600; color: var(--accent-fg); background: var(--accent); padding: 0 8px; border-radius: 999px; line-height: 20px; }
+.drawer { background: var(--surface); border-left: 1px solid var(--border); padding: 16px; display: grid; gap: 16px; align-content: start; }
+.drawer h5 { margin: 0; font-size: 16px; font-weight: 600; }
+.lib { display: grid; gap: 6px; }
+.lib div { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--r-control); font-size: 13.5px; }
+.lib div.on { background: var(--accent-subtle); border-color: transparent; color: var(--accent-ink); font-weight: 500; }
+.pal-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.pal-chip { width: 34px; height: 26px; border-radius: var(--r-control); border: 1px solid var(--border-strong); display: block; }
+.pal-chip.on { outline: 2px solid var(--fg); outline-offset: 2px; }
+.cover { height: 60px; border-radius: var(--r-control); background: var(--accent); position: relative; overflow: hidden; }
+.cover::before { content: ""; position: absolute; width: 90px; height: 90px; border-radius: 50%; background: var(--accent-hover); right: -20px; top: -30px; }
+
+/* Settings */
+.set-wrap { display: grid; grid-template-columns: 230px 1fr; gap: 16px; align-items: start; }
+.set-wrap > * { min-width: 0; }
+.set-nav { display: grid; gap: 1px; }
+.set-nav .grp { font-size: 11px; color: var(--fg-3); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 12px 8px 4px; }
+.set-nav .grp:first-child { padding-top: 0; }
+.set-nav a { display: grid; gap: 1px; padding: 6px 8px; border-radius: var(--r-control); color: var(--fg-2); text-decoration: none; font-size: 14px; }
+.set-nav a small { font-size: 12px; color: var(--fg-3); }
+.set-nav a.on { background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); color: var(--fg); font-weight: 500; }
+.seg-sm span { padding: 4px 12px; font-size: 13.5px; }
+.wlist { display: grid; border: 1px solid var(--border); border-radius: var(--r-card); }
+.wrow { display: grid; grid-template-columns: 20px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.wrow:last-child { border-bottom: 0; }
+.wrow b { font-weight: 500; }
+.grip { color: var(--fg-3); cursor: grab; }
+.switch-ui { width: 34px; height: 20px; border-radius: 999px; background: var(--border-strong); position: relative; flex: none; }
+.switch-ui::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); transition: transform .15s ease-out; }
+.switch-ui.on { background: var(--accent); }
+.switch-ui.on::after { transform: translateX(14px); }
+
+/* Product options grid */
+table.og th, table.og td { text-align: center; }
+table.og th:first-child, table.og td:first-child { text-align: left; }
+table.og .zero { color: var(--crit); font-weight: 600; }
+table.og .wait { display: block; font-size: 11px; font-weight: 600; color: var(--warn); }
+
+/* Phone mockups */
+.phones { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.ph { margin: 0; display: grid; gap: 10px; justify-items: center; min-width: 0; }
+.ph figcaption { font-size: 13px; color: var(--fg-3); text-align: center; max-width: 34ch; }
+.ph-frame { width: 100%; max-width: 340px; height: 640px; border: 1px solid var(--border-strong); border-radius: 22px; overflow: hidden; background: var(--bg); display: grid; grid-template-rows: auto auto 1fr auto; font-size: 14.5px; }
+.ph-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 16px 10px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.ph-top b { font-size: 15px; font-weight: 600; }
+.ph-body { padding: 12px; display: grid; gap: 10px; align-content: start; overflow: hidden; min-height: 0; }
+.ph-body .chipbtn { min-height: 46px; min-width: 52px; font-size: 15px; padding: 6px 12px; }
+.ph-body .chipbtn.on { padding: 5px 11px; }
+.ph-kpis { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); }
+.ph-kpis .kpi { padding: 12px; }
+.ph-kpis .kpi + .kpi { border-left: 1px solid var(--border); }
+.ph-kpis .k-value { font-size: 21px; }
+.ph-h { font-size: 13px; font-weight: 600; color: var(--fg-2); margin-top: 2px; }
+.ph-card { display: grid; gap: 4px; justify-items: start; padding: 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); }
+.ph-card b { font-weight: 500; }
+.ph-card .s { font-size: 12.5px; color: var(--fg-3); }
+.ph-card .btn { margin-top: 4px; }
+.ph-tabs { display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 4px 12px; text-align: center; font-size: 11.5px; color: var(--fg-3); }
+.ph-tabs .on { color: var(--accent-ink); font-weight: 600; }
+.ph-tabs i { font-style: normal; font-size: 10px; font-weight: 700; color: var(--clay-fg); background: var(--clay); border-radius: 999px; padding: 0 5px; margin-left: 3px; }
+.ph-tabs .plus { justify-self: center; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); font-size: 24px; line-height: 44px; }
+.ph-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 0 16px 10px; background: var(--surface); }
+.ph-steps span { height: 4px; border-radius: 2px; background: var(--border); }
+.ph-steps span.on { background: var(--accent); }
+.ph-cta { padding: 10px 12px 14px; background: var(--surface); border-top: 1px solid var(--border); display: grid; gap: 8px; }
+.ph-deal { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px; background: var(--accent-subtle); border-bottom: 1px solid var(--border); font-size: 13.5px; }
+.ph-deal b { font-weight: 600; }
+.ph-chat { background: var(--surface-2); }
+.ph-chat .bubble { max-width: 88%; font-size: 13.5px; }
+
+/* Conversations */
+.inbox { display: grid; grid-template-columns: 270px 1fr 310px; min-height: 560px; }
+.threads { border-right: 1px solid var(--border); background: var(--surface); }
+.thread { padding: 11px 14px; border-bottom: 1px solid var(--border); display: grid; gap: 4px; }
+.thread.on { background: var(--accent-subtle); }
+.thread .top { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+.thread .top b { font-weight: 600; }
+.thread .top span { font-size: 12px; color: var(--fg-3); }
+.thread .prev { font-size: 13px; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat { display: grid; grid-template-rows: auto 1fr auto; background: var(--surface-2); min-width: 0; }
+.chat-h { display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; background: var(--surface); border-bottom: 1px solid var(--border); gap: 8px; }
+.msgs { padding: 16px; display: grid; gap: 10px; align-content: start; }
+.daymark { justify-self: center; font-size: 11.5px; font-weight: 500; color: var(--fg-3); background: var(--surface); padding: 1px 10px; border-radius: 999px; border: 1px solid var(--border); }
+.bubble { max-width: 76%; padding: 8px 11px 6px; border-radius: 10px; font-size: 14px; line-height: 1.45; display: grid; gap: 4px; }
+.bubble .ts { font-size: 11px; color: var(--fg-3); justify-self: end; }
+.bubble.out { justify-self: end; background: var(--accent-subtle); color: var(--fg); border-bottom-right-radius: 3px; }
+.bubble.in { justify-self: start; background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 3px; }
+.bubble .tpl { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--accent-ink); }
+.photo { border-radius: 6px; background: var(--photo-bg); display: grid; place-items: center; padding: 10px; }
+.composer { padding: 10px 14px; background: var(--surface); border-top: 1px solid var(--border); display: grid; gap: 8px; }
+.quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.quick span { font-size: 12.5px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--fg-2); background: var(--surface); }
+.side { background: var(--surface); border-left: 1px solid var(--border); padding: 14px 16px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.side .sect { display: grid; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.side .sect:last-child { border-bottom: 0; }
+.side .lbl { font-size: 11px; font-weight: 600; color: var(--fg-3); letter-spacing: .06em; text-transform: uppercase; }
+.kv { display: grid; grid-template-columns: 90px 1fr; gap: 6px 10px; font-size: 13.5px; }
+.kv dt { color: var(--fg-3); }
+.kv dd { margin: 0; min-width: 0; }
+
+/* Floor */
+.floor { min-width: 1020px; min-height: 600px; display: grid; grid-template-rows: auto 1fr; font-size: 16px; }
+.floor-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.floor-bar b { font-size: 17px; font-weight: 600; }
+.seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--r-card); overflow: hidden; }
+.seg span { padding: 8px 18px; font-size: 15.5px; font-weight: 500; color: var(--fg-2); background: var(--surface); }
+.seg span + span { border-left: 1px solid var(--border-strong); }
+.seg span.on { background: var(--accent); color: var(--accent-fg); }
+.floor-grid { display: grid; grid-template-columns: 1.2fr 1fr 300px; gap: 16px; padding: 16px 20px; }
+.floor-grid > * { min-width: 0; }
+.fl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-card); padding: 16px; display: grid; gap: 12px; align-content: start; }
+.fl-step { font-size: 12px; font-weight: 600; color: var(--fg-3); letter-spacing: .05em; text-transform: uppercase; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chipbtn { font: inherit; font-size: 16px; min-height: 50px; min-width: 66px; padding: 8px 14px; border-radius: var(--r-card); border: 1px solid var(--border-strong); background: var(--surface); color: var(--fg); display: grid; justify-items: center; cursor: pointer; }
+.chipbtn small { font-size: 11.5px; color: var(--fg-3); }
+.chipbtn.oos small { color: var(--crit); }
+.chipbtn.on { border: 2px solid var(--accent); background: var(--accent-subtle); padding: 7px 13px; }
+.chipbtn.reason { justify-items: start; text-align: left; }
+.phone { font-family: var(--font-mono); font-size: 24px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--r-card); background: var(--surface); letter-spacing: .02em; }
+.phone span { color: var(--fg-3); }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.key { font: inherit; font-size: 22px; font-weight: 500; height: 56px; border-radius: var(--r-card); border: 1px solid var(--border); background: var(--surface-2); color: var(--fg); cursor: pointer; }
+.consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; color: var(--fg-2); }
+.tick { width: 20px; height: 20px; flex: none; border-radius: 4px; background: var(--accent); display: grid; place-items: center; color: var(--accent-fg); font-size: 12px; margin-top: 2px; }
+
+/* Login (gentle motion) */
+.login { min-width: 1020px; display: grid; grid-template-columns: 1.1fr 1fr; min-height: 580px; }
+.login-art { background: var(--accent); position: relative; overflow: hidden; padding: 36px; display: grid; align-content: space-between; color: var(--accent-fg); }
+.login-art h5 { margin: 0; font-size: 34px; line-height: 1.12; font-weight: 600; letter-spacing: -.015em; max-width: 14ch; }
+.login-art p { font-size: 16px; opacity: .85; max-width: 36ch; }
+.ring { position: absolute; border-radius: 50%; border: 1px solid currentColor; opacity: .14; }
+.ring.a { width: 420px; height: 420px; right: -140px; top: -140px; }
+.ring.b { width: 260px; height: 260px; right: -60px; top: -60px; }
+.float { position: absolute; background: var(--surface); color: var(--fg); border-radius: var(--r-card); box-shadow: var(--shadow-pop); padding: 11px 13px; font-size: 13.5px; animation: drift 7s ease-in-out infinite; }
+.float.f1 { right: 36px; top: 110px; width: 240px; display: grid; gap: 8px; }
+.float.f2 { right: 220px; top: 320px; animation-delay: -2.5s; display: flex; gap: 10px; align-items: center; }
+.float.f3 { right: 30px; top: 390px; animation-delay: -4.5s; display: grid; gap: 2px; }
+.float .wa { font-size: 11px; font-weight: 600; color: var(--accent-ink); letter-spacing: .04em; text-transform: uppercase; }
+.float .big { font-size: 22px; font-weight: 600; color: var(--ok); font-variant-numeric: tabular-nums; }
+@keyframes drift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.login-form { background: var(--surface); padding: 56px 60px; display: grid; align-content: center; gap: 16px; }
+.login-form h6 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -.01em; }
+.login.plain { grid-template-columns: 1fr; place-items: center; min-height: 520px; background: var(--bg); }
+.login.plain .login-form { width: 420px; border: 1px solid var(--border); border-radius: var(--r-card); padding: 32px; }
+
+/* Motion demo */
+.motion-demo { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.motion-demo .panel { display: grid; gap: 10px; align-content: start; min-height: 140px; }
+.slot { min-height: 48px; display: flex; align-items: center; }
+.toast.enter { animation: toastIn .26s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.count-up { font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.skel { height: 11px; border-radius: 6px; background: var(--surface-2); position: relative; overflow: hidden; }
+.skel::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, var(--border), transparent); animation: shimmer 1.4s infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+
+/* Plan */
+.phase { display: grid; grid-template-columns: 90px 1fr; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.phase:last-child { border-bottom: 0; }
+.phase .pn { font-family: var(--font-mono); font-size: 12px; color: var(--fg-3); padding-top: 3px; }
+.phase .pn b { display: block; font-family: var(--font-ui); font-size: 13.5px; color: var(--fg); font-weight: 600; }
+.phase > div { min-width: 0; display: grid; gap: 6px; }
+.phase .done-when { font-size: 13.5px; color: var(--fg-2); }
+.phase .done-when b { color: var(--fg); font-weight: 600; }
+.phase.now { background: var(--accent-subtle); }
+.decision { padding: 16px 20px; border-bottom: 1px solid var(--border); display: grid; gap: 6px; }
+.decision:last-child { border-bottom: 0; }
+.decision .q { font-weight: 600; }
+.decision .rec { font-size: 14.5px; }
+.decision .rec b { color: var(--accent-ink); font-weight: 600; }
+.decision .alt { font-size: 13.5px; color: var(--fg-3); }
+.decision.done .q::after { content: "Decided"; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--ok); background: var(--ok-bg); padding: 1px 7px; border-radius: 4px; margin-left: 8px; vertical-align: middle; }
+footer.end { padding-block: 32px 56px; color: var(--fg-3); font-size: 13px; }
+
+@media (max-width: 640px) {
+  .typerow { grid-template-columns: 1fr; gap: 4px; }
+  .phase { grid-template-columns: 1fr; gap: 6px; }
+  .brandmark span.txt { display: none; }
+  section.sec { padding-block: 32px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brandmark"><div class="sqlogo">R</div><span class="txt">Retail OS</span></div>
+    <nav class="toc" aria-label="Sections">
+      <a href="#problem">Problem</a>
+      <a href="#lifecycle">Lifecycle</a>
+      <a href="#gaps">Gaps</a>
+      <a href="#principles">Principles</a>
+      <a href="#foundations">Foundations</a>
+      <a href="#components">Components</a>
+      <a href="#motion">Motion</a>
+      <a href="#screens">Screens</a>
+      <a href="#sizes">Screen sizes</a>
+      <a href="#messaging">Messaging</a>
+      <a href="#skills">Skills</a>
+      <a href="#plan">Plan</a>
+      <a href="#decisions">Decisions</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch preview theme">Theme: system</button>
+  </div>
+</div>
+
+<main class="wrap">
+  <header class="hero">
+    <div class="eyebrow">Design spec · Draft 3</div>
+    <h1>Every customer who walks in leaves a trace</h1>
+    <p class="lede">Retail OS starts with one job, for any kind of shop: when it can't sell someone what they came for, it records why, gets the item, tells the customer on WhatsApp with a photo, talks them through to a deposit or payment, and counts the sale only when the money is in. This spec covers that workflow, the look, the screens and the build order.</p>
+    <div class="meta">
+      <span>Date <b>22 Oct 2026</b></span>
+      <span>Draft 3 <b>restores the draft 1 look; keeps the draft 2 workflow</b></span>
+      <span>Status <b>Waiting on the open decisions at the end</b></span>
+    </div>
+  </header>
+
+  <!-- PROBLEM -->
+  <section class="sec" id="problem">
+    <div class="sec-head">
+      <div class="eyebrow">01 · The business problem</div>
+      <h2>One customer, eight steps, any kind of shop</h2>
+      <p>You described this with a shoe shop, and the same steps hold for a phone shop, a pharmacy or a hardware store. Only the details of "exactly what they wanted" change, so the system stores those details generically, as options on a product (size, colour, storage, strength, pack size and so on).</p>
+    </div>
+    <div class="quote-card" style="margin-bottom:16px">Take a shoe shop. A customer loves a shoe but we don't have <b>size 42 in black</b>. Today they walk out and the sale is gone. With Retail OS, they walk out <b>and we keep the sale alive</b>.</div>
+    <div class="story">
+      <div class="story-step"><span class="n">1 · Walk-in</span><b>Every visit gets an outcome</b><p>They either buy, or staff log why not: size, colour, out of stock, price, budget, or another reason.</p></div>
+      <div class="story-step"><span class="n">2 · Capture</span><b>Phone, WhatsApp, email</b><p>Staff record the exact item, the reason, how soon they need it ("give me 3–4 days") and consent to be contacted.</p></div>
+      <div class="story-step"><span class="n">3 · Morning</span><b>The to-order list</b><p>The owner sees what to buy and who is waiting for each item, ranked by money waiting and promise dates.</p></div>
+      <div class="story-step"><span class="n">4 · Order</span><b>Mark as ordered</b><p>Optional: set an arrival date, and customers can get an "arriving Thursday" update.</p></div>
+      <div class="story-step"><span class="n">5 · Restock</span><b>Stock in, messages out</b><p>Receiving stock holds units for waiting customers and sends each a WhatsApp with a photo of the exact item. SMS and email are fallbacks.</p></div>
+      <div class="story-step"><span class="n">6 · Follow up</span><b>Up to four tries</b><p>No reply? Follow-ups go out on a schedule and stop the moment they answer or opt out.</p></div>
+      <div class="story-step"><span class="n">7 · Talk</span><b>Replies in one inbox</b><p>Staff chat with the customer: change the colour, agree a pickup day, take a deposit, hold the item.</p></div>
+      <div class="story-step"><span class="n">8 · Paid</span><b>Recovered</b><p>Only a full payment counts as recovered revenue. Promises and deposits are tracked separately.</p></div>
+    </div>
+    <h3 style="margin-top:26px">Launch scope: fashion</h3>
+    <div class="tscroll">
+      <table class="doc">
+        <thead><tr><th>Product type</th><th>"Exactly what they wanted"</th><th>Common reasons</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><b>Shoes</b></td><td>Size, colour</td><td>Size missing, colour missing, out of stock, price too high, over budget</td><td>Size runs such as EU 36–46</td></tr>
+          <tr><td><b>Clothing</b></td><td>Size, colour</td><td>Same as shoes</td><td>Letter sizes (XS–XXL) or numbers (waist 28–40)</td></tr>
+          <tr><td><b>Bags</b></td><td>Colour, size or style</td><td>Colour missing, out of stock, price too high</td><td>Often one size</td></tr>
+          <tr><td><b>Accessories</b></td><td>Colour, size if relevant</td><td>Colour missing, out of stock, price too high</td><td>Belts, watches, jewellery, caps</td></tr>
+          <tr><td><b>Other</b></td><td>Options the shop defines</td><td>Any of the shop's reasons</td><td>For items that don't fit the four types</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin-top:12px">Product types and their options are set in Settings, not hardcoded, so phones, pharmacy, hardware and others can be added later on the same engine without a rewrite. Requests for items the shop doesn't sell at all are left out for now.</p>
+  </section>
+
+  <!-- LIFECYCLE -->
+  <section class="sec" id="lifecycle">
+    <div class="sec-head">
+      <div class="eyebrow">02 · Lifecycle</div>
+      <h2>What "notified", "reserved" and "recovered" mean</h2>
+      <p>Each stage has one rule for entering it. Notified only means the message arrived. The customer's reply, the deposit and the payment are separate stages.</p>
+    </div>
+    <div class="flow" role="list" aria-label="Main lifecycle">
+      <div class="state" role="listitem"><span class="badge b-open">Open</span><p>Logged. Waiting for stock, or a price change on price and budget reasons.</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="state" role="listitem"><span class="badge b-ordered">On order</span><p>Optional. Owner marked it ordered, with an expected date.</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="state" role="listitem"><span class="badge b-stock">Back in stock</span><p>Stock received. A unit is held and the message is queued.</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="state" role="listitem"><span class="badge b-notified">Notified</span><p>Message delivered. Follow-ups scheduled until they reply.</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="state" role="listitem"><span class="badge b-talking">In conversation</span><p>Customer replied. They may change size, colour or item.</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="state" role="listitem"><span class="badge b-reserved">Reserved</span><p>Deposit paid or hold agreed, with a pickup-by date. Pipeline, not revenue.</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="state money" role="listitem"><span class="badge b-recovered">Recovered</span><p>Paid in full. The only stage counted as recovered revenue.</p></div>
+    </div>
+    <div class="exits">
+      <div class="exit"><span class="badge b-declined">Declined</span><p>Customer said no ("bought elsewhere"). Closed with a reason, not revenue. Held stock is released.</p></div>
+      <div class="exit"><span class="badge b-expired">Expired</span><p>No reply after the last follow-up, a reservation not collected in time, or 30 days with no stock. Held stock is released.</p></div>
+      <div class="exit"><span class="badge b-failed">Send failed</span><p>A flag on the message, not a stage (wrong number, not on WhatsApp). Stays until someone fixes it or picks another channel.</p></div>
+    </div>
+    <div class="grid-2" style="margin-top:18px">
+      <div class="panel panel-pad stack" style="gap:8px">
+        <h3>Follow-up schedule (default, editable per shop)</h3>
+        <ul class="clean small">
+          <li><b>Day 0:</b> restock message with the item's photo. <b>Day 2:</b> reminder. <b>Day 4:</b> "still holding it". <b>Day 7:</b> last call.</li>
+          <li>Any reply pauses the schedule and moves the record to In conversation.</li>
+          <li>STOP or a decline ends it at once. No reply after day 7 makes it Expired.</li>
+        </ul>
+      </div>
+      <div class="panel panel-pad stack" style="gap:8px">
+        <h3>When the customer changes their mind</h3>
+        <ul class="clean small">
+          <li>"Do you have it in brown?" Staff use <b>Change item</b>; the original request stays in the history.</li>
+          <li>If the new item is in stock it can go straight to Reserved; if not, the record goes back to Open for the new item.</li>
+          <li>Reports count it once, as a recovery of the original visit.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="panel panel-pad stack" style="gap:8px;margin-top:16px">
+      <h3>Price too high and over budget</h3>
+      <ul class="clean small">
+        <li>These don't move when stock arrives. They wait for the price of that product or option to drop (a markdown, sale or promotion).</li>
+        <li>When the price drops, the customer gets a message with the old and new price and the item's photo, then the normal flow continues from Notified.</li>
+        <li>Until then they sit in their own "Waiting for a lower price" view, so the owner can see how many sales a price cut would win back.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- GAPS -->
+  <section class="sec" id="gaps">
+    <div class="sec-head">
+      <div class="eyebrow">03 · What the walkthrough didn't cover</div>
+      <h2>Ten gaps, with what I propose</h2>
+    </div>
+    <div class="tscroll">
+      <table class="doc">
+        <thead><tr><th>Gap</th><th>What happens without it</th><th>Proposal</th></tr></thead>
+        <tbody>
+          <tr><td><b>Holding stock</b></td><td>A walk-in buys the last unit minutes after the WhatsApp goes out</td><td>Restock holds one unit per waiting customer, oldest first</td></tr>
+          <tr><td><b>Partial restock</b></td><td>Six messages for four units</td><td>Message only as many customers as there are units; the rest stay On order</td></tr>
+          <tr><td><b>Promise dates</b></td><td>"3–4 days" is forgotten</td><td>Capture "needed by"; the to-order list sorts by it and warns the day before</td></tr>
+          <tr><td><b>Sales that did happen</b></td><td>No idea what share of visitors leave empty-handed</td><td>One-tap "Bought" on the floor screen, giving a walk-in conversion rate</td></tr>
+          <tr><td><b>Product photos</b></td><td>The WhatsApp has nothing to show</td><td>Photo per product and per option, with fallback to the product photo</td></tr>
+          <tr><td><b>WhatsApp's 24-hour rule</b></td><td>The first restock message is rejected</td><td>Business-started messages use approved templates; free text only within 24 hours of a reply</td></tr>
+          <tr><td><b>Deposits</b></td><td>"Paid KSh 2,000 on M-Pesa" lives in someone's head</td><td>Record amount, method, reference and pickup-by date</td></tr>
+          <tr><td><b>Several items per customer</b></td><td>Three separate chats and a crowded list</td><td>One item per record. Lists and conversations group a customer's records together, and capture offers "same customer, another item"</td></tr>
+          <tr><td><b>Who owns the follow-up</b></td><td>Replies sit unanswered</td><td>Assign conversations to staff, unread count on the sidebar</td></tr>
+          <tr><td><b>Consent and opt-out</b></td><td>Messages to people who never agreed</td><td>Consent at capture, STOP honoured on every channel</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- PRINCIPLES -->
+  <section class="sec" id="principles">
+    <div class="sec-head">
+      <div class="eyebrow">04 · Principles</div>
+      <h2>Rules every screen is checked against</h2>
+    </div>
+    <div class="principles">
+      <div class="principle"><h3>Work first, decoration never</h3><p>No glow, blur, gradients or background photos inside the app. Colour carries meaning only: the brand action and status.</p></div>
+      <div class="principle"><h3>Every number is real</h3><p>Each figure links to the records behind it, and "recovered" means paid.</p></div>
+      <div class="principle"><h3>The next action is obvious</h3><p>Home is a work queue, not a wall of charts. Each record shows its stage and what moves it on.</p></div>
+      <div class="principle"><h3>Phone first, any screen</h3><p>One web app for local shop owners on phones, tablets, laptops and shop computers. Designed at 360px first, then expanded. Same tokens, same components.</p></div>
+      <div class="principle"><h3>Built to plug in</h3><p>Every screen action is also an API action, so the widget and POS integrations reuse the same services.</p></div>
+      <div class="principle"><h3>Local by default</h3><p>Currency, timezone and phone format come from the shop's settings. KSh and +254 are first-class.</p></div>
+    </div>
+  </section>
+
+  <!-- FOUNDATIONS -->
+  <section class="sec" id="foundations">
+    <div class="sec-head">
+      <div class="eyebrow">05 · Foundations <span class="changed">Back to draft 1</span></div>
+      <h2>Petrol, green-grey, IBM Plex</h2>
+      <p>One brand colour, calm neutrals and status tones. The only thing borrowed from draft 2 is a single clay colour that appears in exactly two places: the "In conversation" badge and the unread count on Conversations. Use the theme button in the top bar for dark.</p>
+    </div>
+    <div class="stack">
+      <h3>Surfaces and text</h3>
+      <div class="swatches">
+        <div class="swatch"><div class="chip" style="background:var(--bg)"></div><div class="info"><span class="name">bg</span><span class="hex">#F5F6F4 · #0F1312</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--surface)"></div><div class="info"><span class="name">surface</span><span class="hex">#FFFFFF · #161B1A</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--surface-2)"></div><div class="info"><span class="name">surface-2</span><span class="hex">#F0F2EF · #1C2221</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--border)"></div><div class="info"><span class="name">border</span><span class="hex">#DFE3DE · #29312F</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--fg)"></div><div class="info"><span class="name">fg</span><span class="hex">#18201D · #E6EBE9</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--fg-2)"></div><div class="info"><span class="name">fg-2</span><span class="hex">#4A5550 · #AAB4B0</span></div></div>
+      </div>
+      <h3 style="margin-top:8px">Brand, plus one borrowed touch</h3>
+      <div class="swatches">
+        <div class="swatch"><div class="chip" style="background:var(--accent)"></div><div class="info"><span class="name">accent (petrol)</span><span class="hex">#0B6670 · #5DB6BE</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--accent-hover)"></div><div class="info"><span class="name">accent-hover</span><span class="hex">#08525A · #7FC7CD</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--accent-subtle)"></div><div class="info"><span class="name">accent-subtle</span><span class="hex">#E1EEEF · #163236</span></div></div>
+        <div class="swatch"><div class="chip" style="background:var(--clay)"></div><div class="info"><span class="name">clay (customer waiting)</span><span class="hex">#B4491F · #E5875D</span></div></div>
+      </div>
+      <h3 style="margin-top:8px">Status badges</h3>
+      <div class="row"><span class="badge b-open">Open</span><span class="badge b-ordered">On order</span><span class="badge b-stock">Back in stock</span><span class="badge b-notified">Notified</span><span class="badge b-talking">In conversation</span><span class="badge b-reserved">Reserved</span><span class="badge b-recovered">Recovered</span><span class="badge b-declined">Declined</span><span class="badge b-expired">Expired</span><span class="badge b-failed">Send failed</span></div>
+      <p class="small muted">Draft 1's blue "Notified" is gone: Notified is now neutral grey, because nothing is needed from staff at that point. No blue or violet anywhere. Every badge has a dot and a word, so status never relies on colour alone.</p>
+
+      <h3 style="margin-top:8px">Type: IBM Plex Sans and IBM Plex Mono</h3>
+      <div class="panel panel-pad">
+        <div class="typerow"><span class="spec">Page title<br>21 / 600</span><div style="font-size:21px;font-weight:600;letter-spacing:-.01em">Waiting customers</div></div>
+        <div class="typerow"><span class="spec">KPI value<br>27 / 600 · tabular</span><div style="font-size:27px;font-weight:600;font-variant-numeric:tabular-nums">KSh 84,600</div></div>
+        <div class="typerow"><span class="spec">Card title<br>14.5 / 600</span><div style="font-size:14.5px;font-weight:600">Needs you now</div></div>
+        <div class="typerow"><span class="spec">Body<br>15 / 400</span><div style="font-size:15px">Jane asked for size 42 in black. It arrived this morning and we're holding a pair for her.</div></div>
+        <div class="typerow"><span class="spec">Table<br>14 / 400 · tabular</span><div style="font-size:14px;font-variant-numeric:tabular-nums">Nike Air Zoom · 42 / Black · KSh 12,500 · needed by Fri</div></div>
+        <div class="typerow"><span class="spec">SKU, phone<br>Mono 12</span><div style="font-family:var(--font-mono);font-size:12px">NIKE-AZ-42-BLK · +254 712 345 678</div></div>
+        <div class="typerow"><span class="spec">Floor<br>16–24 / 500</span><div style="font-size:18px;font-weight:500">Which size did they want?</div></div>
+      </div>
+      <p class="small muted">Same faces as draft 1, set one step larger than draft 1 (body 15px, tables 14px), since the original sizes read small.</p>
+
+      <h3 style="margin-top:8px">Space, shape, elevation</h3>
+      <div class="grid-3">
+        <div class="panel panel-pad"><b class="small">Radius</b><p class="small muted">6px controls, 8px cards and tiles. Badges fully round.</p></div>
+        <div class="panel panel-pad"><b class="small">Elevation</b><p class="small muted">Cards use a 1px border and no shadow. Shadows only on menus, modals, toasts and the login cards.</p></div>
+        <div class="panel panel-pad"><b class="small">Spacing</b><p class="small muted">4px base: 4, 8, 12, 16, 20, 24, 32, 48. Page gutter 20px, card padding 16px.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPONENTS -->
+  <section class="sec" id="components">
+    <div class="sec-head">
+      <div class="eyebrow">06 · Components</div>
+      <h2>The building blocks, live</h2>
+      <p>Each becomes a Django template partial, so every page renders it the same way.</p>
+    </div>
+    <div class="grid-2">
+      <div class="panel panel-pad stack">
+        <h3>Buttons</h3>
+        <div class="row"><button class="btn btn-primary" type="button">Log missed sale</button><button class="btn" type="button">Export</button><button class="btn btn-plain" type="button">View all</button><button class="btn btn-critical" type="button">Customer declined</button></div>
+        <p class="small muted">One primary button per view. Labels say exactly what happens.</p>
+      </div>
+      <div class="panel panel-pad stack">
+        <h3>Fields</h3>
+        <div class="field"><label class="label" for="dPhone">WhatsApp number</label><div class="input-prefix"><span>+254</span><input class="input" id="dPhone" value="712 345 678"></div><span class="help">Saved as +254712345678.</span></div>
+        <div class="field"><label class="label" for="dDep">Deposit</label><input class="input is-error" id="dDep" value="KSh 25,000"><span class="err">Deposit can't be more than the item price (KSh 18,700).</span></div>
+      </div>
+      <div class="panel panel-pad stack">
+        <h3>KPI tile and status bar</h3>
+        <div class="panel"><div class="kpi"><span class="k-label">Recovered this month</span><span class="k-value">KSh 21,400</span><span class="k-foot"><span class="delta-up">+18%</span> vs September · 14 paid sales</span></div></div>
+        <div class="stepper" aria-label="Lifecycle"><span class="done">Notified</span><span class="now">In conversation</span><span>Reserved</span><span>Recovered</span></div>
+      </div>
+      <div class="panel panel-pad stack">
+        <h3>Timeline</h3>
+        <div class="timeline">
+          <div class="tl"><div class="dot clay"></div><div><div class="what">Jane replied on WhatsApp</div><div class="when">Today, 09:31</div></div></div>
+          <div class="tl"><div class="dot acc"></div><div><div class="what">Restock message delivered and read</div><div class="when">Today, 09:06</div></div></div>
+          <div class="tl"><div class="dot"></div><div><div class="what">Stock received: +8 units</div><div class="when">Today, 09:05 · by Peter K.</div></div></div>
+          <div class="tl"><div class="dot warn"></div><div><div class="what">Logged at Till 2 by Amina W.</div><div class="when">2 Oct, 14:42</div></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MOTION -->
+  <section class="sec" id="motion">
+    <div class="sec-head">
+      <div class="eyebrow">07 · Motion</div>
+      <h2>Short motion that confirms what happened</h2>
+      <p>Inside the app, motion is brief and only confirms an action: a toast, a status change, a number updating. It switches off for people who turn on reduced motion. Motion for the landing page and marketing site is designed in the final phase.</p>
+    </div>
+    <div class="motion-demo">
+      <div class="panel panel-pad"><b class="small">Toast slides in</b><div class="slot" id="toastSlot"><div class="toast enter"><span>Stock in. 4 customers messaged.</span><button type="button">Undo</button></div></div></div>
+      <div class="panel panel-pad"><b class="small">Status changes in place</b><div class="slot"><span class="badge b-talking" id="demoBadge">In conversation</span></div></div>
+      <div class="panel panel-pad"><b class="small">Numbers count up</b><div class="slot"><span class="count-up" id="demoCount">KSh 21,400</span></div></div>
+      <div class="panel panel-pad"><b class="small">Skeletons, not spinners</b><div style="display:grid;gap:8px;margin-top:6px"><div class="skel" style="width:85%"></div><div class="skel" style="width:60%"></div><div class="skel" style="width:72%"></div></div></div>
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn btn-sm" type="button" id="replayBtn">Replay the motion</button><span class="small muted">120–300ms, ease-out.</span></div>
+  </section>
+
+  <!-- SCREENS -->
+  <section class="sec" id="screens">
+    <div class="sec-head">
+      <div class="eyebrow">08 · Key screens</div>
+      <h2>The screens that carry the workflow</h2>
+      <p>Built from the tokens and components above. All names, products and figures are sample data. On a phone, scroll each frame sideways.</p>
+    </div>
+    <div class="stack" style="gap:40px">
+
+      <!-- LOGIN -->
+      <div>
+        <div class="frame-cap"><h3 style="margin:0">Sign in</h3><span class="tagline">Plain and quick for now; the designed version comes in the last phase<span class="sample">Sample</span></span></div>
+        <div class="frame-scroll">
+          <div class="login plain">
+            <div class="login-form">
+              <div class="brandmark"><div class="sqlogo">R</div><span>Retail OS</span></div>
+              <h6>Sign in to your shop</h6>
+              <div class="field"><label class="label" for="lgEmail">Email or phone</label><input class="input" id="lgEmail" value="amina@kimathistreet.co.ke"></div>
+              <div class="field"><label class="label" for="lgPass">Password</label><input class="input" id="lgPass" type="password" value="password123"></div>
+              <button class="btn btn-primary btn-lg" type="button">Sign in</button>
+              <span class="small muted">New shop? <a href="#screens" style="color:var(--accent-ink);font-weight:500">Create an account</a></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HOME -->
+      <div>
+        <div class="frame-cap"><h3 style="margin:0">Home</h3><span class="tagline">Just the work. Which widgets appear is set in Settings → Home layout<span class="sample">Sample data</span></span></div>
+        <div class="frame-scroll">
+          <div class="app">
+            <aside class="nav">
+              <div class="store"><div class="sq">KS</div><div><b>Kimathi Street Store</b><small>Nairobi · KSh</small></div></div>
+              <a class="on" href="#screens">Home</a>
+              <div class="grp">Customers</div>
+              <a href="#screens">Waiting <span class="count">37</span></a>
+              <a href="#screens">Conversations <span class="count hot">5</span></a>
+              <div class="grp">Stock</div>
+              <a href="#screens">To order <span class="count">9</span></a>
+              <a href="#screens">Products</a>
+              <div class="grp">Shop</div>
+              <a href="#screens">Customers</a>
+              <a href="#screens">Reports</a>
+              <div class="grp" style="padding-top:18px">&nbsp;</div>
+              <a href="#screens">Settings</a>
+            </aside>
+            <div class="main">
+              <div class="bar"><div class="search">Search SKU, phone or customer <span class="kbd">Ctrl K</span></div><button class="btn btn-sm" type="button">Floor mode</button><button class="btn btn-primary btn-sm" type="button">Log missed sale</button><div class="avatar">AW</div></div>
+              <div class="content">
+                <div class="page-head"><div><h4>Good morning, Amina</h4><div class="sub">Wednesday 22 October</div></div></div>
+                <div>
+                  <div class="kpis">
+                    <div class="kpi"><span class="k-label">Waiting demand</span><span class="k-value">KSh 84,600</span><span class="k-foot">37 customers · 5 need it this week</span></div>
+                    <div class="kpi"><span class="k-label">In conversation</span><span class="k-value">5</span><span class="k-foot">2 unanswered over 1 hour</span></div>
+                    <div class="kpi"><span class="k-label">Reserved</span><span class="k-value">KSh 6,000</span><span class="k-foot">Deposits on 3 items</span></div>
+                    <div class="kpi"><span class="k-label">Recovered</span><span class="k-value">KSh 21,400</span><span class="k-foot"><span class="delta-up">+18%</span> · 14 paid</span></div>
+                  </div>
+                </div>
+                <div class="split">
+                  <div class="panel">
+                    <div class="card-h"><b>Needs you now</b><button class="btn btn-plain btn-sm" type="button">All</button></div>
+                    <div class="queue-row"><div><div class="t"><span class="badge b-talking">In conversation</span> Jane wants to pay a deposit</div><div class="s">Adidas Ultraboost 42 / Grey · 21 min ago</div></div><button class="btn btn-primary btn-sm" type="button">Reply</button></div>
+                    <div class="queue-row"><div><div class="t"><span class="badge b-stock">Back in stock</span> 4 units in, 6 people waiting</div><div class="s">Nike Air Zoom 42 / Black · oldest 4 get a held pair</div></div><button class="btn btn-sm" type="button">Send 4</button></div>
+                    <div class="queue-row"><div><div class="t"><span class="badge b-open">Open</span> 3 promises due tomorrow</div><div class="s">Nothing ordered yet for 2 of them</div></div><button class="btn btn-sm" type="button">To order</button></div>
+                    <div class="queue-row"><div><div class="t"><span class="badge b-failed">Send failed</span> 2 numbers not on WhatsApp</div><div class="s">Send as SMS instead?</div></div><button class="btn btn-sm" type="button">Fix</button></div>
+                  </div>
+                  <div class="panel">
+                    <div class="card-h"><b>Why people didn't buy</b><span class="small muted">Last 30 days</span></div>
+                    <div style="padding:14px 16px;display:grid;gap:12px">
+                      <div style="display:grid;gap:4px"><div class="row" style="justify-content:space-between"><span class="small">Size missing</span><span class="small mono">42%</span></div><div class="bar-track"><div class="bar-fill" style="width:42%"></div></div></div>
+                      <div style="display:grid;gap:4px"><div class="row" style="justify-content:space-between"><span class="small">Out of stock</span><span class="small mono">27%</span></div><div class="bar-track"><div class="bar-fill" style="width:27%"></div></div></div>
+                      <div style="display:grid;gap:4px"><div class="row" style="justify-content:space-between"><span class="small">Colour missing</span><span class="small mono">16%</span></div><div class="bar-track"><div class="bar-fill" style="width:16%"></div></div></div>
+                      <div style="display:grid;gap:4px"><div class="row" style="justify-content:space-between"><span class="small">Price or budget</span><span class="small mono">15%</span></div><div class="bar-track"><div class="bar-fill" style="width:15%"></div></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div>
+        <div class="frame-cap"><h3 style="margin:0">Settings</h3><span class="tagline">Account, shop, look and every customisation live here, not on the dashboard<span class="sample">Sample data</span></span></div>
+        <div class="frame-scroll">
+          <div class="app">
+            <aside class="nav">
+              <div class="store"><div class="sq">KS</div><div><b>Kimathi Street Store</b><small>Nairobi · KSh</small></div></div>
+              <a href="#screens">Home</a>
+              <div class="grp">Customers</div>
+              <a href="#screens">Waiting <span class="count">37</span></a>
+              <a href="#screens">Conversations <span class="count hot">5</span></a>
+              <div class="grp">Stock</div>
+              <a href="#screens">To order <span class="count">9</span></a>
+              <a href="#screens">Products</a>
+              <div class="grp">Shop</div>
+              <a href="#screens">Customers</a>
+              <a href="#screens">Reports</a>
+              <div class="grp" style="padding-top:18px">&nbsp;</div>
+              <a class="on" href="#screens">Settings</a>
+            </aside>
+            <div class="main">
+              <div class="bar"><div class="search">Search settings <span class="kbd">Ctrl K</span></div><div class="avatar">AW</div></div>
+              <div class="content">
+                <div class="page-head"><div><h4>Settings</h4><div class="sub">Changes apply to Kimathi Street Store</div></div></div>
+                <div class="set-wrap">
+                  <nav class="set-nav" aria-label="Settings sections">
+                    <span class="grp">Your account</span>
+                    <a href="#screens">Profile and password</a>
+                    <a href="#screens">My notifications</a>
+                    <span class="grp">Shop</span>
+                    <a href="#screens">Shop details<small>Name, address, currency, timezone, phone region</small></a>
+                    <a href="#screens">Product types and options<small>Shoes, clothing, bags, accessories, other</small></a>
+                    <a href="#screens">Look<small>Logo, brand colour, light or dark</small></a>
+                    <a class="on" href="#screens">Home layout<small>Widgets and their order</small></a>
+                    <a href="#screens">Reasons and options<small>Why customers didn't buy</small></a>
+                    <a href="#screens">Follow-ups and holds<small>Schedule, pickup window, expiry</small></a>
+                    <a href="#screens">Messaging channels<small>WhatsApp, SMS, email, templates</small></a>
+                    <a href="#screens">Team and roles</a>
+                    <span class="grp">Later</span>
+                    <a href="#screens">Plan and billing</a>
+                    <a href="#screens">Integrations and API keys</a>
+                  </nav>
+                  <div class="panel">
+                    <div class="card-h"><div><b>Home layout</b><div class="small muted">Choose what each role sees on Home, and in what order.</div></div><button class="btn btn-primary btn-sm" type="button">Save layout</button></div>
+                    <div style="padding:14px 16px;display:grid;gap:14px">
+                      <div class="row"><span class="label">Layout for</span><div class="seg seg-sm"><span class="on">Owner</span><span>Manager</span><span>Cashier</span></div></div>
+                      <div class="wlist">
+                        <div class="wrow"><span class="grip" aria-hidden="true">⠿</span><div><b>Key numbers</b><div class="small muted">Waiting demand, in conversation, reserved, recovered</div></div><span class="switch-ui on" aria-label="Shown"></span></div>
+                        <div class="wrow"><span class="grip" aria-hidden="true">⠿</span><div><b>Needs you now</b><div class="small muted">Replies, restocks to send, promises due, failed messages</div></div><span class="switch-ui on" aria-label="Shown"></span></div>
+                        <div class="wrow"><span class="grip" aria-hidden="true">⠿</span><div><b>Why people didn't buy</b><div class="small muted">Share of each reason, last 30 days</div></div><span class="switch-ui on" aria-label="Shown"></span></div>
+                        <div class="wrow"><span class="grip" aria-hidden="true">⠿</span><div><b>To order today</b><div class="small muted">Top items with customers waiting</div></div><span class="switch-ui" aria-label="Hidden"></span></div>
+                        <div class="wrow"><span class="grip" aria-hidden="true">⠿</span><div><b>Recovered per week</b><div class="small muted">Paid recoveries, last 8 weeks</div></div><span class="switch-ui" aria-label="Hidden"></span></div>
+                        <div class="wrow"><span class="grip" aria-hidden="true">⠿</span><div><b>Walk-in conversion</b><div class="small muted">Visits that ended in a sale</div></div><span class="switch-ui" aria-label="Hidden"></span></div>
+                      </div>
+                      <span class="help">Drag to reorder. Staff can't change their own Home; the owner sets it per role here.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROLES -->
+      <div>
+        <div class="frame-cap"><h3 style="margin:0">Team and roles</h3><span class="tagline">Roles are permission sets; one person can hold all of them</span></div>
+        <div class="tscroll">
+          <table class="doc">
+            <thead><tr><th>Role</th><th>Can do</th></tr></thead>
+            <tbody>
+              <tr><td class="nowrap"><b>Owner</b></td><td>Everything, including team, billing and all Settings</td></tr>
+              <tr><td class="nowrap"><b>Manager</b></td><td>Products, prices, stock, reasons, follow-ups, message templates, reports</td></tr>
+              <tr><td class="nowrap"><b>Cashier</b></td><td>Floor capture, conversations, record deposits and payments, and quick-add a product from the floor if the owner allows it</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="clean small" style="margin-top:12px">
+          <li><b>One-person shop:</b> the owner does everything with one login and never switches roles.</li>
+          <li><b>Shop with staff:</b> each person gets the role they need. A manager can also work the till.</li>
+          <li><b>Products from the floor:</b> "Cashiers can add products" is on by default. Those products are marked "Needs review" until an owner or manager checks the price and options.</li>
+        </ul>
+      </div>
+
+      <!-- TO ORDER -->
+      <div>
+        <div class="frame-cap"><h3 style="margin:0">To order</h3><span class="tagline">The morning list: what to buy and who is waiting<span class="sample">Sample data</span></span></div>
+        <div class="frame-scroll">
+          <div class="app">
+            <aside class="nav">
+              <div class="store"><div class="sq">KS</div><div><b>Kimathi Street Store</b><small>Nairobi · KSh</small></div></div>
+              <a href="#screens">Home</a>
+              <div class="grp">Customers</div>
+              <a href="#screens">Waiting <span class="count">37</span></a>
+              <a href="#screens">Conversations <span class="count hot">5</span></a>
+              <div class="grp">Stock</div>
+              <a class="on" href="#screens">To order <span class="count">9</span></a>
+              <a href="#screens">Products</a>
+            </aside>
+            <div class="main">
+              <div class="bar"><div class="search">Search SKU, phone or customer <span class="kbd">Ctrl K</span></div><button class="btn btn-primary btn-sm" type="button">Log missed sale</button><div class="avatar">AW</div></div>
+              <div class="content">
+                <div class="page-head"><div><h4>To order</h4><div class="sub">9 items · 37 customers waiting · KSh 84,600</div></div><div class="row"><button class="btn btn-sm" type="button">Share list with supplier</button><button class="btn btn-primary btn-sm" type="button">Mark selected as ordered</button></div></div>
+                <div class="panel">
+                  <table class="idx">
+                    <thead><tr><th>Item</th><th>Waiting</th><th class="num">Qty</th><th class="num">Money waiting</th><th>Needed by</th><th>Status</th></tr></thead>
+                    <tbody>
+                      <tr><td><div class="item-name">Nike Air Zoom · 42 / Black</div><div class="sku">NIKE-AZ-42-BLK · 4 in stock, all held</div></td><td><div class="who"><span>JD</span><span>RJ</span><span>PK</span><span>+3</span></div></td><td class="num">2 more</td><td class="num">KSh 37,500</td><td>Fri 24 Oct</td><td><span class="badge b-stock">Back in stock</span></td></tr>
+                      <tr><td><div class="item-name">Adidas Ultraboost · 42 / Grey</div><div class="sku">ADI-UB-42-GRY · supplier: Kicks Wholesale</div></td><td><div class="who"><span>JS</span><span>MW</span></div></td><td class="num">2</td><td class="num">KSh 37,400</td><td style="color:var(--crit);font-weight:500">Tomorrow</td><td><span class="badge b-open">Open</span></td></tr>
+                      <tr><td><div class="item-name">Samsung Galaxy A15 · 128 GB / Black</div><div class="sku">SAM-A15-128-BLK · supplier: Mobicom</div></td><td><div class="who"><span>AO</span></div></td><td class="num">1</td><td class="num">KSh 21,999</td><td>Mon 27 Oct</td><td><span class="badge b-ordered">On order · Thu</span></td></tr>
+                      <tr><td><div class="item-name">JBL Flip 6 speaker · Teal</div><div class="sku">JBL-FLIP6-TEA · supplier: Sound Africa</div></td><td><div class="who"><span>MW</span></div></td><td class="num">1</td><td class="num">KSh 14,500</td><td>Not set</td><td><span class="badge b-open">Open</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONVERSATIONS -->
+      <div>
+        <div class="frame-cap"><h3 style="margin:0">Conversations</h3><span class="tagline">WhatsApp, SMS and email replies in one inbox, with the deal on the right<span class="sample">Sample data</span></span></div>
+        <div class="frame-scroll">
+          <div class="app" style="min-width:1260px">
+            <aside class="nav">
+              <div class="store"><div class="sq">KS</div><div><b>Kimathi Street Store</b><small>Nairobi · KSh</small></div></div>
+              <a href="#screens">Home</a>
+              <div class="grp">Customers</div>
+              <a href="#screens">Waiting <span class="count">37</span></a>
+              <a class="on" href="#screens">Conversations <span class="count hot">5</span></a>
+              <div class="grp">Stock</div>
+              <a href="#screens">To order <span class="count">9</span></a>
+              <a href="#screens">Products</a>
+            </aside>
+            <div class="inbox">
+              <div class="threads">
+                <div class="thread on"><div class="top"><b>Jane Smith</b><span>09:31</span></div><div class="prev">Can I pay a deposit on M-Pesa? I'll pick up Saturday</div><div class="row"><span class="badge b-talking">In conversation</span></div></div>
+                <div class="thread"><div class="top"><b>Robert Johnson</b><span>08:50</span></div><div class="prev">Is the 256 GB Galaxy also back?</div><div class="row"><span class="badge b-talking">In conversation</span></div></div>
+                <div class="thread"><div class="top"><b>Mary Williams</b><span>Yesterday</span></div><div class="prev">Deposit KSh 2,000 received · pickup Fri</div><div class="row"><span class="badge b-reserved">Reserved</span></div></div>
+                <div class="thread"><div class="top"><b>John Doe</b><span>Mon</span></div><div class="prev">Restock message delivered · reminder 2 of 3 on Fri</div><div class="row"><span class="badge b-notified">Notified</span></div></div>
+                <div class="thread"><div class="top"><b>Peter Kamau</b><span>Sun</span></div><div class="prev">"Already bought elsewhere, thanks"</div><div class="row"><span class="badge b-declined">Declined</span></div></div>
+              </div>
+              <div class="chat">
+                <div class="chat-h"><div><b style="font-size:15px">Jane Smith</b><div class="sku">WhatsApp · +254 722 345 678</div></div><span class="small muted">Free replies open for 23 h</span></div>
+                <div class="msgs">
+                  <span class="daymark">Today</span>
+                  <div class="bubble out"><span class="tpl">Restock alert · template</span>
+                    <div class="photo"><svg width="140" height="62" viewBox="0 0 120 56" role="img" aria-label="Grey running shoe"><path d="M8 42 C8 33 13 29 21 27 L39 21 C45 19 49 13 55 13 L62 13 C66 21 72 25 82 27 L100 31 C108 33 112 37 112 42 Z" fill="#8C908D"/><rect x="6" y="42" width="108" height="8" rx="4" fill="#F4F5F3" stroke="#5C605D" stroke-width="1.5"/><path d="M48 22 L58 30 M44 25 L54 32 M52 19 L62 27" stroke="#F4F5F3" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+                    <span>Hi Jane, the <b>Adidas Ultraboost in 42 / Grey</b> you asked about on 2 Oct is back at Kimathi Street Store. We're holding one pair for you until Tue 28 Oct. Reply YES to keep it, or STOP to opt out.</span><span class="ts">09:06 · read</span></div>
+                  <div class="bubble in"><span>Yes!! Can I pay a deposit on M-Pesa? I'll pick up Saturday</span><span class="ts">09:31</span></div>
+                </div>
+                <div class="composer">
+                  <div class="quick"><span>Send M-Pesa details</span><span>Confirm pickup Saturday</span><span>Offer another colour</span></div>
+                  <div class="input" style="color:var(--fg-3)">Write a reply…</div>
+                </div>
+              </div>
+              <div class="side">
+                <div class="sect"><span class="lbl">Request</span>
+                  <b>Adidas Ultraboost · 42 / Grey</b>
+                  <div class="stepper"><span class="done">Notified</span><span class="now">Talking</span><span>Reserved</span><span>Paid</span></div>
+                  <dl class="kv"><dt>Price</dt><dd>KSh 18,700</dd><dt>Held</dt><dd>1 pair until Tue 28 Oct</dd><dt>Logged</dt><dd>2 Oct by Amina, Till 2</dd><dt>Follow-ups</dt><dd>Paused, she replied</dd></dl>
+                  <button class="btn btn-sm" type="button">Change item</button>
+                </div>
+                <div class="sect"><span class="lbl">Record a deposit</span>
+                  <div class="field"><label class="label" for="cvAmt">Amount</label><div class="input-prefix"><span>KSh</span><input class="input" id="cvAmt" value="5,000"></div></div>
+                  <div class="row"><span class="tag" style="background:var(--accent-subtle);color:var(--accent-ink);border-color:transparent">M-Pesa</span><span class="tag">Cash</span><span class="tag">Card</span></div>
+                  <div class="field"><label class="label" for="cvRef">M-Pesa code</label><input class="input mono" id="cvRef" value="SJK4H7Q2LM"></div>
+                  <button class="btn btn-primary" type="button">Save deposit and reserve</button>
+                </div>
+                <div class="sect"><div class="row"><button class="btn btn-sm" type="button">Paid in full</button><button class="btn btn-sm btn-critical" type="button">Declined</button></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRODUCT -->
+      <div>
+        <div class="frame-cap"><h3 style="margin:0">Product detail</h3><span class="tagline">Stock and waiting customers for every size and colour<span class="sample">Sample data</span></span></div>
+        <div class="frame-scroll">
+          <div class="app">
+            <aside class="nav">
+              <div class="store"><div class="sq">KS</div><div><b>Kimathi Street Store</b><small>Nairobi · KSh</small></div></div>
+              <a href="#screens">Home</a>
+              <div class="grp">Customers</div>
+              <a href="#screens">Waiting <span class="count">37</span></a>
+              <a href="#screens">Conversations <span class="count hot">5</span></a>
+              <div class="grp">Stock</div>
+              <a href="#screens">To order <span class="count">9</span></a>
+              <a class="on" href="#screens">Products</a>
+            </aside>
+            <div class="main">
+              <div class="bar"><div class="search">Search SKU, phone or customer <span class="kbd">Ctrl K</span></div><button class="btn btn-primary btn-sm" type="button">Log missed sale</button><div class="avatar">AW</div></div>
+              <div class="content">
+                <div class="small muted">Products ›</div>
+                <div class="page-head"><div><h4>Nike Air Zoom</h4><div class="sub"><span class="tag">Shoes</span> &nbsp;Running · KSh 12,500 · SKUs NIKE-AZ-*</div></div><div class="row"><button class="btn btn-sm" type="button">Change price</button><button class="btn btn-primary btn-sm" type="button">Receive stock</button></div></div>
+                <div class="split">
+                  <div class="panel">
+                    <div class="card-h"><b>Sizes and colours</b><span class="small muted">In stock · waiting customers</span></div>
+                    <table class="idx og">
+                      <thead><tr><th>Colour</th><th>40</th><th>41</th><th>42</th><th>43</th><th>44</th></tr></thead>
+                      <tbody>
+                        <tr><td><b>Black</b></td><td>3</td><td>2</td><td><span class="zero">0</span><span class="wait">6 waiting</span></td><td><span class="zero">0</span><span class="wait">1 waiting</span></td><td>4</td></tr>
+                        <tr><td><b>White</b></td><td>1</td><td><span class="zero">0</span><span class="wait">2 waiting</span></td><td>5</td><td>2</td><td>5</td></tr>
+                        <tr><td><b>Grey</b></td><td>2</td><td>1</td><td>3</td><td><span class="zero">0</span></td><td>1</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="stack" style="gap:16px">
+                    <div class="panel">
+                      <div class="card-h"><b>Waiting for stock</b></div>
+                      <div class="queue-row"><div><div class="t">9 customers</div><div class="s">KSh 112,500 · oldest needs it Fri 24 Oct</div></div><button class="btn btn-plain btn-sm" type="button">View</button></div>
+                    </div>
+                    <div class="panel">
+                      <div class="card-h"><b>Waiting for a lower price</b></div>
+                      <div class="queue-row"><div><div class="t">3 customers</div><div class="s">Any price below KSh 12,500 messages them</div></div><button class="btn btn-plain btn-sm" type="button">View</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FLOOR -->
+      <div>
+        <div class="frame-cap"><h3 style="margin:0">Floor mode</h3><span class="tagline">Tablet at the till: outcome, item, customer, done<span class="sample">Sample data</span></span></div>
+        <div class="frame-scroll">
+          <div class="floor">
+            <div class="floor-bar"><b>How did this visit end?</b><div class="seg"><span>Bought</span><span class="on">Didn't buy</span></div><div class="row"><span class="small muted">Till 2 · Amina W.</span><button class="btn" type="button">Exit</button></div></div>
+            <div class="floor-grid">
+              <div class="fl-card">
+                <span class="fl-step">1 · What they wanted</span>
+                <div class="input" style="font-size:16px;padding:11px">Nike Air Zoom <span class="tag" style="margin-left:6px">Shoes</span> <span class="sku" style="margin-left:6px">scanned</span></div>
+                <span class="label" style="font-size:15px">Colour</span>
+                <div class="chips">
+                  <button class="chipbtn on" type="button">Black</button>
+                  <button class="chipbtn" type="button">White</button>
+                  <button class="chipbtn" type="button">Grey</button>
+                </div>
+                <span class="label" style="font-size:15px">Size</span>
+                <div class="chips">
+                  <button class="chipbtn" type="button">40<small>3</small></button>
+                  <button class="chipbtn" type="button">41<small>2</small></button>
+                  <button class="chipbtn oos on" type="button">42<small>0</small></button>
+                  <button class="chipbtn oos" type="button">43<small>0</small></button>
+                  <button class="chipbtn" type="button">44<small>4</small></button>
+                </div>
+                <span class="label" style="font-size:15px">Why not</span>
+                <div class="chips" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                  <button class="chipbtn reason on" type="button">Size missing<small>42 in Black has 0 left</small></button>
+                  <button class="chipbtn reason" type="button">Colour missing<small>&nbsp;</small></button>
+                  <button class="chipbtn reason" type="button">Out of stock<small>all sizes</small></button>
+                  <button class="chipbtn reason" type="button">Price too high<small>message on price drop</small></button>
+                  <button class="chipbtn reason" type="button">Over budget<small>message on price drop</small></button>
+                  <button class="chipbtn reason" type="button">Something else<small>add a note</small></button>
+                </div>
+              </div>
+              <div class="fl-card">
+                <span class="fl-step">2 · Customer</span>
+                <div class="phone"><span>+254 </span>712 345 67<span>_</span></div>
+                <div class="keypad">
+                  <button class="key" type="button">1</button><button class="key" type="button">2</button><button class="key" type="button">3</button>
+                  <button class="key" type="button">4</button><button class="key" type="button">5</button><button class="key" type="button">6</button>
+                  <button class="key" type="button">7</button><button class="key" type="button">8</button><button class="key" type="button">9</button>
+                  <button class="key" type="button" aria-label="Clear">C</button><button class="key" type="button">0</button><button class="key" type="button" aria-label="Delete">⌫</button>
+                </div>
+                <div class="field"><label class="label" for="flEmail">Email</label><input class="input" id="flEmail" value="john.doe@example.com"></div>
+                <div class="field"><label class="label" for="flName">Name <span class="help">(optional)</span></label><input class="input" id="flName" value="John"></div>
+              </div>
+              <div class="fl-card">
+                <span class="fl-step">3 · When and confirm</span>
+                <span class="label" style="font-size:15px">They need it within</span>
+                <div class="chips"><button class="chipbtn" type="button">2 days</button><button class="chipbtn on" type="button">3–4 days</button><button class="chipbtn" type="button">A week</button><button class="chipbtn" type="button">No rush</button></div>
+                <div class="consent"><span class="tick" aria-hidden="true">✓</span><span>Customer agreed to a WhatsApp when it's back. They can reply STOP any time.</span></div>
+                <div class="small" style="display:grid;gap:2px"><b>Nike Air Zoom · 42 / Black</b><span class="muted">Size missing · KSh 12,500 · 6 others waiting</span></div>
+                <button class="btn btn-primary btn-lg" type="button">Save</button>
+                <button class="btn" type="button">Save, same customer, another item</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESPONSIVE -->
+  <section class="sec" id="sizes">
+    <div class="sec-head">
+      <div class="eyebrow">09 · Every screen size</div>
+      <h2>One web app for the phone, the tablet and the shop computer</h2>
+      <p>The people using Retail OS are local shop owners and their staff. Most will open it on an Android phone; some on a tablet at the till or a laptop or desktop in the shop. So it's a web app only, with no app store. Every screen is designed phone-first and then expands to larger screens.</p>
+    </div>
+
+    <div class="tscroll">
+      <table class="doc">
+        <thead><tr><th>Screen</th><th>Width</th><th>Navigation</th><th>How pages adapt</th></tr></thead>
+        <tbody>
+          <tr><td><b>Phone</b></td><td class="nowrap">360–599px</td><td>Bottom tab bar: Home, Waiting, Chats, Stock, More. Settings sits under More</td><td>One column. Tables become cards. Floor mode shows one step per screen. Conversations go list → chat → deal sheet</td></tr>
+          <tr><td><b>Tablet</b></td><td class="nowrap">600–1023px</td><td>Slim sidebar with icons and labels</td><td>Two columns. Floor mode shows all three steps side by side in landscape, two in portrait</td></tr>
+          <tr><td><b>Laptop and desktop</b></td><td class="nowrap">1024px and up</td><td>Full sidebar</td><td>Full tables, three-pane inbox, the layouts in section 8</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="phones" style="margin-top:20px">
+      <!-- Phone: Home -->
+      <figure class="ph">
+        <div class="ph-frame">
+          <div class="ph-top"><div><b>Kimathi Street Store</b><div class="sku">Wed 22 Oct</div></div><div class="avatar">AW</div></div>
+          <div class="ph-body">
+            <div class="ph-kpis">
+              <div class="kpi"><span class="k-label">Waiting</span><span class="k-value">KSh 84.6k</span><span class="k-foot">37 customers</span></div>
+              <div class="kpi"><span class="k-label">Recovered</span><span class="k-value">KSh 21.4k</span><span class="k-foot"><span class="delta-up">+18%</span></span></div>
+            </div>
+            <div class="ph-h">Needs you now</div>
+            <div class="ph-card"><span class="badge b-talking">In conversation</span><b>Jane wants to pay a deposit</b><span class="s">Adidas Ultraboost 42 / Grey · 21 min</span></div>
+            <div class="ph-card"><span class="badge b-stock">Back in stock</span><b>4 units in, 6 people waiting</b><span class="s">Nike Air Zoom 42 / Black</span><button class="btn btn-primary btn-sm" type="button">Send 4 messages</button></div>
+            <div class="ph-card"><span class="badge b-open">Open</span><b>3 promises due tomorrow</b></div>
+          </div>
+          <div class="ph-tabs"><span class="on">Home</span><span>Waiting</span><span class="plus" aria-label="Log missed sale">+</span><span>Chats<i>5</i></span><span>More</span></div>
+        </div>
+        <figcaption>Home on a phone: the work queue as cards, and a big + to log a missed sale</figcaption>
+      </figure>
+
+      <!-- Phone: Floor step 1 -->
+      <figure class="ph">
+        <div class="ph-frame">
+          <div class="ph-top"><div><b>Log missed sale</b><div class="sku">Step 1 of 3 · Item</div></div><span class="small muted">Cancel</span></div>
+          <div class="ph-steps"><span class="on"></span><span></span><span></span></div>
+          <div class="ph-body">
+            <div class="input">Nike Air Zoom <span class="tag">Shoes</span></div>
+            <span class="label">Colour</span>
+            <div class="chips"><button class="chipbtn on" type="button">Black</button><button class="chipbtn" type="button">White</button><button class="chipbtn" type="button">Grey</button></div>
+            <span class="label">Size</span>
+            <div class="chips"><button class="chipbtn" type="button">40<small>3</small></button><button class="chipbtn" type="button">41<small>2</small></button><button class="chipbtn oos on" type="button">42<small>0</small></button><button class="chipbtn oos" type="button">43<small>0</small></button><button class="chipbtn" type="button">44<small>4</small></button></div>
+            <span class="label">Why not</span>
+            <div class="chips"><button class="chipbtn on" type="button">Size missing</button><button class="chipbtn" type="button">Colour missing</button><button class="chipbtn" type="button">Price too high</button><button class="chipbtn" type="button">Other</button></div>
+          </div>
+          <div class="ph-cta"><button class="btn btn-primary btn-lg" type="button">Next: customer</button></div>
+        </div>
+        <figcaption>Floor mode on a phone: one step per screen, the button always in thumb reach</figcaption>
+      </figure>
+
+      <!-- Phone: Conversation -->
+      <figure class="ph">
+        <div class="ph-frame">
+          <div class="ph-top"><div><b>‹ Jane Smith</b><div class="sku">WhatsApp</div></div><span class="badge b-talking">Talking</span></div>
+          <div class="ph-deal"><div><b>Adidas Ultraboost · 42 / Grey</b><div class="sku">KSh 18,700 · held until Tue</div></div><button class="btn btn-primary btn-sm" type="button">Deposit</button></div>
+          <div class="ph-body ph-chat">
+            <div class="bubble out"><span class="tpl">Restock alert</span><div class="photo"><svg width="110" height="50" viewBox="0 0 120 56" role="img" aria-label="Grey running shoe"><path d="M8 42 C8 33 13 29 21 27 L39 21 C45 19 49 13 55 13 L62 13 C66 21 72 25 82 27 L100 31 C108 33 112 37 112 42 Z" fill="#8C908D"/><rect x="6" y="42" width="108" height="8" rx="4" fill="#F4F5F3" stroke="#5C605D" stroke-width="1.5"/></svg></div><span>Hi Jane, the Adidas Ultraboost in 42 / Grey is back. We're holding one pair until Tue.</span><span class="ts">09:06 · read</span></div>
+            <div class="bubble in"><span>Yes!! Can I pay a deposit on M-Pesa?</span><span class="ts">09:31</span></div>
+          </div>
+          <div class="ph-cta"><div class="quick"><span>Send M-Pesa details</span><span>Confirm pickup</span></div><div class="input" style="color:var(--fg-3)">Write a reply…</div></div>
+        </div>
+        <figcaption>Conversation on a phone: the deal stays pinned on top, deposit one tap away</figcaption>
+      </figure>
+    </div>
+
+    <div class="grid-2" style="margin-top:20px">
+      <div class="panel panel-pad stack" style="gap:8px">
+        <h3>Built for local phones and data</h3>
+        <ul class="clean small">
+          <li>Works from 360px wide, the size of common budget Android phones, with no sideways scrolling.</li>
+          <li>Tap targets at least 44px, and 50px+ in floor mode.</li>
+          <li>Pages stay light (under about 200 KB before product photos), so they load on slow mobile data. Product photos are resized thumbnails.</li>
+          <li>Inputs open the right keyboard: number pad for phone and price, email keyboard for email.</li>
+        </ul>
+      </div>
+      <div class="panel panel-pad stack" style="gap:8px">
+        <h3>Feels like an app without an app store</h3>
+        <ul class="clean small">
+          <li>"Add to home screen" gives the shop's icon on the phone and opens full-screen, like an app.</li>
+          <li>Stays signed in on the shop's own devices.</li>
+          <li>Later option: save a missed sale without signal and send it when the connection returns.</li>
+          <li>Every phase is checked at 360, 768 and 1280px before sign-off.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- MESSAGING -->
+  <section class="sec" id="messaging">
+    <div class="sec-head">
+      <div class="eyebrow">10 · Messaging, free first</div>
+      <h2>Build and test the whole loop for free</h2>
+      <p>WhatsApp is the main channel because it can carry a photo of the exact item. Every channel sits behind one gateway, so moving from free test setups to paid production accounts is a settings change, not a rewrite.</p>
+    </div>
+    <div class="tscroll">
+      <table class="doc">
+        <thead><tr><th>Channel</th><th>Local development ($0)</th><th>Real-phone testing (free)</th><th>Production (paid, later)</th></tr></thead>
+        <tbody>
+          <tr><td><b>WhatsApp</b> with photo</td><td>Built-in customer simulator</td><td>Meta WhatsApp Cloud API test number (free, a short list of verified phones). Fallback: Twilio sandbox (join code, expires after 3 days)</td><td>Meta Cloud API on the shop's own number, approved templates</td></tr>
+          <tr><td><b>SMS</b></td><td>Built-in customer simulator</td><td>Africa's Talking sandbox (free; messages appear in their web simulator)</td><td>Africa's Talking live for Kenya, Twilio SMS elsewhere</td></tr>
+          <tr><td><b>Email</b></td><td>Mailpit (free local inbox)</td><td>Brevo free plan (about 300 a day) or Resend (100 a day)</td><td>Same provider, paid tier</td></tr>
+          <tr><td><b>Deposits</b></td><td>Recorded by hand</td><td>M-Pesa Daraja sandbox (free)</td><td>Daraja live: payments confirmed automatically</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="grid-2" style="margin-top:16px">
+      <div class="panel panel-pad stack" style="gap:8px">
+        <h3>The customer simulator</h3>
+        <p class="small muted">A developer-only page where you play the customer: see the WhatsApp they'd get, photo included, and reply "yes", "do you have brown?" or "STOP". Replies go through the same path as a real webhook, so the whole workflow is testable with no account, phone or cost.</p>
+      </div>
+      <div class="panel panel-pad stack" style="gap:8px">
+        <h3>Rules the gateway enforces</h3>
+        <ul class="clean small">
+          <li>One send path; nothing else talks to a provider.</li>
+          <li>Consent, valid E.164 number and duplicate checks before every send.</li>
+          <li>First WhatsApp uses an approved template; replies within 24 hours can be free text.</li>
+          <li>If WhatsApp fails, offer SMS, then email. STOP works on every channel.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="small muted" style="margin-top:12px">Free-tier limits change often; each will be confirmed on the provider's pricing page during Phase 1.</p>
+  </section>
+
+  <!-- SKILLS -->
+  <section class="sec" id="skills">
+    <div class="sec-head">
+      <div class="eyebrow">11 · Design skills</div>
+      <h2>One design authority, no contradictions</h2>
+      <p>The <b>impeccable</b> suite leads, reading <code>PRODUCT.md</code> and <code>DESIGN.md</code> written from this spec. When rules collide: your words, then this spec, then impeccable, then anything else.</p>
+    </div>
+    <div class="grid-2">
+      <div class="panel panel-pad stack" style="gap:8px">
+        <h3>Use</h3>
+        <ul class="clean small">
+          <li><b>impeccable</b>, <b>shape</b>: design brief before each screen</li>
+          <li><b>critique</b>, <b>audit</b>: review after building</li>
+          <li><b>polish</b>, <b>typeset</b>, <b>layout</b>, <b>clarify</b>, <b>adapt</b>, <b>harden</b>: finishing passes</li>
+          <li><b>animate</b>: in-app motion. <b>delight</b>, <b>overdrive</b>: only for the landing page and marketing site in the final phase</li>
+          <li><b>emil-design-eng</b> (principles only), <b>dataviz</b> for charts</li>
+          <li><b>code-review</b>, <b>simplify</b>, <b>security-review</b>, <b>run</b> for engineering</li>
+        </ul>
+      </div>
+      <div class="panel panel-pad stack" style="gap:8px">
+        <h3>Don't use here</h3>
+        <ul class="clean small">
+          <li><b>cosmic-glass-dashboard</b>: the neon glass look we're removing</li>
+          <li><b>design-taste-frontend</b>, <b>gpt-taste</b>, <b>high-end-visual-design</b>, <b>stitch-design-taste</b>, <b>redesign-existing-projects</b>: own font bans, React/GSAP, "never repeat a layout"</li>
+          <li><b>minimalist-ui</b>, <b>industrial-brutalist-ui</b>, <b>ui-ux-pro-max</b>: different styles or their own design system</li>
+          <li><b>colorize</b>, <b>bolder</b>: palette is decided</li>
+          <li><b>image-to-code</b>, <b>imagegen-*</b>, <b>brandkit</b>, <b>website</b>: revisit in Phase 4</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAN -->
+  <section class="sec" id="plan">
+    <div class="sec-head">
+      <div class="eyebrow">12 · Plan</div>
+      <h2>Build order</h2>
+      <p>Each phase: short design note, build on a branch, tests, your sign-off, merge.</p>
+    </div>
+    <div class="panel">
+      <div class="phase now"><div class="pn">Phase 0<b>Clean repo</b></div><div><p>Stop tracking <code>venv/</code>, <code>__pycache__</code>, <code>.env</code> and the database. Rotate the Twilio token and secret key. Pin requirements, add <code>.env.example</code>, a true README, CI, and the project <code>CLAUDE.md</code>, <code>PRODUCT.md</code> and <code>DESIGN.md</code>.</p><p class="done-when"><b>Done when</b> a fresh clone installs and passes tests.</p></div></div>
+      <div class="phase"><div class="pn">Phase 1<b>Workflow engine</b></div><div><p>New lifecycle and data migration. Stock receiving with holds and partial restock. Messaging gateway with the simulator, Mailpit, the WhatsApp Cloud test number and the Africa's Talking sandbox. Follow-ups, inbound replies, hand-recorded deposits, roles. Duplicate services removed.</p><p class="done-when"><b>Done when</b> the eight steps in section 1 run end to end in the simulator, with tests for every stage.</p></div></div>
+      <div class="phase"><div class="pn">Phase 2<b>Look and shell</b></div><div><p>Tokens, Plex fonts, components, sidebar, a plain sign-in page, and Settings: account, shop details, look, home layout per role, reasons, follow-ups and holds, messaging channels, team and roles.</p><p class="done-when"><b>Done when</b> the shell works at 360, 768 and 1280px in both themes, and the old neon CSS is deleted.</p></div></div>
+      <div class="phase"><div class="pn">Phase 3<b>Screens</b></div><div><p>Home with widgets, Waiting, To order, Conversations, Products with photos, Customers, Reports, Floor mode.</p></div></div>
+      <div class="phase"><div class="pn">Phase 4<b>Paid channels</b></div><div><p>Production WhatsApp, live SMS, M-Pesa confirmation.</p></div></div>
+      <div class="phase"><div class="pn">Phase 5–6<b>Plug-in, then AI</b></div><div><p>API keys, inventory webhooks, embeddable capture widget. Then MCP server, forecasting, reply-drafting assistant.</p></div></div>
+      <div class="phase"><div class="pn">Last<b>Front door</b></div><div><p>Landing page, marketing site and a fully designed sign-in, with their own design round. This starts only after the dashboard and the whole pipeline are finished.</p></div></div>
+    </div>
+    <p class="small muted" style="margin-top:12px">Research with REA (github.com/morluto/rea) runs before Phase 2: Reatech360 for features only, plus Loyverse, Shopify POS and Polaris docs, Shopify Inbox, Odoo Community, Square, Toast and Zoho Inventory public pages. Patterns only, never their branding or code.</p>
+  </section>
+
+  <!-- DECISIONS -->
+  <section class="sec" id="decisions">
+    <div class="sec-head">
+      <div class="eyebrow">13 · Decisions</div>
+      <h2>What's settled and what's still open</h2>
+    </div>
+    <div class="panel">
+      <div class="decision done"><span class="q">Look and feel</span><span class="rec">Petrol, green-grey neutrals, IBM Plex, 6–8px corners, no shadows on cards. Clay only for "customer waiting".</span></div>
+      <div class="decision done"><span class="q">Status model</span><span class="rec">Open, On order, Back in stock, Notified, In conversation, Reserved, Recovered; exits Declined and Expired.</span></div>
+      <div class="decision done"><span class="q">Messaging</span><span class="rec">WhatsApp first with photo, free test setups before paid ones.</span></div>
+      <div class="decision done"><span class="q">Declined</span><span class="rec">Closed, never counted as recovered.</span></div>
+      <div class="decision done"><span class="q">Skills</span><span class="rec">The impeccable suite leads, using the lists in section 11.</span></div>
+      <div class="decision done"><span class="q">Launch scope</span><span class="rec">Fashion: shoes, clothing, bags, accessories, other. No requests for unstocked items yet. One item per record, grouped by customer.</span></div>
+      <div class="decision done"><span class="q">Capture fields</span><span class="rec">Product (its type comes with it), the exact size and colour, reason, phone, email. Name is optional; quantity defaults to 1.</span></div>
+      <div class="decision done"><span class="q">Price reasons</span><span class="rec">Notified only when the price drops.</span></div>
+      <div class="decision done"><span class="q">Platform</span><span class="rec">Web app only, for local shop owners, designed phone-first and working on every screen size. No native mobile app.</span></div>
+      <div class="decision done"><span class="q">Roles</span><span class="rec">Owner, Manager, Cashier; one person can hold all three. Cashiers can quick-add products, marked "Needs review".</span></div>
+      <div class="decision"><span class="q">1. Rotate the Twilio token (you, today)</span><span class="rec">The repo is public and <code>.env</code> is in its history.</span></div>
+      <div class="decision"><span class="q">2. Force-push to clean history</span><span class="rec"><b>Needed:</b> your explicit go-ahead to rewrite history and force-push <code>main</code>, removing <code>.env</code> and <code>venv/</code>.</span></div>
+      <div class="decision"><span class="q">3. Approve this spec</span><span class="rec">Say "spec approved" and Phase 0 starts.</span></div>
+    </div>
+  </section>
+
+  <footer class="end">Retail OS design spec · draft 3 · 22 Oct 2026</footer>
+</main>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('themeBtn');
+  var order = ['system', 'light', 'dark'];
+  var current = 'system';
+  try { current = localStorage.getItem('spec-theme') || 'system'; } catch (e) {}
+  try { localStorage.removeItem('spec-palette'); } catch (e) {}
+  function apply(mode) {
+    if (mode === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', mode);
+    btn.textContent = 'Theme: ' + mode;
+  }
+  apply(current);
+  btn.addEventListener('click', function () {
+    current = order[(order.indexOf(current) + 1) % order.length];
+    apply(current);
+    try { localStorage.setItem('spec-theme', current); } catch (e) {}
+  });
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var count = document.getElementById('demoCount');
+  function countUp() {
+    if (reduce) { count.textContent = 'KSh 21,400'; return; }
+    var target = 21400, start = null, dur = 900;
+    function step(t) {
+      if (!start) start = t;
+      var p = Math.min(1, (t - start) / dur);
+      var v = Math.round(target * (1 - Math.pow(1 - p, 3)) / 100) * 100;
+      count.textContent = 'KSh ' + v.toLocaleString('en-KE');
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  var badge = document.getElementById('demoBadge');
+  var slot = document.getElementById('toastSlot');
+  document.getElementById('replayBtn').addEventListener('click', function () {
+    var t = slot.firstElementChild;
+    t.classList.remove('enter'); void t.offsetWidth; t.classList.add('enter');
+    badge.className = 'badge b-talking'; badge.textContent = 'In conversation';
+    setTimeout(function () { badge.className = 'badge b-reserved'; badge.textContent = 'Reserved'; }, 700);
+    setTimeout(function () { badge.className = 'badge b-recovered'; badge.textContent = 'Recovered'; }, 1500);
+    count.textContent = 'KSh 0';
+    countUp();
+  });
+})();
+</script>
