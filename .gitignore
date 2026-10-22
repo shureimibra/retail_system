@@ -1,9 +1,22 @@
+# Secrets and local config
 .env
+.env.*
+!.env.example
+
+# Python
 venv/
-__pycache__
-*.pyc
-.vscode
-.idea
+.venv/
+__pycache__/
+*.py[cod]
+
+# Local data and build output
 db.sqlite3
+db.sqlite3-journal
 staticfiles/
 media/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

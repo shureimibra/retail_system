@@ -44,6 +44,11 @@ def twilio_webhook(request):
         customer=customer
     )
 
+    # Compliance: If customer replies STOP, set marketing_opt_in to False
+    if body and body.strip().upper() == 'STOP' and customer:
+        customer.marketing_opt_in = False
+        customer.save(update_fields=['marketing_opt_in'])
+
     # Reply with TwiML Response
     resp = MessagingResponse()
     resp.message("Thank you for contacting Retail RMS. Your response has been logged.")

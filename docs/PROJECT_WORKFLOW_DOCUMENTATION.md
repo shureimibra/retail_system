@@ -2,25 +2,28 @@
 
 ## Retail Purchase Constraint Management System (RPCMS)
 
-Welcome to the technical documentation of the **Retail Purchase Constraint Management System (RPCMS)**. This document serves as a comprehensive reference guide for system reviews, explaining the design patterns, codebase structure, data models, business logic workflows, event handling, and configuration specifications.
+> [!IMPORTANT]
+> **Claude AI Handover Note**: A complete, comprehensive system audit, technical debt resolution plan, enterprise UI redesign specification, and upgrade roadmap to a next-generation Retail OS is available in [CLAUDE_AI_SYSTEM_HANDOVER.md](file:///c:/Users/Administrator/.gemini/antigravity-ide/scratch/retail_system/docs/CLAUDE_AI_SYSTEM_HANDOVER.md).
+
 
 ---
 
 ## 1. System Overview
 
-RPCMS is a retail decision-support and sales recovery platform. When customers visit a retail store (or digital storefront) and are unable to complete a purchase due to a specific bottleneck (e.g., product out-of-stock, size/color unavailable, price mismatch, or authenticity concern), this system captures the event as a **Blocked Purchase Intent**. 
+RPCMS is a retail decision-support and sales recovery platform. When customers visit a retail store (or digital storefront) and are unable to complete a purchase due to a specific bottleneck (e.g., product out-of-stock, size/color unavailable, price mismatch, or budget mismatch), this system captures the event as a **Blocked Purchase Intent**.
 
-Once the constraint is resolved (for example, the product variation is restocked), the system automatically triggers recovery workflows:
-1. It updates the status of matching intents to **Resolved**.
-2. It generates and sends a notification (SMS or WhatsApp) informing the customer.
-3. It updates the intent's status to **Customer Notified**.
-4. It aggregates these events to calculate lost vs. recovered revenue and provides automatic restock recommendations based on accumulated demand.
+To prevent application lockups and "signal storm" race conditions under production loads, RPCMS leverages an asynchronous message broker model. Once a constraint is resolved (for example, when a product variation is restocked), the system automatically schedules recovery workflows using **Celery and Redis**:
+1. It updates the status of matching, non-expired intents to **Resolved**.
+2. It offloads customer alerts to Celery background workers.
+3. The background worker checks privacy compliance, formats the notification template (including opt-out instructions), and sends the alert.
+4. It updates the intent's status to **Customer Notified** once the broker confirms dispatch.
+5. It aggregates these events to calculate lost vs. recovered revenue and provides automatic restock recommendations.
 
 ---
 
 ## 2. Architectural Design Patterns
 
-The project is built on Django 5.2 (Python) and follows a **decoupled Modular Monolith** architecture with clean separation of concerns:
+The project is built on Django 5.2 (Python) and follows a **decoupled Modular Monolith** architecture with clean separation of concerns, utilizing an asynchronous task broker:
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -33,13 +36,18 @@ The project is built on Django 5.2 (Python) and follows a **decoupled Modular Mo
 │                     Business Logic                     │
 │      (Service Layer: Mutations/State-Changing)         │
 │      (Selector Layer: Reads/Aggregations/Queries)      │
-└───────────────────────────┬────────────────────────────┘
-                            │ (Reads/Writes database)
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│                        Data Layer                      │
-│       (Django Models / SQLite or PostgreSQL DB)        │
-└────────────────────────────────────────────────────────┘
+└─────────────┬─────────────────────────────┬────────────┘
+              │ (Reads/Writes database)     │ (Dispatches tasks)
+              ▼                             ▼
+┌───────────────────────────┐ ┌──────────────────────────┐
+│        Data Layer         │ │    Message Broker (Redis)│
+│  (Django Models / DB)     │ └─────────────┬────────────┘
+└───────────────────────────┘               │ (Pulls tasks)
+                                            ▼
+                              ┌──────────────────────────┐
+                              │  Celery Background Worker│
+                              │  (Asynchronous Actions)  │
+                              └──────────────────────────┘
 ```
 
 ### 2.1 The Service Layer Pattern
@@ -48,22 +56,24 @@ Mutations, API integration calls, SMS dispatching, and state-changing actions ar
 ### 2.2 The Selector Pattern
 Data retrieval, complex SQL/ORM queries, filtering, and metric aggregations are isolated into selector functions (e.g., `selectors.py` modules). Views and APIs delegate data fetching to these selectors instead of performing raw ORM filtering.
 
-### 2.3 Event-Driven Programming via Django Signals
-The coupling between stock updates (inventory) and customer communications (notifications) is achieved asynchronously through Django Signals. When a product variation's stock is saved, signals are fired, decoupling the inventory module from the notification engine.
+### 2.3 Asynchronous Task Queue (Celery + Redis)
+To avoid blocking the HTTP request-response cycle and eliminate synchronous database locks during bulk inventory updates, the system utilizes Celery with a Redis message broker. Any process that triggers notifications or external API communications dispatches a background task to the queue, ensuring the main application remains responsive.
 
 ---
 
 ## 3. Directory Layout & Code Map
 
-The project is divided into distinct Django applications (local apps) alongside central utility modules. Here is the structure of the workspace:
+The project is divided into distinct Django applications (local apps) alongside central utility modules. Note that Flask utilities have been collapsed, and the Twilio incoming SMS webhook is integrated natively within Django:
 
 ```
 retail_system/
 │
-├── core/                         # Project settings, routing, and WSGI/ASGI servers
-│   ├── settings.py               # Core configurations (Apps, Middleware, DB, Twilio)
+├── core/                         # Project settings, routing, Celery configuration
+│   ├── settings.py               # Core configurations (Apps, Middleware, DB, Celery, Twilio)
 │   ├── urls.py                   # Central routing map (HTML views and DRF REST routes)
-│   └── api_views.py              # Health checks
+│   ├── api_views.py              # Health checks
+│   ├── celery.py                 # [NEW] Celery app definition and broker setup
+│   └── __init__.py               # Imports celery_app on startup
 │
 ├── accounts/                     # User management & Authentication
 │   ├── models.py                 # Custom AbstractUser model (phone number, staff members)
@@ -71,24 +81,23 @@ retail_system/
 │
 ├── products/                     # Product catalog and variation management
 │   ├── models.py                 # Category, Product, ProductVariation models
-│   ├── signals.py                # Hook listeners on stock and variation changes
-│   ├── services.py               # Mutations: Category, Product, and Stock updates
+│   ├── services.py               # Mutations: Category, Product, and explicit Stock updates
 │   └── selectors.py              # Query utilities for products
 │
 ├── customers/                    # Customer directory and customer profiles
-│   ├── models.py                 # Customer (First Name, Last Name, Phone, Email)
+│   ├── models.py                 # Customer (First Name, Last Name, Phone, Email, Opt-in status)
 │   └── services.py               # Mutations: Create and retrieve customers
 │
 ├── intents/                      # Core business model: Blocked Purchase Intents
-│   ├── models.py                 # BlockedPurchaseIntent model & choices
-│   ├── signals.py                # Automates stock monitoring and notification triggers
+│   ├── models.py                 # BlockedPurchaseIntent model (choices, expiry date)
 │   ├── services.py               # Mutations: Intent creation and status updates
-│   └── selectors.py              # Query utilities for intents
+│   └── selectors.py              # Query utilities for intents (excludes expired entries)
 │
-├── notifications/                # Outbound SMS/WhatsApp dispatch logs & webhook replies
+├── notifications/                # Webhook integration, notification tasks & auditing logs
 │   ├── models.py                 # NotificationLog and InboundSMSLog models
-│   ├── services.py               # SMSService (Twilio Integration / Simulation fallbacks)
-│   └── signals.py                # Updates intent state to 'Customer Notified' on SMS dispatch
+│   ├── services.py               # SMSService (Twilio WhatsApp API wrapper)
+│   ├── tasks.py                  # [NEW] Celery asynchronous tasks (send_restock_alerts)
+│   └── api_views.py              # Webhook view for handling inbound Twilio webhooks
 │
 ├── analytics/                    # Data aggregation engine and KPI tracking
 │   ├── selectors.py              # KPI calculation, constraint distribution, monthly trends
@@ -100,19 +109,18 @@ retail_system/
 │
 ├── dashboard/                    # Core Web UI dashboard views and landing page
 │   ├── views.py                  # Home view (loads selectors and packages data for templates)
-│   └── templates/                # HTML layout & Chart.js scripts
+│   └── templates/                # HTML layout, Chart.js scripts, & Cashier Quick Widget
 │
-├── services/                     # Central Business Logic Central Services Directory
-│   ├── customer_service.py       # Customer creation and verification logic
-│   ├── intent_service.py         # Handles Blocked Intents, creations, and stock resolutions
-│   ├── inventory_service.py      # Stock quantity updates and validation triggers
+├── services/                     # Central Business Logic Services Directory
+│   ├── customer_service.py       # Customer creation, verification, and opt-in logic
+│   ├── intent_service.py         # Handles Blocked Intents, creations, and background resolutions
+│   ├── inventory_service.py      # Stock updates, validation, and Celery task dispatches
 │   └── notification_service.py   # Africa's Talking API simulation and logging
 │
 ├── templates/                    # Global base HTML layouts & styling configurations
 ├── static/                       # Custom JS scripts and CSS stylesheets (Tailwind)
 ├── manage.py                     # Django management CLI wrapper
 ├── populate_data.py              # Seed script populated with categories, products, and intents
-├── reply_sms.py                  # Inbound Webhook: TwiML response listener using Flask
 ├── send_sms.py                   # Ad-hoc command-line SMS sending tool via Twilio
 └── requirements.txt              # Project dependencies
 ```
@@ -148,35 +156,39 @@ Specifies exact physical SKUs based on physical attributes.
 * `sku` (`CharField(max_length=100)`, unique): Stock Keeping Unit string.
 
 ### 4.5 `customers.Customer`
-Customer directory record.
+Customer directory record containing compliance flags.
 * `first_name` (`CharField(max_length=100)`)
 * `last_name` (`CharField(max_length=100)`)
 * `phone_number` (`CharField(max_length=20)`, unique): Required for notification dispatching (must follow E.164 format: `+CountryCode...`).
 * `email` (`EmailField`, nullable)
+* `marketing_opt_in` (`BooleanField`, default `True`): Tracks whether the customer consents to receiving marketing and transactional messages.
 
 ### 4.6 `intents.BlockedPurchaseIntent`
-Stores details about the blocked sales transaction.
+Stores details about the blocked sales transaction, incorporating a lifecycle expiry field.
 * `customer` (`ForeignKey` to `Customer`, on delete CASCADE)
 * `product` (`ForeignKey` to `Product`, on delete CASCADE)
 * `variation` (`ForeignKey` to `ProductVariation`, on delete SET_NULL, nullable): Specific variant desired (blank if a general product issue).
-* `constraint_type` (`CharField`): Choices are:
-  - `Size unavailable`
-  - `Color unavailable`
-  - `Out of stock`
-  - `Price too high`
-  - `Authenticity concern`
-  - `Budget mismatch`
+* `constraint_type` (`CharField`):
+  - Actionable constraint choices:
+    - `Size unavailable`
+    - `Color unavailable`
+    - `Out of stock`
+    - `Price too high` (highly actionable for markdown/promotion targeting)
+    - `Budget mismatch` (highly actionable for discount/financing conversions)
+  - *Note: Unactionable constraints (e.g. "Authenticity concern") are excluded from the choice list.*
 * `status` (`CharField`, default `Pending`): Choices are:
   - `Pending`: Capturing initial constraint.
   - `Monitoring`: Logged and watching inventory levels.
-  - `Customer Notified`: Alert sent to customer.
-  - `Resolved`: Constraint solved, waiting/processing notification.
+  - `Resolved`: Constraint solved, notification scheduled.
+  - `Customer Notified`: Alert successfully sent to customer.
   - `Recovered`: Customer completed purchase.
   - `Closed`: Customer lost or intent archived.
 * `requested_quantity` (`PositiveIntegerField`, default `1`)
 * `estimated_value` (`DecimalField`, nullable): Revenue value of transaction. If blank, auto-calculated as `base_price * requested_quantity`.
 * `notes` (`TextField`, blank): Qualitative details captured by staff.
 * `recorded_by` (`ForeignKey` to `User`, on delete SET_NULL, nullable): Agent who logged the intent.
+* `created_at` / `updated_at` (`DateTimeField`): Auditing timestamps.
+* `expires_at` (`DateTimeField`): Automatic intent expiry timestamp (defaults to `created_at + 30 days`). Expired intents are excluded from restock check loops.
 
 ### 4.7 `notifications.NotificationLog`
 Maintains auditing records of outbound alert dispatches.
@@ -186,7 +198,7 @@ Maintains auditing records of outbound alert dispatches.
 * `status` (`CharField`, default `Sent`): `Sent` or `Failed`.
 
 ### 4.8 `notifications.InboundSMSLog`
-Maintains records of customer responses.
+Maintains records of customer webhook responses.
 * `from_number` / `to_number` (`CharField(max_length=30)`)
 * `body` (`TextField`)
 * `received_at` (`DateTimeField`, auto_now_add)
@@ -196,71 +208,102 @@ Maintains records of customer responses.
 
 ## 5. Core Workflows & Business Logic
 
-### Workflow 1: Capturing Blocked Purchase Intent
+### Workflow 1: Capturing Blocked Purchase Intent (Floor Cashier "3-Tap" Process)
+Designed for high cashier compliance on the retail floor. When an item is identified as out-of-stock, the cashier uses a "Quick Intent Widget" to capture the demand instantly.
+
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Staff as Store Agent
-    participant Views as Intents View / API
-    participant IS as Intent Service
-    participant DB as SQLite / Postgres DB
-
-    Staff->>Views: Fill Intent Form (Customer, Product, Variation, Constraint, Qty)
-    Views->>IS: create_blocked_purchase_intent()
-    alt estimated_value is blank
-        IS->>IS: Calculate estimated_value = product.base_price * requested_quantity
-    end
-    IS->>DB: Save BlockedPurchaseIntent record (Status = 'Pending')
-    DB-->>Staff: Return Success, Display on Dashboard
-```
-
-### Workflow 2: Inventory Restocking & Auto-Resolution
-This workflow runs when stock becomes available. It automatically identifies matching constraints and updates their state:
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Admin as Inventory/Admin
-    participant Model as ProductVariation Model
-    participant Sig as products.signals
-    participant InvSvc as services.inventory_service
-    participant IntSvc as services.intent_service
+    actor Staff as Store Cashier
+    participant Widget as Quick Intent Widget (UI)
+    participant API as Django Intent API
     participant DB as Database
 
-    Admin->>Model: Update stock_quantity > 0 & Save()
-    Model->>Sig: Fire on_variation_update signal
-    Sig->>InvSvc: handle_stock_update(variation)
-    InvSvc->>IntSvc: resolve_blocked_intents_for_variation(variation)
-    IntSvc->>DB: Filter Pending/Monitoring intents matching variation
-    loop For each matching intent
-        IntSvc->>DB: Set status = 'Resolved' & Save()
-        IntSvc->>IntSvc: Call send_resolution_notification(intent)
+    Note over Staff, Widget: Tap 1: Click "Log Missed Sale" from out-of-stock product details page
+    Widget->>Widget: Auto-populate product_id, variation_id, and estimated base price
+    Note over Staff, Widget: Tap 2: Enter customer phone number (auto-resolves customer details)
+    Note over Staff, Widget: Tap 3: Tap "Log Sale" button
+    Widget->>API: POST /api/intents/ (payload contains phone number and auto-populated product details)
+    API->>DB: Query customer by phone; create profile if new. Create BlockedPurchaseIntent (expires_at = now + 30d)
+    DB-->>Widget: Success response
+    Widget-->>Staff: Display success badge & close widget
+```
+
+### Workflow 2: Asynchronous Inventory Restocking & Auto-Resolution (Celery + Redis)
+To resolve the "Signal Storm" race condition, restocking database updates are processed in the service layer, and bulk notifications are executed asynchronously by Celery workers instead of synchronous Django model signals.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin as Inventory Manager
+    participant Svc as services.inventory_service
+    participant DB as Database
+    participant Queue as Redis Queue
+    participant Worker as Celery Background Worker
+
+    Admin->>Svc: Update stock quantity of variation (stock > 0)
+    Svc->>DB: Query active, non-expired (expires_at > now) intents matching variation
+    DB-->>Svc: Return list of matching intent IDs
+    loop For each matching intent ID
+        Svc->>DB: Set status = 'Resolved' & Save
+        Svc->>Queue: Push Celery task: send_restock_notification_task(intent_id)
+    end
+    Svc-->>Admin: Return HTTP response immediately (no lockups, no lag)
+    
+    Note over Queue, Worker: Celery Worker processes task in background
+    Worker->>Worker: Pulls send_restock_notification_task(intent_id)
+    Worker->>DB: Query intent details (Workflow 3)
+```
+
+### Workflow 3: Asynchronous Communication & Alert Dispatch (Celery Worker)
+Background processing of outbound customer notifications, featuring marketing compliance check and opt-out formatting.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Worker as Celery Background Worker
+    participant DB as Database
+    participant Twilio as Twilio / SMS API
+    
+    Worker->>DB: Query Customer & Intent (Status: 'Resolved')
+    alt Customer.marketing_opt_in is False
+        Worker->>DB: Log failure (Reason: Opted Out)
+        Note over Worker: Terminate task execution
+    else Customer.marketing_opt_in is True
+        Worker->>Worker: Check if notification already sent (prevent duplicates)
+        Worker->>Worker: Format message template: "...Requested product is now in stock. Reply STOP to opt out."
+        Worker->>Twilio: Post Message API request
+        alt API Success
+            Twilio-->>Worker: Return message SID
+            Worker->>DB: Write NotificationLog (Status: 'Sent')
+            Worker->>DB: Update BlockedPurchaseIntent (Status: 'Customer Notified')
+        else API Failure
+            Twilio-->>Worker: Return error
+            Worker->>DB: Write NotificationLog (Status: 'Failed')
+        end
     end
 ```
 
-### Workflow 3: Communication & Alert Dispatch (Outbound)
-Once resolved, the communication block prepares and fires messages.
-1. **Duplicate Check**: Query `NotificationLog` to ensure no successful (`status='Sent'`) notification exists for this intent ID. If one exists, the request is silently ignored to prevent spamming.
-2. **Contact Format Validation**: Inspect customer phone number. If it is null or does not begin with `+` (E.164 verification), log a warning, write a `Failed` entry in the `NotificationLog`, and return.
-3. **Payload Formatting**: Compose customized message:
-   `"Hello [Customer Name], the [Product Name] ([Size]/[Color]) you requested is now available."`
-4. **API Dispatching (Twilio WhatsApp vs. Africa's Talking)**:
-   - **Twilio WhatsApp (Production)**: If TWILIO keys are configured in environment variables, the system converts phone numbers to Twilio's WhatsApp identifiers (e.g., `whatsapp:+254...`). It instantiates the Twilio Client and sends the WhatsApp message.
-   - **Simulation Mode (Fallback)**: If Twilio credentials are not set, it writes a log entry: `[Simulation Mode] Sending SMS to +...` and marks it as `Sent`.
-5. **Acknowledge Notification**: Write a row to `NotificationLog` with `status='Sent'` (or `Failed` on API error).
-6. **Intent Status Transition**: Upon successful dispatch, Django signals (`notifications/signals.py`) detect the saved `NotificationLog` with status `Sent` and automatically transition the intent's status to `Customer Notified`.
-
 ### Workflow 4: Callback Webhooks (Inbound Messages)
-To handle incoming communication (e.g., a customer replying "Thank you, hold it for me"), a dedicated webhook is exposed.
-1. A customer sends an SMS or WhatsApp to the Twilio number.
-2. Twilio parses the incoming message and triggers an HTTP POST request to the application's `/sms` webhook route (defined in `reply_sms.py`).
-3. The Flask app parses form inputs: `From` (customer number), `To` (recipient number), and `Body` (message content).
-4. It prints the transaction logs to the console and generates a TwiML response:
-   ```xml
-   <Response>
-       <Message>Thank you for contacting Retail RMS. Your response has been logged.</Message>
-   </Response>
-   ```
-5. The response is returned to the user, and details can be logged to `InboundSMSLog` in the backend.
+To handle incoming communication (e.g., a customer replying "STOP" or "HOLD IT"), the Flask application has been completely replaced with a native Django endpoint.
+
+```
+Incoming SMS/WhatsApp reply from Customer
+                  │
+                  ▼ (Triggers POST Webhook)
+      /api/notifications/webhook/ (Django URL)
+                  │
+                  ▼ (Processed by Webhook View)
+     notifications.api_views.WebhookView
+                  │
+                  ├───► 1. Read 'From', 'To', and 'Body' variables
+                  ├───► 2. Save InboundSMSLog entry linked to customer profile
+                  ├───► 3. If Body contains "STOP", set Customer.marketing_opt_in = False
+                  │
+                  ▼ (Returns native Django HttpResponse)
+       HTTP/1.1 200 OK (Content-Type: application/xml)
+       Body: <Response><Message>Thank you. Your response has been logged.</Message></Response>
+```
 
 ### Workflow 5: Analytics, KPIs, and Restocking Recommendations
 The dashboard aggregates operational data to guide stock replenishment:
@@ -270,8 +313,7 @@ The dashboard aggregates operational data to guide stock replenishment:
   - *Recovered Sales*: Count of intents in `Resolved`, `Customer Notified`, or `Recovered` state.
   - *Estimated Lost Revenue*: Sum of `estimated_value` of all unrecovered/unresolved intents (excludes `Resolved`, `Customer Notified`, and `Recovered`).
   - *Recovered Revenue*: Sum of `estimated_value` of all resolved/recovered intents.
-* **Monthly Trends**: Groups intents by month using `TruncMonth`, aggregating counts and recovery rates.
-* **Top Blocked Products**: Identifies the top 5 products by blocked intent count.
+* **Filter Rule**: Expired intents (`expires_at < current_time`) are completely excluded from KPI calculations and restock recommendation aggregates.
 * **Restock Recommendation Engine**: Groups active (`Pending`/`Monitoring`) intents by `variation_id` and filters variations where the count is $\ge 4$ (configurable threshold). For each matching variant, it lists the demand count, current stock, and recommends restocks.
 
 ### Workflow 6: Document Export Reporting
@@ -281,65 +323,23 @@ Allows store admins to download data for review:
 
 ---
 
-## 6. Django Signals: Decoupling and Event Flows
+## 6. Asynchronous Architecture & Task Queue (Replacing Signal Storms)
 
-Signals act as the glue between inventory modifications and notification logic. 
+### 6.1 The "Signal Storm" Bottleneck (Removed)
+In previous iterations, updates to inventory triggered chains of signals:
+`ProductVariation.save()` $\rightarrow$ `on_variation_update` $\rightarrow$ `handle_stock_update()` $\rightarrow$ `resolve_blocked_intents()` $\rightarrow$ `send_resolution_notification()` $\rightarrow$ synchronous Twilio HTTP connection $\rightarrow$ `NotificationLog.save()` $\rightarrow$ `update_intent_status_on_notification()`.
 
-```
-┌──────────────────────────────────────────────┐
-│           ProductVariation.save()            │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼ (Triggers Django post_save / save override)
-┌──────────────────────────────────────────────┐
-│         products.signals                     │
-│         (on_variation_update.send)           │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼ (Calls)
-┌──────────────────────────────────────────────┐
-│         services.inventory_service           │
-│         (handle_stock_update)                │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼ (If stock > 0, calls)
-┌──────────────────────────────────────────────┐
-│         services.intent_service              │
-│         (resolve_blocked_intents)            │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼ (Updates intent.status = 'Resolved')
-┌──────────────────────────────────────────────┐
-│         intents.signals                      │
-│         (send_notification_on_intent_resolve) │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼ (Triggers)
-┌──────────────────────────────────────────────┐
-│         notifications.services (SMSService)  │
-│         (send_restock_notification)          │
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼ (Saves NotificationLog with status='Sent')
-┌──────────────────────────────────────────────┐
-│         notifications.signals                │
-│         (update_intent_status_on_notification)│
-└──────────────────────┬───────────────────────┘
-                       │
-                       ▼ (Updates status)
-┌──────────────────────────────────────────────┐
-│    intent.status = 'Customer Notified'       │
-└──────────────────────────────────────────────┘
-```
+Under bulk stock uploads, this synchronous design resulted in:
+1. **Thread Starvation**: The request thread remained blocked while waiting for external Twilio API responses.
+2. **Database Deadlocks**: Multiple concurrent signal chains updated the same tables, locking the databases.
+3. **Cascading Failures**: A timeout in Twilio rolled back the database transaction, reverting the stock updates.
 
-There are two parallel signaling structures:
-1. **Custom Model Signals**:
-   - `on_product_stock_update` and `on_variation_update` defined in `products/signals.py` and manually invoked inside the model `save()` methods.
-   - Handlers call `services/inventory_service.py` -> `handle_stock_update()` to resolve intents.
-2. **Standard Django Django Model Signals (`post_save`)**:
-   - `check_inventory_for_intents` (listens to `post_save` of `ProductVariation` in `intents/signals.py`). When variations are updated with stock, it automatically updates matching intents' status to `'Resolved'`.
-   - `send_notification_on_intent_resolve` (listens to `post_save` of `BlockedPurchaseIntent` in `intents/signals.py`). When an intent status is updated to `'Resolved'`, it triggers `SMSService.send_restock_notification()`.
-   - `update_intent_status_on_notification` (listens to `post_save` of `NotificationLog` in `notifications/signals.py`). When a notification log is saved with status `Sent`, it updates the intent's status to `'Customer Notified'`.
+### 6.2 The production-grade Asynchronous Worker Model (Implemented)
+By introducing Celery and Redis:
+1. **Explicit Restocking**: `services/inventory_service.py` performs database status transitions for matching non-expired intents immediately.
+2. **Background Handoff**: For each resolved intent, a worker task `send_restock_notification_task.delay(intent.id)` is dispatched to Redis.
+3. **Decoupled Commits**: The web request commits immediately and returns a response, freeing database connections and threads.
+4. **Resilient Retries**: Worker tasks run independently. If Twilio fails or times out, Celery retries the task later without affecting inventory updates.
 
 ---
 
@@ -347,14 +347,25 @@ There are two parallel signaling structures:
 
 The system is managed through both a web-based dashboard interface and REST API endpoints.
 
-### 7.1 Web Interface Views
-* **Dashboard Home (`/dashboard/`)**: Features KPI summary cards, interactive Chart.js widgets (constraint distributions, trend lines, product bars), restock recommendations, and a quick-record intent modal.
-* **Product Catalog (`/products/`)**: Add, edit, and view items and variations.
-* **Customer Directory (`/customers/`)**: Customer profiling and records list.
-* **Blocked Intents Log (`/intents/`)**: Log, update, and monitor constraint cases.
-* **Reporting Hub (`/reports/`)**: Generate CSV and PDF exports.
+### 7.1 Web Interface Views & Dashboard Status Badges
+To improve visibility, the generic tabular list log on the dashboard utilizes highly visible, color-coded status badges:
 
-### 7.2 API Router Maps
+| Status Code | Color / Badge Class | Styling Description | Meaning / Action |
+| :--- | :--- | :--- | :--- |
+| **Pending / Monitoring** | Flashing Orange (`bg-amber-500` / `#F59E0B` pulse) | Soft orange background with pulsing animation | High loss risk, awaiting restocking resolution |
+| **Resolved** | Soft Blue (`bg-blue-500` / `#3B82F6`) | Standard blue background | Constraint resolved, notification scheduled in queue |
+| **Customer Notified** | Bright Green (`bg-emerald-500` / `#10B981`) | Solid green background | Restock notification successfully sent |
+| **Recovered** | Deep Emerald (`bg-green-700` / `#047857` text-white) | Solid dark-green background with tick icon | Sale recovered, customer completed checkout |
+| **Closed** | Slate Gray (`bg-slate-400` / `#94A3B8`) | Neutral gray background | Locked/archived (expired or manually cancelled) |
+
+### 7.2 The Floor Cashier "Quick Intent Widget"
+A lightweight panel displayed on floor registers:
+- **Product Context**: Dynamically pre-populates category, product name, variation SKU, and estimated lost value.
+- **Minimal Input**: Only asks for the customer's phone number.
+- **Opt-in Toggle**: Quick checkmark representing compliance verbal consent.
+- **Tap count**: 3 taps (1. Tap "Log Missed Sale", 2. Tap phone input, 3. Tap "Submit").
+
+### 7.3 API Router Maps
 Registered under `/api/` using Django REST Framework's `DefaultRouter`:
 * `/api/categories/`: Category list and CRUD.
 * `/api/products/`: Catalog items list, including nested serializer representations of variations.
@@ -365,6 +376,7 @@ Registered under `/api/` using Django REST Framework's `DefaultRouter`:
 * `/api/analytics/`: Detailed aggregations, charts datasets, and trend outputs.
 * `/api/reports/`: Filtered reports list.
 * `/api/health/`: Return `{"status": "healthy"}` for deployment checks.
+* `/api/notifications/webhook/` **[NEW]**: Replaces Flask. Native Django View class mapping POST requests from Twilio. Validates webhook signature, logs incoming payloads to `InboundSMSLog`, parses "STOP" replies, and updates opt-in compliance state.
 
 ---
 
@@ -380,6 +392,8 @@ Registered under `/api/` using Django REST Framework's `DefaultRouter`:
 * `whitenoise`: Static file server.
 * `dj-database-url`: Parse production connection strings.
 * `gunicorn`: WSGI HTTP Server.
+* `celery` **[NEW]**: Distributed task queue wrapper.
+* `redis` **[NEW]**: Broker library for Celery/Redis connection.
 
 ### 8.2 Environment Variables (`.env`)
 Create a `.env` file in the root directory to store credentials:
@@ -393,6 +407,10 @@ ALLOWED_HOSTS=localhost,127.0.0.1
 TWILIO_ACCOUNT_SID=ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_PHONE_NUMBER=+17656271910
+
+# Celery and Redis Configuration
+CELERY_BROKER_URL=redis://127.0.0.1:6379/0
+CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/0
 
 # Database (Optional - Defaults to local sqlite)
 DATABASE_URL=postgres://user:password@host:port/database_name
@@ -419,7 +437,12 @@ DATABASE_URL=postgres://user:password@host:port/database_name
    ```bash
    python manage.py runserver
    ```
-5. **Run Incoming Webhook Listener**:
+5. **Start Redis Server**:
    ```bash
-   python reply_sms.py
+   # Run Redis container (or local service)
+   docker run -d -p 6379:6379 redis:alpine
+   ```
+6. **Start Celery Worker**:
+   ```bash
+   celery -A core worker --loglevel=info
    ```

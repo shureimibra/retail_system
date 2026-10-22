@@ -2,6 +2,11 @@ from django.db import models
 from products.models import Product, ProductVariation
 from customers.models import Customer
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
+
+def get_default_expiry():
+    return timezone.now() + timedelta(days=30)
 
 class BlockedPurchaseIntent(models.Model):
     STATUS_CHOICES = [
@@ -18,7 +23,6 @@ class BlockedPurchaseIntent(models.Model):
         ('Color unavailable', 'Color unavailable'),
         ('Out of stock', 'Out of stock'),
         ('Price too high', 'Price too high'),
-        ('Authenticity concern', 'Authenticity concern'),
         ('Budget mismatch', 'Budget mismatch'),
     ]
 
@@ -26,7 +30,7 @@ class BlockedPurchaseIntent(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='intents')
     variation = models.ForeignKey(ProductVariation, on_delete=models.SET_NULL, null=True, blank=True, related_name='intents')
     
-    constraint_type = models.CharField(max_length=50)
+    constraint_type = models.CharField(max_length=50, choices=CONSTRAINT_CHOICES)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='Pending')
     
     requested_quantity = models.PositiveIntegerField(default=1)
@@ -35,6 +39,7 @@ class BlockedPurchaseIntent(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    expires_at = models.DateTimeField(default=get_default_expiry)
     
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
 

@@ -8,30 +8,17 @@ from notifications.services import SMSService
 def check_inventory_for_intents(sender, instance, created, **kwargs):
     """
     Inventory Monitoring Engine:
-    When a product variation is saved (e.g., restocked), check if it resolves
-    any Pending or Monitoring intents.
+    DEACTIVATED: Stock monitoring and resolution is now explicitly handled in
+    services/inventory_service.py to prevent "Signal Storm" race conditions.
     """
-    if instance.stock_quantity > 0:
-        # Find pending intents for this variation
-        matching_intents = BlockedPurchaseIntent.objects.filter(
-            variation=instance,
-            status__in=['Pending', 'Monitoring']
-        )
-        
-        for intent in matching_intents:
-            # Update status to Resolved (this will trigger send_notification_on_intent_resolve)
-            intent.status = 'Resolved'
-            intent.save()
+    pass
 
 
 @receiver(post_save, sender=BlockedPurchaseIntent)
 def send_notification_on_intent_resolve(sender, instance, created, **kwargs):
     """
-    Trigger WhatsApp notification when a BlockedPurchaseIntent's status is manually updated to 'Resolved'
-    (e.g., from the admin panel or intent update views).
+    Trigger notification when a BlockedPurchaseIntent's status is manually updated to 'Resolved':
+    DEACTIVATED: Restock notifications are handled out-of-band by Celery workers
+    triggered from the service layer.
     """
-    if instance.status == 'Resolved':
-        # Prevent duplicate notifications if one was already successfully sent
-        from notifications.models import NotificationLog
-        if not NotificationLog.objects.filter(intent=instance, status='Sent').exists():
-            SMSService.send_restock_notification(instance.id)
+    pass
