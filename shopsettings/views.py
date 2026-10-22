@@ -11,6 +11,7 @@ from django.views.generic import TemplateView
 
 from accounts.models import Membership
 from core.shops import role_of
+from dashboard.widgets import DEFAULTS, WIDGETS, layout_for
 from products.models import ProductType
 from . import forms
 
@@ -23,6 +24,7 @@ SECTIONS = [
     ('look', 'Look', 'Light, dark or match your device', EVERYONE, 'Your account'),
     ('shop', 'Shop details', 'Name, country, currency, time zone', OWNER, 'Shop'),
     ('product_types', 'Product types and options', 'Sizes, colours and other options', MANAGERS, 'Shop'),
+    ('home_layout', 'Home layout', 'What each role sees on Home', OWNER, 'Shop'),
     ('team', 'Team and roles', 'Who works here and what they can do', OWNER, 'Shop'),
     ('follow_ups', 'Follow-ups and holds', 'Reminder days, holds and pickups', MANAGERS, 'Shop'),
     ('messaging', 'Messaging', 'How customers are contacted', MANAGERS, 'Shop'),
@@ -256,3 +258,50 @@ class TeamView(SettingsView):
             member.delete()
             return self.saved(f'{name} removed from the team')
         return redirect(request.path)
+
+
+class HomeLayoutView(SettingsView):
+    """Which widgets each role sees on Home, and in what order. Staff can't change their own Home."""
+    section, who = 'home_layout', OWNER
+    template_name = 'shopsettings/home_layout.html'
+    denied_message = 'Only the owner can change what each role sees on Home.'
+
+    def role(self, data):
+        role = data.get('role')
+        return role if role in DEFAULTS else Membership.OWNER
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        role = self.role(self.request.GET)
+        shown = layout_for(self.request.shop, role)
+        titles = {key: (title, desc) for key, title, desc in WIDGETS}
+        order = shown + [key for key, _, _ in WIDGETS if key not in shown]
+        context['role'] = role
+        context['roles'] = Membership.ROLE_CHOICES
+        context['rows'] = [(key, *titles[key], key in shown) for key in order]
+        return context
+
+    def post(self, request):
+        role = self.role(request.POST)
+        layout = dict(request.shop.home_layout or {})
+        if request.POST.get('action') == 'reset':
+            layout.pop(role, None)
+            message = 'Back to the default Home'
+        else:
+            known = [key for key, _, _ in WIDGETS]
+            order = [key for key in request.POST.getlist('order') if key in known]
+            order += [key for key in known if key not in order]
+            shown = set(request.POST.getlist('show'))
+            key, _, direction = (request.POST.get('move') or '').partition(':')
+            if key in order:
+                i = order.index(key)
+                j = i - 1 if direction == 'up' else i + 1
+                if 0 <= j < len(order):
+                    order[i], order[j] = order[j], order[i]
+            layout[role] = [key for key in order if key in shown]
+            message = None if request.POST.get('move') else 'Saved'
+        request.shop.home_layout = layout
+        request.shop.save(update_fields=['home_layout'])
+        if message:
+            messages.success(request, message)
+        return redirect(f"{request.path}?role={role}")

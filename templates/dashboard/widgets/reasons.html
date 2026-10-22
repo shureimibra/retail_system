@@ -1,0 +1,11 @@
+<section class="panel" aria-labelledby="reasons">
+  <div class="panel-head"><h2 id="reasons">Why people didn't buy</h2><span class="faint small">{{ period.label }}</span></div>
+  <div class="panel-body">
+    {% for row in data.reasons %}
+    <div class="bar-row">
+      <div class="bar-label"><span>{{ row.label }}</span><span class="num">{{ row.percent }}% · {{ row.count }}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width: {{ row.percent }}%"></div></div>
+    </div>
+    {% empty %}<p class="muted">No missed sales logged {{ period.label|lower }}.</p>{% endfor %}
+  </div>
+</section>

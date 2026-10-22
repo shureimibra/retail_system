@@ -3,23 +3,78 @@
 {% block title %}Reports{% endblock %}
 {% block page %}
 <div class="content narrow">
-  <div class="page-head"><div><h1>Reports</h1><p>Download your missed sales for a period, to share or keep.</p></div></div>
+  <div class="page-head"><div><h1>Reports</h1><p>What came back, what customers asked for and what to order. Download any of it to share or keep.</p></div></div>
+
   <form method="get" class="panel panel-body form">
     {% include "ui/period.html" %}
-    <div class="field"><label for="status">Status</label>
+    <div class="field"><label for="status">Status (records download only)</label>
       <select id="status" name="status"><option value="">All statuses</option>
         {% for value, label in status_choices %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
       </select></div>
     <div class="form-actions"><button type="submit" class="btn">Apply</button></div>
   </form>
-  <div class="panel">
-    <div class="panel-head"><h2>{{ count }} missed sale{{ count|pluralize }} match</h2></div>
+
+  <section class="panel" id="recovered" aria-labelledby="recovered-title">
+    <div class="panel-head"><h2 id="recovered-title">Recovered money by month</h2>
+      <a class="btn btn-sm" href="{% url 'reports:summary_csv' 'recovered' %}?{{ period_query }}">{% icon "download" "sm" %}CSV</a></div>
+    {% if recovered %}
+    <div class="table-wrap"><table class="table table-cards">
+      <thead><tr><th>Month</th><th class="r">Paid in full</th><th class="r">Money recovered</th></tr></thead>
+      <tbody>
+        {% for row in recovered %}<tr><td class="card-title"><span class="primary">{{ row.month|date:"F Y" }}</span></td>
+          <td data-label="Paid in full" class="r">{{ row.count }}</td><td data-label="Money recovered" class="r">{{ row.money|money:request.shop }}</td></tr>{% endfor %}
+      </tbody>
+      <tfoot><tr><td><b>Total</b></td><td></td><td class="r"><b>{{ recovered_total|money:request.shop }}</b></td></tr></tfoot>
+    </table></div>
+    <p class="panel-body small faint divided">Only sales paid in full count. Declined and expired never do.</p>
+    {% else %}
+    <div class="empty"><p>No sales paid in full {{ period.label|lower }} yet.</p></div>
+    {% endif %}
+  </section>
+
+  <section class="panel" id="demand" aria-labelledby="demand-title">
+    <div class="panel-head"><h2 id="demand-title">Missed sales by item and reason</h2>
+      <a class="btn btn-sm" href="{% url 'reports:summary_csv' 'demand' %}?{{ period_query }}">{% icon "download" "sm" %}CSV</a></div>
+    {% if demand %}
+    <div class="table-wrap"><table class="table table-cards">
+      <thead><tr><th>Item</th><th>Reason</th><th class="r">Missed</th><th class="r">Money</th></tr></thead>
+      <tbody>
+        {% for row in demand %}<tr><td class="card-title"><span class="primary">{{ row.product }}</span><span class="sub">{{ row.option }}</span></td>
+          <td data-label="Reason">{{ row.reason }}</td><td data-label="Missed" class="r">{{ row.count }}</td><td data-label="Money" class="r">{{ row.money|money:request.shop }}</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+    <p class="panel-body small faint divided">Top 10 shown. The CSV has every row.</p>
+    {% else %}
+    <div class="empty"><p>No missed sales logged {{ period.label|lower }}.</p></div>
+    {% endif %}
+  </section>
+
+  <section class="panel" id="to-order" aria-labelledby="to-order-title">
+    <div class="panel-head"><h2 id="to-order-title">To-order list</h2>
+      <a class="btn btn-sm" href="{% url 'reports:summary_csv' 'to-order' %}">{% icon "download" "sm" %}CSV</a></div>
+    {% if to_order %}
+    <div class="table-wrap"><table class="table table-cards">
+      <thead><tr><th>Item</th><th class="r">To order</th><th class="r">Money waiting</th><th>Needed by</th></tr></thead>
+      <tbody>
+        {% for row in to_order %}<tr><td class="card-title"><span class="primary">{{ row.product_name }}</span><span class="sub">{{ row.variation_label }}{% if row.sku %} · <span class="mono">{{ row.sku }}</span>{% endif %}</span></td>
+          <td data-label="To order" class="r">{{ row.to_order }}</td><td data-label="Money waiting" class="r">{{ row.money_waiting|money:request.shop }}</td>
+          <td data-label="Needed by">{{ row.needed_by|date:"D j M"|default:"Not set" }}</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+    <p class="panel-body small faint divided">What customers are waiting for right now, after stock in hand and orders already placed. Not affected by the period.</p>
+    {% else %}
+    <div class="empty"><p>Nothing to order. Everything customers asked for is in stock or on its way.</p></div>
+    {% endif %}
+  </section>
+
+  <section class="panel" aria-labelledby="records-title">
+    <div class="panel-head"><h2 id="records-title">All missed sale records</h2><span class="faint small">{{ count }} match</span></div>
     <div class="panel-body">
       <div class="button-row">
         <a class="btn btn-primary" href="{% url 'reports:export_csv' %}{% if query %}?{{ query }}{% endif %}">{% icon "download" "sm" %}Spreadsheet (CSV)</a>
         <a class="btn" href="{% url 'reports:export_pdf' %}{% if query %}?{{ query }}{% endif %}">{% icon "download" "sm" %}PDF</a>
       </div>
     </div>
-  </div>
+  </section>
 </div>
 {% endblock %}

@@ -37,7 +37,7 @@ def generate_pdf_report(response, intents):
         parent=styles['Heading1'],
         fontSize=18,
         spaceAfter=12,
-        textColor=colors.HexColor('#1E3A8A')  # Deep navy color
+        textColor=colors.HexColor('#0B6670')  # petrol (DESIGN.md)
     )
     story.append(Paragraph("Retail Purchase Constraint Management System (RPCMS)", title_style))
     story.append(Paragraph("Blocked Purchase Intent Report", styles['Heading2']))
@@ -63,15 +63,23 @@ def generate_pdf_report(response, intents):
         
     t = Table(data, colWidths=[30, 90, 160, 90, 50, 60, 60])
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#16201C')),
         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
         ('ALIGN', (0,0), (-1,-1), 'LEFT'),
         ('BOTTOMPADDING', (0,0), (-1,0), 6),
-        ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#F8FAFC')),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#F6F8F7')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D5DCD9')),
         ('FONTSIZE', (0,0), (-1,-1), 8),
         ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
     ]))
     story.append(t)
     doc.build(story)
+    return response
+
+
+def write_rows_csv(response, header, rows):
+    """A plain CSV: one header row, then the rows as given."""
+    writer = csv.writer(response)
+    writer.writerow(header)
+    writer.writerows(rows)
     return response

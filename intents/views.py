@@ -51,7 +51,8 @@ class IntentListView(ShopViewMixin, ListView):
     ordering = ['-created_at']
 
     def tab(self):
-        key = self.request.GET.get('show', 'waiting')
+        default = 'all' if self.request.GET.get('status') in dict(Intent.STATUS_CHOICES) else 'waiting'
+        key = self.request.GET.get('show', default)
         return next((t for t in TABS if t[0] == key), TABS[0])
 
     def get_queryset(self):
@@ -59,6 +60,9 @@ class IntentListView(ShopViewMixin, ListView):
         statuses = self.tab()[2]
         if statuses:
             queryset = queryset.filter(status__in=statuses)
+        status = self.request.GET.get('status')
+        if status in dict(Intent.STATUS_CHOICES):
+            queryset = queryset.filter(status=status)
         customer_id = self.request.GET.get('customer')
         if customer_id:
             queryset = queryset.filter(customer_id=customer_id)
@@ -70,7 +74,9 @@ class IntentListView(ShopViewMixin, ListView):
         context['tabs'] = [(key, label, base.filter(status__in=statuses).count() if statuses else base.count())
                            for key, label, statuses in TABS]
         context['current_tab'] = self.tab()[0]
-        context['query'] = f'show={self.tab()[0]}'
+        status = self.request.GET.get('status')
+        context['status_filter'] = dict(Intent.STATUS_CHOICES).get(status, '')
+        context['query'] = f'show={self.tab()[0]}' + (f'&status={status}' if context['status_filter'] else '')
         return context
 
 class IntentCreateView(ShopViewMixin, CreateView):

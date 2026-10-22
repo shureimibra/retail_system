@@ -1,0 +1,35 @@
+{% extends "shopsettings/base.html" %}
+{% load ui %}
+{% block pane %}
+<div class="panel">
+  <div class="panel-head"><h2 id="pane-title">Home layout</h2></div>
+  <nav class="tabs" aria-label="Role">
+    {% for value, label in roles %}<a href="?role={{ value }}"{% if role == value %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+  </nav>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="role" value="{{ role }}">
+    <button type="submit" class="visually-hidden" tabindex="-1" aria-hidden="true">Save</button>
+    <p class="panel-body muted small">Tick what {% for value, label in roles %}{% if value == role %}{{ label|lower }}s{% endif %}{% endfor %} see on Home and move it up or down. Staff can't change their own Home.</p>
+    <ol class="rows layout-list">
+      {% for key, title, desc, shown in rows %}
+      <li id="w-{{ key }}">
+        <input type="hidden" name="order" value="{{ key }}">
+        <label class="check grow" for="show-{{ key }}">
+          <input type="checkbox" id="show-{{ key }}" name="show" value="{{ key }}"{% if shown %} checked{% endif %}>
+          <span><span class="row-title">{{ title }}</span><span class="row-sub">{{ desc }}</span></span>
+        </label>
+        <span class="move">
+          <button class="btn btn-plain btn-icon" type="submit" name="move" value="{{ key }}:up" aria-label="Move {{ title }} up"{% if forloop.first %} disabled{% endif %}>{% icon "chevron-up" "sm" %}</button>
+          <button class="btn btn-plain btn-icon" type="submit" name="move" value="{{ key }}:down" aria-label="Move {{ title }} down"{% if forloop.last %} disabled{% endif %}>{% icon "chevron-down" "sm" %}</button>
+        </span>
+      </li>
+      {% endfor %}
+    </ol>
+    <div class="panel-body divided form-actions">
+      <button class="btn btn-plain" type="submit" name="action" value="reset">Use the default</button>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

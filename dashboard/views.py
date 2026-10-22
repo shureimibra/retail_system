@@ -1,56 +1,23 @@
-from django.views.generic import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import TemplateView
+
 from core.periods import resolve_period
-from analytics.selectors import get_dashboard_kpis, get_constraint_distribution, get_top_blocked_products, get_monthly_intent_trends, get_restock_recommendations
+from core.shops import role_of
+from . import selectors
+from .widgets import layout_for
+
 
 class DashboardHomeView(LoginRequiredMixin, TemplateView):
+    """Home: the work queue. Which widgets show, and in what order, is set per role in Settings → Home layout."""
     template_name = 'dashboard/home.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         shop = self.request.shop
-        
-        # Get query filters
-        status = self.request.GET.get('status')
         period = resolve_period(self.request.GET)
+        keys = layout_for(shop, role_of(self.request))
         context['period'] = period
-        start_date, end_date = period['start'], period['end']
-        
-        # Pass filters back to pre-fill form
-        context['status_filter'] = status or ''
-        from intents.models import BlockedPurchaseIntent
-        context['status_choices'] = BlockedPurchaseIntent.STATUS_CHOICES
-        context['reason_choices'] = BlockedPurchaseIntent.CONSTRAINT_CHOICES
-        
-        # KPIs
-        kpis = get_dashboard_kpis(shop, start_date=start_date, end_date=end_date, status=status)
-        context['kpis'] = kpis
-        
-        # Constraint distribution (Pie/Doughnut Chart)
-        constraints = get_constraint_distribution(shop, start_date=start_date, end_date=end_date, status=status)
-        context['chart_labels'] = ([c['constraint_type'] for c in constraints])
-        context['chart_data'] = ([c['count'] for c in constraints])
-        
-        # Top blocked products (Bar Chart)
-        top_products = get_top_blocked_products(shop, limit=5, start_date=start_date, end_date=end_date, status=status)
-        context['top_products_labels'] = ([p['product__name'] for p in top_products])
-        context['top_products_data'] = ([p['count'] for p in top_products])
-        
-        # Monthly trends (Line Chart)
-        trends = get_monthly_intent_trends(shop, start_date=start_date, end_date=end_date, status=status)
-        context['trends_labels'] = ([t['month'] for t in trends])
-        context['trends_data'] = ([t['count'] for t in trends])
-        context['trends_recovered'] = ([t['recovered'] for t in trends])
-        
-        from analytics.selectors import get_recovery_funnel
-        context['funnel'] = get_recovery_funnel(shop, start_date=start_date, end_date=end_date, status=status)
-
-        # Restock recommendations (threshold = 4)
-        context['recommendations'] = get_restock_recommendations(shop, threshold=4, start_date=start_date, end_date=end_date, status=status)
-        
-        # Recent intents (last 5) filtered by parameters
-        from reports.selectors import get_report_data
-        context['recent_intents'] = get_report_data(shop, start_date_str=period['start_str'], end_date_str=period['end_str'], status=status)[:5]
-        
-        
+        context['widgets'] = [(key, f'dashboard/widgets/{key}.html') for key in keys]
+        context['data'] = {key: selectors.BUILDERS[key](shop, period) for key in keys}
+        context['uses_period'] = any(key in ('key_numbers', 'reasons', 'conversion') for key in keys)
         return context

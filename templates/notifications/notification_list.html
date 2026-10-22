@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% load ui %}
-{% block title %}Messages{% endblock %}
+{% block title %}Conversations{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Messages</h1><p>Replies from customers, and every message the shop sent.</p></div>
+  <div><h1>Conversations</h1><p>Replies from customers, and every message the shop sent.</p></div>
   {% if simulator_enabled %}<div class="actions"><a class="btn" href="{% url 'notifications:simulator' %}">Customer simulator</a></div>{% endif %}
 </div>
 

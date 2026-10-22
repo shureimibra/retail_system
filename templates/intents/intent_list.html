@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% load ui %}
-{% block title %}Missed sales{% endblock %}
+{% block title %}Waiting{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Missed sales</h1><p>Customers who wanted something you couldn't sell them, and where each one stands.</p></div>
+  <div><h1>Waiting</h1><p>Customers who wanted something you couldn't sell them, and where each one stands.</p></div>
   <div class="actions"><a class="btn" href="{% url 'intents:create' %}">{% icon "plus" "sm" %}Log missed sale</a></div>
 </div>
 <div class="panel">
@@ -12,6 +12,7 @@
     <a href="?show={{ key }}"{% if current_tab == key %} aria-current="page"{% endif %}>{{ label }}<span>{{ count }}</span></a>
     {% endfor %}
   </nav>
+  {% if status_filter %}<div class="filter-note">Showing only <span class="badge badge-{{ request.GET.status }}">{{ status_filter }}</span><a class="btn btn-plain btn-sm" href="?show={{ current_tab }}">Show all</a></div>{% endif %}
   {% if intents %}
   <div class="table-wrap">
     <table class="table table-cards">
