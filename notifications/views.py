@@ -19,6 +19,8 @@ from django.views.generic import ListView, TemplateView
 
 from intents.models import BlockedPurchaseIntent as Intent, Payment
 from intents.services import TransitionError, change_item, decline, record_payment
+from payments.daraja import DarajaError
+from payments.services import mpesa_mode, request_payment as request_mpesa_payment
 from products.models import ProductVariation
 from twilio.request_validator import RequestValidator
 from twilio.twiml.messaging_response import MessagingResponse
@@ -88,6 +90,8 @@ class ConversationView(LoginRequiredMixin, TemplateView):
             'quick_replies': [(key, label, compose.quick_reply(key, deals[0])) for key, label in compose.QUICK_REPLIES]
                              if deals else [],
             'payment_methods': Payment.METHOD_CHOICES,
+            'mpesa_mode': mpesa_mode()[0],
+            'mpesa_ready': mpesa_mode()[1],
             'inbox': selectors.inbox(self.request.shop, limit=25),
             'draft': self.request.GET.get('draft', ''),
         })
@@ -107,7 +111,7 @@ class ConversationView(LoginRequiredMixin, TemplateView):
         try:
             with transaction.atomic():
                 return self.act(request, conversation, intent, action, here)
-        except (ValueError, TransitionError) as error:
+        except (ValueError, TransitionError, DarajaError) as error:
             messages.error(request, str(error))
             return redirect(here + '#deal')
 
@@ -130,6 +134,11 @@ class ConversationView(LoginRequiredMixin, TemplateView):
             return redirect(here + '#composer')
         if intent is None:
             messages.error(request, 'Choose the item first.')
+            return redirect(here + '#deal')
+        if action == 'mpesa':
+            mpesa = request_mpesa_payment(intent, request.POST.get('amount', ''), request.POST.get('phone', ''),
+                                          actor=request.user)
+            messages.success(request, f'Payment prompt sent to {mpesa.phone}. Ask the customer to enter their M-Pesa PIN.')
             return redirect(here + '#deal')
         if action == 'check_in':
             gateway.queue_message(intent, 'check_in')
@@ -181,7 +190,9 @@ TWILIO_STATUS = {'delivered': Message.DELIVERED, 'read': Message.READ, 'failed':
 def twilio_webhook(request):
     if settings.TWILIO_AUTH_TOKEN:
         signature = request.headers.get('X-Twilio-Signature', '')
-        if not RequestValidator(settings.TWILIO_AUTH_TOKEN).validate(request.build_absolute_uri(), request.POST, signature):
+        url = (settings.SITE_URL.rstrip('/') + request.get_full_path() if settings.SITE_URL.startswith('https://')
+               else request.build_absolute_uri())
+        if not RequestValidator(settings.TWILIO_AUTH_TOKEN).validate(url, request.POST, signature):
             return HttpResponseForbidden('Invalid signature')
 
     if request.POST.get('MessageStatus') and request.POST.get('MessageSid') and not request.POST.get('Body'):

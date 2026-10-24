@@ -1,6 +1,6 @@
 # Phase 4 design note: real channels, still free
 
-**Status:** draft for the owner's approval · 23 Oct 2026
+**Status:** approved by the owner 24 Oct 2026 · built on `phase-4/free-channels`
 **Owner's rule (23 Oct):** nothing paid for now. Everything in this phase runs on free test accounts, sandboxes or trial credit. Going live later is a change of `.env` values and account approvals, not new code.
 
 ## 1. What this phase delivers
@@ -67,10 +67,13 @@ Free test accounts limit who can receive messages: only a few phones you registe
 - Matching payments customers send straight to your Till or Paybill. That needs a live Till.
 - Per-shop keys stored in the database. Still one shop per installation.
 
-## 6. Open questions
-1. **WhatsApp test route:** the Meta test number (recommended, and the same API as production later), or the Twilio WhatsApp sandbox (customers must first send a join code, and it lapses after 72 hours)?
-2. **SMS:** the Twilio trial to real phones (recommended), or the Africa's Talking sandbox (web simulator only)?
-3. **M-Pesa sandbox payment prompt:** build it in this phase (recommended), or leave M-Pesa for later?
+## 6. Decisions (owner, 24 Oct)
+
+Free but **real** wherever possible, not only sandboxes:
+1. **WhatsApp:** Meta's test number (real WhatsApp on real phones).
+2. **SMS:** the Twilio trial (real SMS to verified phones; it ends 30 days after sign-up).
+3. **Email:** the Brevo free plan (real email, 300 a day). Resend is the alternative.
+4. **M-Pesa:** the Daraja sandbox, because there's no free live option.
 
 ## Done when
 - [ ] A restock message with the photo arrives on your phone over the Meta test number; your reply shows in Conversations.

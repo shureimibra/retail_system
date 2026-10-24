@@ -31,6 +31,7 @@ urlpatterns = [
     path('notifications/', include('notifications.urls')),
     path('reports/', include('reports.urls')),
     path('settings/', include('shopsettings.urls')),
+    path('payments/', include('payments.urls')),
     path('floor/', FloorView.as_view(), name='floor'),
     path('floor/customer/', customer_lookup, name='floor-customer'),
 

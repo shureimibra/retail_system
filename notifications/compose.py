@@ -94,6 +94,38 @@ def quick_reply(key, intent):
 QUICK_REPLIES = [('payment', 'Send payment details'), ('pickup', 'Confirm pickup'), ('other', 'Offer another option')]
 
 
+def template_params(template_key, intent):
+    """
+    The values for an approved WhatsApp template, in order. The wording around them
+    lives in docs/whatsapp-templates.md and must match what Meta approved.
+    WhatsApp refuses empty values, so every part has a fallback.
+    """
+    shop = intent.shop
+    name = intent.customer.first_name or 'there'
+    item = item_name(intent)
+    held = _hold_until(intent)
+    if template_key == 'restock_alert':
+        asked = _day(timezone.localtime(intent.created_at).date())
+        return [name, item, asked, shop.name, _day(held) or 'the end of the week']
+    if template_key == 'price_drop':
+        change = intent.product.price_changes.order_by('-created_at').first()
+        unit = intent.variation.effective_price if intent.variation else intent.product.base_price
+        was = money(shop, change.old_price) if change else money(shop, unit)
+        return [name, item, money(shop, unit), was, shop.name]
+    if template_key == 'deposit_receipt':
+        return [name, money(shop, intent.amount_paid), item, money(shop, intent.balance),
+                _day(intent.pickup_by) or 'the agreed day']
+    if template_key == 'reminder_1':
+        return [name, item, shop.name]
+    if template_key == 'reminder_2':
+        return [name, item, _day(held) or 'the end of the week']
+    if template_key == 'reminder_3':
+        return [name, item]
+    if template_key == 'check_in':
+        return [name, shop.name, item]
+    return []
+
+
 TEMPLATES = {
     'restock_alert': restock_alert,
     'price_drop': price_drop,

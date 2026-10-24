@@ -16,4 +16,5 @@ urlpatterns = [
     path('team/', views.TeamView.as_view(), name='team'),
     path('follow-ups/', views.FollowUpsView.as_view(), name='follow_ups'),
     path('messaging/', views.MessagingView.as_view(), name='messaging'),
+    path('payments/', views.PaymentsView.as_view(), name='payments'),
 ]

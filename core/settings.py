@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'dashboard',
     'ui',
     'shopsettings',
+    'payments',
 ]
 
 MIDDLEWARE = [
@@ -230,7 +231,9 @@ WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', '')
 WHATSAPP_API_VERSION = os.environ.get('WHATSAPP_API_VERSION', 'v21.0')
 WHATSAPP_TEMPLATE_LANGUAGE = os.environ.get('WHATSAPP_TEMPLATE_LANGUAGE', 'en')
 # Approved template name per message; hello_world is Meta's pre-approved test template.
-WHATSAPP_TEMPLATES = {'restock_alert': os.environ.get('WHATSAPP_TEMPLATE_RESTOCK', 'hello_world')}
+WHATSAPP_TEMPLATE_KEYS = ['restock_alert', 'price_drop', 'deposit_receipt', 'reminder_1', 'reminder_2', 'reminder_3',
+                          'check_in']
+WHATSAPP_TEMPLATES = {key: os.environ.get(f'WHATSAPP_TEMPLATE_{key.upper()}', '') for key in WHATSAPP_TEMPLATE_KEYS}
 
 # Africa's Talking (free sandbox for development)
 AFRICASTALKING_USERNAME = os.environ.get('AFRICASTALKING_USERNAME', 'sandbox')
@@ -250,11 +253,23 @@ EMAIL_BACKEND = ('django.core.mail.backends.smtp.EmailBackend' if EMAIL_HOST
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Retail OS <no-reply@localhost>')
 EMAIL_SUBJECT_PREFIX = ''
 
+# M-Pesa (Safaricom Daraja). MPESA_ENV: off | sandbox | production. The sandbox is free and moves no real money.
+MPESA_ENV = os.environ.get('MPESA_ENV', 'off')
+MPESA_CONSUMER_KEY = os.environ.get('MPESA_CONSUMER_KEY', '')
+MPESA_CONSUMER_SECRET = os.environ.get('MPESA_CONSUMER_SECRET', '')
+# Sandbox defaults are Safaricom's published test business number and passkey.
+MPESA_SHORTCODE = os.environ.get('MPESA_SHORTCODE', '174379')
+MPESA_PASSKEY = os.environ.get('MPESA_PASSKEY', 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919')
+MPESA_TRANSACTION_TYPE = os.environ.get('MPESA_TRANSACTION_TYPE', 'CustomerPayBillOnline')
+# Secret part of the callback address, so only Safaricom (who we gave it to) can report payments.
+MPESA_CALLBACK_TOKEN = os.environ.get('MPESA_CALLBACK_TOKEN', '')
+
 if 'test' in sys.argv:
     MESSAGING_PROVIDERS = {'whatsapp': 'simulator', 'sms': 'simulator', 'email': 'simulator'}
     SIMULATOR_ENABLED = True
     WHATSAPP_APP_SECRET = WHATSAPP_VERIFY_TOKEN = ''
     AFRICASTALKING_WEBHOOK_TOKEN = ''
+    MPESA_ENV, MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_CALLBACK_TOKEN = 'off', '', '', ''
 
 
 # Follow-up days, hold days and pickup days are per shop (Settings → Follow-ups and holds).

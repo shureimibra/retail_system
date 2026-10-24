@@ -80,9 +80,32 @@
           {% if d.follow_up_state %}<dt>Follow-ups</dt><dd>{{ d.follow_up_state }}</dd>{% endif %}
         </dl>
 
+        {% if d.mpesa %}
+        <div class="mpesa-state is-{{ d.mpesa.status }}"{% if d.mpesa.is_pending %} data-mpesa-status="{% url 'payments:mpesa-status' d.mpesa.pk %}"{% endif %} role="status" aria-live="polite">
+          {% if d.mpesa.is_pending %}<span class="spinner" aria-hidden="true"></span>
+            <span><b>Waiting for {{ customer.first_name|default:"the customer" }} to enter their M-Pesa PIN</b><span class="row-sub">{{ d.mpesa.amount|money:request.shop }} to {{ d.mpesa.phone }}. This page updates by itself.</span></span>
+          {% else %}{% icon "triangle-alert" "sm" %}
+            <span><b>{{ d.mpesa.get_status_display }}</b><span class="row-sub">{{ d.mpesa.result_desc|default:"No payment was made." }}</span></span>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if mpesa_ready and d.owed > 0 %}
         <form method="post" class="form deal-form" novalidate>
           {% csrf_token %}<input type="hidden" name="intent" value="{{ d.pk }}">
-          <h3 class="deal-sub">Record a deposit</h3>
+          <h3 class="deal-sub">Ask for M-Pesa payment{% if mpesa_mode == 'sandbox' %} <span class="badge badge-notified">Sandbox</span>{% endif %}</h3>
+          <div class="form-row">
+            <div class="field"><label for="mp-amt-{{ d.pk }}">Amount</label><input id="mp-amt-{{ d.pk }}" name="amount" type="number" inputmode="numeric" min="1" step="1" max="{{ d.owed|floatformat:'0' }}" value="{{ d.owed|floatformat:'0' }}"></div>
+            <div class="field"><label for="mp-ph-{{ d.pk }}">Their M-Pesa number</label><input id="mp-ph-{{ d.pk }}" name="phone" type="tel" inputmode="tel" value="{{ customer.phone_number }}"></div>
+          </div>
+          <p class="help">Their phone shows the M-Pesa PIN prompt. When they pay, the payment records itself with the M-Pesa code. Lower the amount for a deposit.</p>
+          <div class="button-row"><button class="btn btn-primary" type="submit" name="action" value="mpesa">{% icon "phone" "sm" %}Send payment prompt</button></div>
+        </form>
+        {% endif %}
+
+        {% if mpesa_ready %}<details class="deal-more"><summary>Record a payment by hand</summary>{% endif %}
+        <form method="post" class="form deal-form" novalidate>
+          {% csrf_token %}<input type="hidden" name="intent" value="{{ d.pk }}">
+          {% if not mpesa_ready %}<h3 class="deal-sub">Record a deposit</h3>{% endif %}
           <div class="form-row">
             <div class="field"><label for="amt-{{ d.pk }}">Amount</label><input id="amt-{{ d.pk }}" name="amount" type="number" inputmode="decimal" min="1" step="1" max="{{ d.owed|floatformat:'0' }}" required></div>
             <div class="field"><label for="ref-{{ d.pk }}">Reference <span class="faint">(e.g. M-Pesa code)</span></label><input id="ref-{{ d.pk }}" name="reference" type="text" maxlength="60" autocomplete="off"></div>
@@ -93,6 +116,7 @@
             <button class="btn" type="submit" name="action" value="paid" data-confirm-click="Record {{ d.owed|money:request.shop }} as paid in full?">Paid in full ({{ d.owed|money:request.shop }})</button>
           </div>
         </form>
+        {% if mpesa_ready %}</details>{% endif %}
 
         {% if d.other_options %}
         <details class="deal-more"><summary>Change item</summary>
@@ -137,6 +161,16 @@
   });
   document.querySelectorAll('[data-confirm-click]').forEach(function (button) {
     button.addEventListener('click', function (e) { if (!window.confirm(button.dataset.confirmClick)) e.preventDefault(); });
+  });
+  // A waiting M-Pesa prompt: check every few seconds and reload once it has an answer.
+  document.querySelectorAll('[data-mpesa-status]').forEach(function (box) {
+    var tries = 0;
+    var timer = setInterval(function () {
+      if (++tries > 60) { clearInterval(timer); return; }
+      fetch(box.dataset.mpesaStatus, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (data) {
+        if (data.status !== 'pending') { clearInterval(timer); window.location.reload(); }
+      }).catch(function () {});
+    }, 4000);
   });
   // "Paid in full" doesn't need an amount; let it submit even though the deposit amount is empty.
   document.querySelectorAll('.deal-form button[value="paid"]').forEach(function (button) { button.formNoValidate = true; });

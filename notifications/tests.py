@@ -102,7 +102,8 @@ class RestockMessageTests(MessagingTestCase):
         self.assertIn('Balance KSh 13,700', receipt.body)
 
 
-@override_settings(MESSAGING_PROVIDERS=WHATSAPP_CLOUD, WHATSAPP_TOKEN='t', WHATSAPP_PHONE_NUMBER_ID='123')
+@override_settings(MESSAGING_PROVIDERS=WHATSAPP_CLOUD, WHATSAPP_TOKEN='t', WHATSAPP_PHONE_NUMBER_ID='123',
+                   WHATSAPP_TEMPLATES={'restock_alert': 'restock_alert_v1'}, SITE_URL='https://shop.example')
 class WhatsAppCloudTests(MessagingTestCase):
     @patch('notifications.providers.requests.post')
     def test_template_send(self, post):
@@ -112,7 +113,33 @@ class WhatsAppCloudTests(MessagingTestCase):
         message = self.outbound().get()
         self.assertEqual((message.status, message.provider_message_id), ('sent', 'wamid.1'))
         payload = post.call_args.kwargs['json']
-        self.assertEqual((payload['to'], payload['type'], payload['template']['name']), ('254722345678', 'template', 'hello_world'))
+        template = payload['template']
+        self.assertEqual((payload['to'], payload['type'], template['name']), ('254722345678', 'template', 'restock_alert_v1'))
+        body = next(c for c in template['components'] if c['type'] == 'body')
+        values = [p['text'] for p in body['parameters']]
+        self.assertEqual(values[0], message.conversation.customer.first_name)
+        self.assertIn('Kimathi', values[3])
+        self.assertEqual(len(values), 5)
+
+    @patch('notifications.providers.requests.post')
+    def test_message_without_an_approved_template_goes_by_sms(self, post):
+        intent = self.waiting()
+        with self.settings(WHATSAPP_TEMPLATES={}):
+            self.restock()
+        post.assert_not_called()
+        whatsapp, sms = self.outbound().order_by('id')
+        self.assertEqual((whatsapp.status, whatsapp.error_code), ('failed', 'no_template'))
+        self.assertEqual((sms.channel, sms.status), ('sms', 'delivered'))
+        intent.refresh_from_db()
+        self.assertEqual(intent.status, Intent.NOTIFIED)
+
+    @patch('notifications.providers.requests.post')
+    def test_free_text_reply_needs_no_template(self, post):
+        from notifications.providers import WhatsAppCloudProvider
+        post.return_value = http_response(200, {'messages': [{'id': 'wamid.9'}]})
+        reply = Message(channel=Message.WHATSAPP, to_address='+254722345678', body='See you Saturday')
+        self.assertTrue(WhatsAppCloudProvider().send(reply).ok)
+        self.assertEqual(post.call_args.kwargs['json']['text'], {'body': 'See you Saturday'})
 
     @patch('notifications.providers.requests.post')
     def test_not_on_whatsapp_falls_back_to_sms(self, post):

@@ -1,4 +1,6 @@
 """Reads for Conversations: the inbox, one chat, and the deal beside it."""
+from datetime import timedelta
+
 from django.db.models import OuterRef, Q, Subquery
 from django.utils import timezone
 
@@ -78,4 +80,7 @@ def deals(conversation):
             intent.follow_up_state = ''
         intent.other_options = [v for v in intent.product.variations.prefetch_related('holds').all()
                                 if v.pk != intent.variation_id]
+        latest = intent.mpesa_requests.order_by('-created_at').first()
+        recent = latest and timezone.now() - latest.created_at < timedelta(minutes=30)
+        intent.mpesa = latest if recent and latest.status != latest.PAID else None
     return items

@@ -51,9 +51,7 @@ class ShopDetailsForm(forms.ModelForm):
 
     class Meta:
         model = Shop
-        fields = ['name', 'phone_region', 'currency', 'timezone', 'payment_details', 'logo']
-        labels = {'payment_details': 'How customers pay you'}
-        widgets = {'payment_details': forms.Textarea(attrs={'rows': 2})}
+        fields = ['name', 'phone_region', 'currency', 'timezone', 'logo']
         labels = {'name': 'Shop name'}
 
 
@@ -84,6 +82,20 @@ class MessagingForm(forms.ModelForm):
         labels = {'default_channel': 'Message new customers on'}
         widgets = {'default_channel': forms.RadioSelect}
         help_texts = {'default_channel': "If a customer can't be reached there, the next channel is tried."}
+
+
+class PaymentsForm(forms.ModelForm):
+    class Meta:
+        model = Shop
+        fields = ['payment_details']
+        labels = {'payment_details': 'How customers pay you'}
+        widgets = {'payment_details': forms.Textarea(attrs={'rows': 2})}
+        help_texts = {'payment_details': 'Sent by the "Send payment details" quick reply, e.g. M-Pesa Till 123456, Kimathi Street Store.'}
+
+
+class TestMessageForm(forms.Form):
+    channel = forms.ChoiceField(choices=[('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'Email')])
+    to = forms.CharField(max_length=254)
 
 
 class ProductTypeForm(forms.ModelForm):

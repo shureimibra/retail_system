@@ -9,23 +9,45 @@
     <div class="form-actions"><button type="submit" class="btn btn-primary">Save</button></div>
   </form>
 </div>
+
 <div class="panel">
   <div class="panel-head"><h2>Connected channels</h2></div>
-  <div class="rows">
-    {% for channel, provider in connections %}
-    <div><span class="grow">{{ channel }}</span><span class="{% if 'Simulator' in provider %}faint{% endif %}">{{ provider }}</span></div>
+  <div class="rows connections">
+    {% for c in connections %}
+    <div>
+      <span class="grow"><span class="row-title">{{ c.label }}</span>
+        <span class="row-sub">{{ c.provider }}</span>
+        {% for note in c.notes %}<span class="row-sub">{{ note }}</span>{% endfor %}
+        {% if c.missing %}<span class="row-sub err-text">Missing in .env: {{ c.missing|join:", " }}</span>{% endif %}</span>
+      {% if c.state == 'ready' %}<span class="badge badge-ok">Connected</span>{% elif c.state == 'missing' %}<span class="badge badge-failed">Keys missing</span>{% else %}<span class="badge badge-notified">Simulator</span>{% endif %}
+    </div>
     {% endfor %}
   </div>
   <div class="panel-body divided">
-    <p class="small muted">Channels are connected by whoever runs Retail OS for you. The provider keys live on the server, not here.</p>
+    <p class="small muted">Channels are connected in the server's <span class="mono">.env</span> file, never on this page. The set-up guide is <span class="mono">docs/setup-free-channels.md</span>.</p>
   </div>
 </div>
+
+<div class="panel" id="test">
+  <div class="panel-head"><h2>Send a test message</h2></div>
+  <form method="post" class="panel-body form" novalidate>
+    {% csrf_token %}<input type="hidden" name="action" value="test">
+    {% if test_result %}<p class="test-result {% if test_result.ok %}is-ok{% else %}is-error{% endif %}" role="status">{% if test_result.ok %}{% icon "circle-check" "sm" %}{% else %}{% icon "triangle-alert" "sm" %}{% endif %}{{ test_result.text }}</p>{% endif %}
+    <div class="form-row">
+      {% field test_form.channel %}
+      <div class="field"><label for="id_to">Your phone or email</label>{{ test_form.to }}
+        <p class="help">On free test accounts, only numbers you've added in Meta or verified in Twilio receive it.</p></div>
+    </div>
+    <div class="form-actions"><button type="submit" class="btn">{% icon "send" "sm" %}Send test</button></div>
+  </form>
+</div>
+
 {% if simulator_enabled %}
 <div class="panel">
   <div class="panel-head"><h2>Test mode</h2><span class="badge badge-notified">Nothing is sent</span></div>
   <div class="panel-body stack">
-    <p class="muted">Real WhatsApp isn't connected yet, so messages stay on this computer. To check your automatic messages, pretend to be a customer: see exactly what they would receive, and send a reply as they would from their phone.</p>
-    <p class="small faint">This disappears once real WhatsApp is connected. Real customers then reply from their own phones and their replies arrive in Conversations.</p>
+    <p class="muted">For channels still on the simulator, pretend to be a customer: see exactly what they would receive, and send a reply as they would from their phone.</p>
+    <p class="small faint">This disappears once real channels are connected and SIMULATOR_ENABLED is off. Real customers then reply from their own phones and their replies arrive in Conversations.</p>
     <div><a class="btn" href="{% url 'notifications:simulator' %}">Open test mode</a></div>
   </div>
 </div>

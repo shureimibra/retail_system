@@ -10,7 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.phones import normalize_phone
-from .compose import compose
+from .compose import compose, template_params
 from .models import Conversation, Message
 from .providers import provider_for
 
@@ -60,6 +60,7 @@ def queue_message(intent, template_key, channel=None):
         direction=Message.OUTBOUND, channel=channel, to_address=address_for(customer, channel),
         body=compose(template_key, intent), template_key=template_key,
         media_url=_photo_url(intent) if template_key in ('restock_alert', 'price_drop') else '',
+        template_params=template_params(template_key, intent),
     )
     return _queue(message)
 

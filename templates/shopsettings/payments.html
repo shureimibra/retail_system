@@ -1,0 +1,31 @@
+{% extends "shopsettings/base.html" %}
+{% load ui %}
+{% block pane %}
+<div class="panel">
+  <div class="panel-head"><h2 id="pane-title">M-Pesa</h2>
+    {% if mpesa_mode == 'off' %}<span class="badge badge-notified">Off</span>{% elif not mpesa_ready %}<span class="badge badge-failed">Keys missing</span>{% elif mpesa_mode == 'sandbox' %}<span class="badge badge-warn">Sandbox</span>{% else %}<span class="badge badge-ok">Live</span>{% endif %}</div>
+  <div class="panel-body stack">
+    {% if mpesa_mode == 'off' %}
+    <p class="muted">Payments are recorded by hand in each conversation. Turn on M-Pesa to send customers a payment prompt instead: they enter their PIN and the payment records itself with the M-Pesa code.</p>
+    <p class="small faint">Set <span class="mono">MPESA_ENV=sandbox</span> and the Daraja keys in <span class="mono">.env</span>. The sandbox is free and uses test money only. The steps are in <span class="mono">docs/setup-free-channels.md</span>.</p>
+    {% else %}
+    <dl class="facts">
+      <dt>Mode</dt><dd>{% if mpesa_mode == 'sandbox' %}Sandbox: free, test money only, no real payments{% else %}Live: real payments{% endif %}</dd>
+      <dt>Business number</dt><dd class="mono">{{ mpesa_shortcode }}</dd>
+      <dt>Confirmations</dt><dd>{% if site_is_public %}Received at this site's public address{% else %}<span class="err-text">Need a public https SITE_URL (start the tunnel)</span>{% endif %}</dd>
+    </dl>
+    {% if mpesa_missing %}<p class="err-text small">Missing in .env: {{ mpesa_missing|join:", " }}</p>{% endif %}
+    {% if mpesa_ready %}<p class="small muted">In a conversation, the deal panel now shows <b>Ask for M-Pesa payment</b>.</p>{% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>How customers pay you</h2></div>
+  <form method="post" class="panel-body form" novalidate>
+    {% csrf_token %}
+    {% for f in form %}{% field f %}{% endfor %}
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Save</button></div>
+  </form>
+</div>
+{% endblock %}

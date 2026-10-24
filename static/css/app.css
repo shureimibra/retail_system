@@ -686,3 +686,15 @@ button.pick-chip > span { display: grid; gap: 1px; }
 .chat-head .grow { flex: 1; }
 .convo-list .panel-head a { color: inherit; text-decoration: none; }
 .deal-form fieldset.choice-row { border: 0; padding: 0; margin: 0; min-width: 0; }
+
+/* ---------------------------------------------------------- Phase 4: M-Pesa prompt */
+.mpesa-state { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--r-control); background: var(--surface-2); font-size: 14px; }
+.mpesa-state > span:last-child { display: grid; gap: 2px; }
+.mpesa-state.is-cancelled, .mpesa-state.is-failed, .mpesa-state.is-needs_check { background: var(--warn-bg); }
+.spinner { width: 16px; height: 16px; margin-top: 2px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent);
+  animation: spin .9s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+.connections .grow { display: grid; gap: 2px; }
+.test-result { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: var(--r-control); background: var(--ok-bg); font-size: 14px; }
+.test-result.is-error { background: var(--crit-bg); }
