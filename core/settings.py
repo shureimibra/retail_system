@@ -38,7 +38,9 @@ if not SECRET_KEY:
         raise ImproperlyConfigured('SECRET_KEY must be set when DEBUG is off.')
     SECRET_KEY = 'django-insecure-local-development-only'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+# Host names only. Stray spaces, "https://" and trailing slashes are forgiven, since this is easy to get wrong.
+ALLOWED_HOSTS = [h.strip().split('://')[-1].strip('/') for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+                 if h.strip()]
 
 
 # Application definition
@@ -220,7 +222,12 @@ MESSAGING_PROVIDERS = {
 }
 MESSAGE_MAX_ATTEMPTS = int(os.environ.get('MESSAGE_MAX_ATTEMPTS', '3'))
 # Public address of this site, used for photo links in WhatsApp messages.
-SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
+SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000').strip().rstrip('/')
+# The public address (for example the Cloudflare tunnel) is always allowed, and signing in through it works.
+_site_host = SITE_URL.split('://')[-1].split('/')[0].split(':')[0]
+if _site_host and _site_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_site_host)
+CSRF_TRUSTED_ORIGINS = [SITE_URL] if SITE_URL.startswith('https://') else []
 SIMULATOR_ENABLED = os.environ.get('SIMULATOR_ENABLED', str(DEBUG)).lower() in ('true', '1', 'yes')
 
 # Meta WhatsApp Cloud API (free test number for development)
