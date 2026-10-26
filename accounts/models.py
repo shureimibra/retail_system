@@ -35,6 +35,11 @@ class Shop(models.Model):
     home_layout = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        from core.images import square_logo
+        square_logo(self.logo)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
 

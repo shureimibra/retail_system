@@ -1,4 +1,6 @@
 from django import forms
+
+from core.forms import PhotoFieldsMixin
 from django.contrib.auth import get_user_model
 
 from accounts.models import Membership, Shop
@@ -43,7 +45,8 @@ class LookForm(forms.ModelForm):
         widgets = {'theme': forms.RadioSelect}
 
 
-class ShopDetailsForm(forms.ModelForm):
+class ShopDetailsForm(PhotoFieldsMixin, forms.ModelForm):
+    photo_fields = ('logo',)
     phone_region = forms.ChoiceField(choices=REGIONS, label='Country for phone numbers',
                                      help_text='Local numbers like 0712 345 678 are saved with this country code.')
     currency = forms.ChoiceField(choices=CURRENCIES)

@@ -42,7 +42,7 @@
     {% if can_order and any_orderable %}
     <div class="bulk-bar">
       <span class="small muted">Tick items you've ordered from your supplier.</span>
-      <div class="field"><label for="expected_at">Arrives (optional)</label><input id="expected_at" name="expected_at" type="date"></div>
+      <div class="field"><label for="expected_at">Arrives (optional)</label><input id="expected_at" name="expected_at" type="date" min="{{ date_min|date:'Y-m-d' }}" max="{{ date_max|date:'Y-m-d' }}"></div>
       <button class="btn" type="submit">Mark as ordered</button>
     </div>
     {% endif %}

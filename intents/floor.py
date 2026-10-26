@@ -24,8 +24,7 @@ REASON_HINTS = {
     Intent.SIZE_MISSING: "The size they want isn't in stock",
     Intent.COLOUR_MISSING: "The colour they want isn't in stock",
     Intent.OUT_OF_STOCK: 'None left in any size or colour',
-    Intent.PRICE_TOO_HIGH: 'They think it costs too much. Messaged when you lower the price',
-    Intent.OVER_BUDGET: "They like the price but can't afford it today. Messaged when you lower the price",
+    Intent.PRICE_TOO_HIGH: "They think it costs too much, or it's over their budget. Messaged when you lower the price",
     Intent.OTHER: 'Write what happened in the note',
 }
 FORM_FIELDS = ('product', 'variation', 'reason', 'phone', 'name', 'email', 'within', 'note', 'new_option1', 'new_option2',
@@ -53,7 +52,7 @@ class FloorView(ShopViewMixin, TemplateView):
             'catalog': {str(p.pk): {'price': float(p.base_price),
                                     'options': [name for name, _ in p.product_type.options][:2] if p.product_type else ['Size', 'Colour']}
                         for p in products},
-            'reasons': [(value, label, REASON_HINTS.get(value, '')) for value, label in Intent.CONSTRAINT_CHOICES],
+            'reasons': [(value, label, REASON_HINTS.get(value, '')) for value, label in Intent.CAPTURE_CHOICES],
             'restock_reasons': Intent.RESTOCK_REASONS,
             'needed_within': NEEDED_WITHIN,
             'product_types': ProductType.objects.filter(shop=shop),
@@ -124,7 +123,8 @@ class FloorView(ShopViewMixin, TemplateView):
             if not name or price is None or price < 0:
                 problems.append("For a new item, enter its name and the price you'd sell it at.")
                 return None, None
-            category, _ = Category.objects.get_or_create(shop=shop, name=product_type.name if product_type else 'Other')
+            category, _ = Category.objects.get_or_create(shop=shop, name=product_type.name if product_type else 'Other',
+                                                         defaults={'product_type': product_type})
             product = Product.objects.create(shop=shop, category=category, product_type=product_type, name=name,
                                              base_price=price, needs_review=not manager)
         else:

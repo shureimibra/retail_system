@@ -67,12 +67,14 @@ class BlockedPurchaseIntent(models.Model):
         (SIZE_MISSING, 'Size missing'),
         (COLOUR_MISSING, 'Colour missing'),
         (OUT_OF_STOCK, 'Out of stock'),
-        (PRICE_TOO_HIGH, 'Price too high'),
-        (OVER_BUDGET, 'Over budget'),
+        (PRICE_TOO_HIGH, 'Price too high / over budget'),
+        (OVER_BUDGET, 'Price too high / over budget'),  # merged with the one above; kept for older records
         (OTHER, 'Something else'),
     ]
     RESTOCK_REASONS = [SIZE_MISSING, COLOUR_MISSING, OUT_OF_STOCK]
     PRICE_DROP_REASONS = [PRICE_TOO_HIGH, OVER_BUDGET]
+    # What staff choose from when logging: the two price reasons are one choice.
+    CAPTURE_CHOICES = CONSTRAINT_CHOICES[:4] + CONSTRAINT_CHOICES[5:]  # all but OVER_BUDGET
 
     WHATSAPP = 'whatsapp'
     SMS = 'sms'

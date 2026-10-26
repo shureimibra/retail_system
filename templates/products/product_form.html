@@ -9,16 +9,45 @@
   </div>
   <form method="post" enctype="multipart/form-data" class="panel panel-body form" novalidate>
     {% csrf_token %}
+    {% if form.errors %}<div class="form-errors" role="alert" id="form-errors"><b>Please fix {{ form.errors|length }} thing{{ form.errors|length|pluralize }} before saving:</b>
+      <ul>{% for name, errors in form.errors.items %}<li>{% if name != '__all__' %}{% for f in form %}{% if f.name == name %}{{ f.label }}: {% endif %}{% endfor %}{% endif %}{{ errors.0 }}</li>{% endfor %}</ul></div>{% endif %}
     {% field form.name %}
-    <div class="form-row">{% field form.product_type "Decides which sizes and colours are offered. Change types in Settings." %}{% field form.category %}</div>
+    {% field form.product_type "Decides which sizes and colours are offered. Change types in Settings." %}
+    <div class="form-row" data-category-row>{% field form.category %}{% field form.new_category %}</div>
+    <p class="help" data-other-hint hidden>For <b>Other</b>, type what it is in "Or a new category", for example Watches or Belts.</p>
     {% field form.base_price "Price changes are recorded. Lowering it tells customers who said the price was too high." %}
     {% field form.description %}
     {% field form.supplier "Optional. The To order list groups items by supplier so you can send each one their list." %}
-    {% field form.image "Sent with restock messages. Large photos are made smaller automatically." %}
+    {% include "ui/photo_field.html" with field=form.image remove=form.remove_image help="Sent with restock messages. Big photos are made smaller automatically, so any phone photo is fine." %}
     <div class="form-actions">
       <a class="btn" href="{% url 'products:list' %}">Cancel</a>
       <button type="submit" class="btn btn-primary">Save product</button>
     </div>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // Categories follow the type: only the chosen type's categories (and shared ones) are offered.
+  var type = document.getElementById('id_product_type'), category = document.getElementById('id_category');
+  var hint = document.querySelector('[data-other-hint]');
+  if (!type || !category) return;
+  function filter() {
+    var chosen = type.value, label = type.options[type.selectedIndex] ? type.options[type.selectedIndex].text.toLowerCase() : '';
+    Array.prototype.forEach.call(category.options, function (o) {
+      var show = !o.value || !o.dataset.type || o.dataset.type === chosen;
+      o.hidden = !show; o.disabled = !show;
+    });
+    var current = category.options[category.selectedIndex];
+    if (current && current.disabled) category.value = '';
+    hint.hidden = label !== 'other';
+  }
+  type.addEventListener('change', filter);
+  filter();
+  var errors = document.getElementById('form-errors');
+  if (errors) { var first = document.querySelector('.has-error input, .has-error select, .has-error textarea'); if (first) first.focus(); }
+})();
+</script>
 {% endblock %}

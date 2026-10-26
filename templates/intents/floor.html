@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Floor mode · {{ request.shop.name }}</title>
+  <title>Log missed sale · {{ request.shop.name }}</title>
   <link rel="icon" href="{% static 'icons/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body class="floor-body">
 {% include "ui/icon_sprite.svg" %}
 <header class="floor-bar">
-  <span class="brand-mark">{{ request.shop.name|first|upper }}</span>
-  <span class="grow"><b>Floor mode</b> <span class="faint small">· {{ user.get_full_name|default:user.username }}</span></span>
+  {% include "ui/brand_mark.html" with shop=request.shop %}
+  <span class="grow"><b>{{ request.shop.name }}</b> <span class="faint small">· {{ user.get_full_name|default:user.username }}</span></span>
   <a class="btn btn-plain" href="{% url 'dashboard:home' %}">{% icon "x" "sm" %}Exit</a>
 </header>
 
@@ -30,6 +30,10 @@
     </div>
   </section>
 
+  <div class="capture-head" id="capture-head"{% if start != 'item' %} hidden{% endif %}>
+    <h1>Log missed sale</h1>
+    <form method="post">{% csrf_token %}<button class="btn" type="submit" name="action" value="bought">{% icon "circle-check" "sm" %}They bought after all</button></form>
+  </div>
   <form method="post" class="floor-form" id="capture"{% if start != 'item' %} hidden{% endif %} novalidate>
     {% csrf_token %}
     {% if visit %}<input type="hidden" name="visit" value="{{ visit }}">{% endif %}
@@ -129,7 +133,7 @@
   var outcome = document.getElementById('outcome');
   var startLink = document.querySelector('[data-start-item]');
   if (startLink) startLink.addEventListener('click', function (e) {
-    e.preventDefault(); outcome.hidden = true; form.hidden = false; layout(); go(0);
+    e.preventDefault(); outcome.hidden = true; form.hidden = false; document.getElementById('capture-head').hidden = false; layout(); go(0);
   });
 
   // Size and colour: only the chosen item's options, as big chips showing what's in stock.

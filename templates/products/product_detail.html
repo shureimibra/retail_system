@@ -100,18 +100,18 @@
 </div>
 
 <section class="panel" aria-labelledby="add-title">
-  <div class="panel-head"><h2 id="add-title">Add a size or colour</h2></div>
+  <div class="panel-head"><h2 id="add-title">Add sizes and colours</h2></div>
   <form method="post" class="panel-body form" novalidate>
     {% csrf_token %}<input type="hidden" name="action" value="add">
-    <div class="form-row">
-      {% for name, values in detail.type_options %}
-      <div class="field"><label for="add-{{ forloop.counter }}">{{ name }}</label>
-        <input id="add-{{ forloop.counter }}" name="option{{ forloop.counter }}" type="text" list="add-list-{{ forloop.counter }}" maxlength="50" autocomplete="off">
-        {% if values %}<datalist id="add-list-{{ forloop.counter }}">{% for value in values %}<option value="{{ value }}">{% endfor %}</datalist>{% endif %}</div>
-      {% endfor %}
-      <div class="field"><label for="add-stock">In stock now</label><input id="add-stock" name="stock" type="number" inputmode="numeric" min="0" value="0"></div>
-    </div>
-    <p class="help">The SKU is made for you.</p>
+    {% for name, values in detail.type_options %}
+    <fieldset class="field option-pick">
+      <legend class="field-label">{{ name }}</legend>
+      {% if values %}<div class="tick-chips">{% for value in values %}<label class="tick-chip"><input type="checkbox" name="option{{ forloop.parentloop.counter }}" value="{{ value }}"><span>{{ value }}</span></label>{% endfor %}</div>{% endif %}
+      <input type="text" name="option{{ forloop.counter }}_more" maxlength="300" autocomplete="off" aria-label="{% if values %}Other {{ name|lower }}{% else %}{{ name }}{% endif %}"
+             placeholder="{% if values %}Others, separated by commas{% elif forloop.counter == 2 %}e.g. Black, White, Black/White{% else %}Separate several with commas{% endif %}">
+    </fieldset>
+    {% endfor %}
+    <p class="help">Every combination is added with 0 in stock (for example 3 sizes × 2 colours = 6). Then use <b>Receive stock</b>, or tap a box in the grid, for the ones you have. The SKUs are made for you.</p>
     <div class="form-actions"><button class="btn" type="submit">Add</button></div>
   </form>
 </section>

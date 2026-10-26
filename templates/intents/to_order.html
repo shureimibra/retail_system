@@ -15,7 +15,7 @@
   {% if any_open %}
   <div class="panel bulk-bar">
     <span class="small muted">Tick what you've ordered. Customers stay waiting until it arrives; then they're messaged automatically.</span>
-    <div class="field"><label for="expected_at">Arrives (optional)</label><input id="expected_at" name="expected_at" type="date"></div>
+    <div class="field"><label for="expected_at">Arrives (optional)</label><input id="expected_at" name="expected_at" type="date" min="{{ date_min|date:'Y-m-d' }}" max="{{ date_max|date:'Y-m-d' }}"></div>
     <button class="btn btn-primary" type="submit">Mark as ordered</button>
   </div>
   {% endif %}

@@ -1,7 +1,7 @@
 """Reads for Home. Each function feeds one widget; only the widgets on the person's layout are computed."""
 from datetime import timedelta
 
-from django.db.models import Count, Sum
+from django.db.models import Count, OuterRef, Subquery, Sum
 from django.urls import reverse
 from django.utils import timezone
 
@@ -70,38 +70,47 @@ def key_numbers(shop, period):
     }
 
 
-def needs_you(shop, limit=8):
-    """One row per thing someone should act on now, newest first."""
+def needs_you(shop):
+    """
+    Everything someone should act on now. Most valuable first: customers waiting for an answer,
+    overdue pickups, promises due, then messages that couldn't be delivered; newest first within each.
+    Nothing is cut off here; Home shows the first few and the rest on "Show all".
+    """
     today = timezone.localdate()
     rows = []
-    for conv in (Conversation.objects.filter(shop=shop, unread_count__gt=0)
-                 .select_related('customer').order_by('-last_inbound_at')[:limit]):
-        last = conv.messages.filter(direction=Message.INBOUND).order_by('-created_at').first()
-        rows.append({'kind': 'reply', 'badge': 'In conversation', 'badge_class': 'in_conversation',
-                     'title': f'{conv.customer.first_name or conv.customer.phone_number} replied',
-                     'sub': (last.body[:80] if last else ''), 'at': conv.last_inbound_at,
+    last = Message.objects.filter(conversation=OuterRef('pk')).order_by('-created_at')
+    waiting = (Conversation.objects.filter(shop=shop)
+               .annotate(last_direction=Subquery(last.values('direction')[:1]), last_body=Subquery(last.values('body')[:1]))
+               .filter(last_direction=Message.INBOUND).select_related('customer'))
+    for conv in waiting:
+        who = conv.customer.first_name or conv.customer.phone_number
+        rows.append({'kind': 'reply', 'priority': 0, 'badge': 'Waiting for you', 'badge_class': 'in_conversation',
+                     'title': f'{who} is waiting for your answer' + (' (unread)' if conv.unread_count else ''),
+                     'sub': (conv.last_body or '')[:100], 'at': conv.last_inbound_at,
                      'action': 'Reply', 'url': reverse('notifications:conversation', args=[conv.pk])})
 
-    due = (Intent.objects.filter(shop=shop, status=Intent.OPEN, needed_by__isnull=False,
-                                 needed_by__lte=today + timedelta(days=2)))
+    for intent in (Intent.objects.filter(shop=shop, status=Intent.RESERVED, pickup_by__lt=today)
+                   .select_related('customer', 'product', 'variation')):
+        rows.append({'kind': 'pickup', 'priority': 1, 'badge': 'Reserved', 'badge_class': 'reserved',
+                     'title': f"{intent.customer.first_name or intent.customer.phone_number}'s pickup is overdue",
+                     'sub': f'{intent.product.name}{" · " + intent.variation.label if intent.variation else ""}'
+                            f' · was due {_day(intent.pickup_by)}',
+                     'at': None, 'sort_day': intent.pickup_by,
+                     'action': 'Open', 'url': reverse('intents:update', args=[intent.pk])})
+
+    due = Intent.objects.filter(shop=shop, status=Intent.OPEN, needed_by__isnull=False,
+                                needed_by__lte=today + timedelta(days=2))
     due_count = due.count()
     if due_count:
         first = due.order_by('needed_by').values_list('needed_by', flat=True).first()
-        rows.append({'kind': 'promise', 'badge': 'Open', 'badge_class': 'open',
+        rows.append({'kind': 'promise', 'priority': 2, 'badge': 'Open', 'badge_class': 'open',
                      'title': f'{due_count} promise{"s" if due_count != 1 else ""} due by {_day(first)}',
                      'sub': 'Nothing ordered yet', 'at': None,
-                     'action': 'View', 'url': reverse('intents:list') + '?show=stock'})
-
-    for intent in (Intent.objects.filter(shop=shop, status=Intent.RESERVED, pickup_by__lt=today)
-                   .select_related('customer', 'product', 'variation').order_by('pickup_by')[:limit]):
-        rows.append({'kind': 'pickup', 'badge': 'Reserved', 'badge_class': 'reserved',
-                     'title': f"{intent.customer.first_name}'s pickup is overdue",
-                     'sub': f'{intent.product.name}{" · " + intent.variation.label if intent.variation else ""}'
-                            f' · was due {_day(intent.pickup_by)}',
-                     'at': None, 'action': 'Open', 'url': reverse('intents:update', args=[intent.pk])})
+                     'action': 'To order', 'url': reverse('intents:to_order')})
 
     week_ago = timezone.now() - timedelta(days=7)
     failed = (Message.objects.filter(shop=shop, direction=Message.OUTBOUND, status=Message.FAILED, created_at__gte=week_ago,
+                                     alert_dismissed=False,
                                      intent__status__in=Intent.WAITING_STATUSES + [Intent.BACK_IN_STOCK, Intent.NOTIFIED])
               .select_related('conversation__customer').order_by('-created_at'))
     seen = set()
@@ -110,25 +119,32 @@ def needs_you(shop, limit=8):
         if customer is None or customer.pk in seen:
             continue
         seen.add(customer.pk)
-        rows.append({'kind': 'failed', 'badge': 'Send failed', 'badge_class': 'failed',
+        if message.error_code == 'network':
+            why = "Couldn't connect to the message service (internet problem). It will be tried again."
+        else:
+            why = message.error_detail or message.get_status_display()
+        rows.append({'kind': 'failed', 'priority': 3, 'badge': 'Send failed', 'badge_class': 'failed',
                      'title': f"Couldn't reach {customer.first_name or customer.phone_number}",
-                     'sub': f'{message.get_channel_display()}: {message.error_detail or message.get_status_display()}',
-                     'at': message.created_at, 'action': 'Fix number', 'url': reverse('customers:update', args=[customer.pk])})
-        if len(seen) >= limit:
-            break
+                     'sub': f'{message.get_channel_display()}: {why}'[:160], 'at': message.created_at,
+                     'action': 'Fix number', 'url': reverse('customers:update', args=[customer.pk]),
+                     'dismiss_id': message.pk})
 
     far_past = timezone.now() - timedelta(days=3650)
     rows.sort(key=lambda r: r['at'] or far_past, reverse=True)
-    return rows[:limit]
+    rows.sort(key=lambda r: r['priority'])  # stable: newest first within each kind
+    return rows
 
 
 def reasons(shop, period):
     qs = _in_period(Intent.objects.filter(shop=shop), 'created_at', period)
     total = qs.count()
     labels = dict(Intent.CONSTRAINT_CHOICES)
-    return [{'label': labels.get(r['constraint_type'], r['constraint_type']), 'count': r['count'],
-             'percent': round(100 * r['count'] / total)}
-            for r in qs.values('constraint_type').annotate(count=Count('id')).order_by('-count')]
+    counts = {}
+    for r in qs.values('constraint_type').annotate(count=Count('id')):
+        label = labels.get(r['constraint_type'], r['constraint_type'])  # both price reasons share one label
+        counts[label] = counts.get(label, 0) + r['count']
+    return [{'label': label, 'count': count, 'percent': round(100 * count / total)}
+            for label, count in sorted(counts.items(), key=lambda item: -item[1])]
 
 
 def to_order_top(shop, limit=5):

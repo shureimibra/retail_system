@@ -58,3 +58,26 @@ def resolve_period(params, default='all'):
         'min': EARLIEST.isoformat(),
         'max': today.isoformat(),
     }
+
+
+FUTURE_DAYS = 365
+
+
+def future_window():
+    """(earliest, latest) for dates we ask about ahead of time: arrivals and pickups."""
+    today = timezone.localdate()
+    return today, today + timedelta(days=FUTURE_DAYS)
+
+
+def parse_future_date(value, label='The date'):
+    """A date between today and a year ahead, None when left empty; ValueError for anything else."""
+    if not value:
+        return None
+    try:
+        parsed = parse_date(str(value)) if not isinstance(value, date) else value
+    except ValueError:
+        parsed = None
+    earliest, latest = future_window()
+    if parsed is None or not earliest <= parsed <= latest:
+        raise ValueError(f'{label} must be between today and {latest.day} {latest:%b %Y}.')
+    return parsed

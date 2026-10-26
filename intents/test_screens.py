@@ -204,11 +204,24 @@ class ProductDetailTests(ScreensTestCase):
 
     def test_add_a_size_with_a_made_up_sku(self):
         self.login('owner')
-        self.client.post(self.url, {'action': 'add', 'option1': '43', 'option2': 'Black', 'stock': '2'})
+        self.client.post(self.url, {'action': 'add', 'option1': '43', 'option2_more': 'Black'})
         added = ProductVariation.objects.get(product=self.product, option1='43')
-        self.assertEqual((added.sku, added.stock_quantity), ('NAZ-43-BLA', 2))
-        self.client.post(self.url, {'action': 'add', 'option1': '43', 'option2': 'Black'})
+        self.assertEqual((added.sku, added.stock_quantity), ('NAZ-43-BLA', 0))
+        self.client.post(self.url, {'action': 'add', 'option1': '43', 'option2_more': 'black'})
         self.assertEqual(ProductVariation.objects.filter(product=self.product, option1='43').count(), 1)
+
+    def test_add_many_sizes_and_colours_at_once(self):
+        self.login('owner')
+        response = self.client.post(self.url, {'action': 'add', 'option1': ['44', '45'], 'option1_more': '46, 44',
+                                               'option2_more': 'Black, White, Black/White'}, follow=True)
+        self.assertContains(response, 'Added 9 options')
+        labels = set(ProductVariation.objects.filter(product=self.product, option1__in=['44', '45', '46'])
+                     .values_list('option1', 'option2'))
+        self.assertEqual(len(labels), 9)
+        self.assertIn(('46', 'Black/White'), labels)
+        response = self.client.post(self.url, {'action': 'add', 'option1': ['44', '47'], 'option2_more': 'Black'}, follow=True)
+        self.assertContains(response, 'Added 1 option with 0 in stock')
+        self.assertContains(response, '1 were already listed')
 
     def test_photo_per_colour_is_used_for_every_size(self):
         self.login('owner')

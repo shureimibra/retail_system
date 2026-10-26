@@ -62,6 +62,7 @@ def queue_message(intent, template_key, channel=None):
         media_url=_photo_url(intent) if template_key in ('restock_alert', 'price_drop') else '',
         template_params=template_params(template_key, intent),
     )
+    Conversation.objects.filter(pk=message.conversation_id).update(last_message_at=message.created_at)
     return _queue(message)
 
 

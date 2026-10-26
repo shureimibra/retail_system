@@ -62,6 +62,17 @@ class ProductUpdateView(ShopViewMixin, UserPassesTestMixin, UpdateView):
 
 
 class ProductDetailView(ShopViewMixin, TemplateView):
+    @staticmethod
+    def _values(request, i):
+        """Ticked values plus any typed ones (comma separated) for option i, without repeats."""
+        values = request.POST.getlist(f'option{i}') + request.POST.get(f'option{i}_more', '').split(',')
+        seen, result = set(), []
+        for value in (v.strip()[:50] for v in values):
+            if value and value.lower() not in seen:
+                seen.add(value.lower())
+                result.append(value)
+        return result
+
     """One product: stock and waiting customers for every size and colour, price, photos and deliveries."""
     template_name = 'products/product_detail.html'
 
@@ -124,19 +135,14 @@ class ProductDetailView(ShopViewMixin, TemplateView):
                 product.save()
                 messages.success(request, 'Product photo saved')
         elif action == 'add':
-            values = [request.POST.get(f'option{i}', '').strip()[:50] for i in (1, 2, 3)]
-            if not any(values):
-                messages.error(request, 'Fill in at least one option, for example the size.')
-            elif ProductVariation.objects.filter(product=product, option1=values[0] or None,
-                                                 option2=values[1] or None, option3=values[2] or None).exists():
-                messages.error(request, 'That size and colour is already listed.')
+            added, skipped = services.add_option_combinations(product, [self._values(request, i) for i in (1, 2, 3)],
+                                                              recorded_by=request.user)
+            if not added and not skipped:
+                messages.error(request, 'Tick or type at least one size or colour.')
+            elif not added:
+                messages.error(request, 'All of those are already listed.')
             else:
-                try:
-                    stock = max(0, int(request.POST.get('stock') or 0))
-                except ValueError:
-                    stock = 0
-                variation = services.create_product_variation(
-                    product, values[0] or None, values[1] or None, stock,
-                    services.suggest_sku(product, *values), option3=values[2] or None, recorded_by=request.user)
-                messages.success(request, f'{variation.label} added')
+                extra = f' {skipped} were already listed.' if skipped else ''
+                messages.success(request, f'Added {added} option{"s" if added != 1 else ""} with 0 in stock. '
+                                          f'Use Receive stock for the ones you have.{extra}')
         return redirect(here)

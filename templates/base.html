@@ -16,7 +16,7 @@
   <aside class="sidebar" id="sidebar" aria-label="Main">
     <button class="drawer-close" type="button" id="drawerClose" aria-label="Close menu">{% icon "x" %}</button>
     <a class="brand" href="{% url 'dashboard:home' %}">
-      <span class="brand-mark">{{ request.shop.name|default:"R"|first|upper }}</span>
+      {% include "ui/brand_mark.html" with shop=request.shop %}
       <span class="brand-text"><b>{{ request.shop.name }}</b><small>Retail OS</small></span>
     </a>
     <button class="sidebar-toggle" type="button" id="sidebarToggle" aria-pressed="false" aria-label="Collapse menu" title="Collapse menu">{% icon "panel-left" %}</button>
@@ -43,11 +43,10 @@
     <header class="topbar">
       <button class="menu-btn" type="button" id="menuBtn" aria-controls="sidebar" aria-expanded="false" aria-label="Open menu">{% icon "menu" %}</button>
       <a class="brand topbar-brand" href="{% url 'dashboard:home' %}">
-        <span class="brand-mark">{{ request.shop.name|default:"R"|first|upper }}</span>
+        {% include "ui/brand_mark.html" with shop=request.shop %}
         <span class="shop-name">{{ request.shop.name }}</span>
       </a>
       <span class="spacer"></span>
-      <a class="btn floor-btn" href="{% url 'floor' %}">{% icon "store" "sm" %}Floor mode</a>
       <a class="btn btn-primary log-sale" href="{% url 'floor' %}?start=item">{% icon "plus" "sm" %}Log missed sale</a>
       <a class="avatar" href="{% url 'settings:account' %}" title="{{ user.get_full_name|default:user.username }}">{{ user|initials }}</a>
     </header>
@@ -135,6 +134,23 @@
     window.dispatchEvent(new Event('resize'));
   });
   syncToggle();
+
+  // Photo pickers: show the chosen file's name.
+  document.querySelectorAll('.photo-field input[type=file]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      var out = input.closest('.photo-field').querySelector('[data-file-name]');
+      if (out) out.textContent = input.files.length ? input.files[0].name + ' (saved when you press Save)' : '';
+    });
+  });
+
+  // Date boxes: typed dates outside min/max (e.g. year 275760) snap back into range.
+  document.querySelectorAll('input[type=date]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      if (!input.value) return;
+      if (input.max && input.value > input.max) input.value = input.max;
+      if (input.min && input.value < input.min) input.value = input.min;
+    });
+  });
 
   // Period pickers: a preset applies at once; "Custom range" shows the two dates.
   document.querySelectorAll('[data-period]').forEach(function (box) {

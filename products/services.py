@@ -128,3 +128,30 @@ def set_option_photo(product, value, image):
     photo.image = image
     photo.save()
     return photo
+
+
+MAX_NEW_OPTIONS = 200
+
+
+def add_option_combinations(product, option_lists, recorded_by=None):
+    """
+    Every combination of the given sizes × colours (× third option), each with 0 in stock.
+    Returns (added, already_listed). Existing combinations are left alone.
+    """
+    from itertools import product as combinations
+    lists = [values or [None] for values in option_lists]
+    if all(values == [None] for values in lists):
+        return 0, 0
+    existing = {tuple((v or '').lower() for v in combo)
+                for combo in product.variations.values_list('option1', 'option2', 'option3')}
+    added = skipped = 0
+    for combo in list(combinations(*lists))[:MAX_NEW_OPTIONS]:
+        key = tuple((v or '').lower() for v in combo)
+        if key in existing:
+            skipped += 1
+            continue
+        create_product_variation(product, combo[0], combo[1], 0, suggest_sku(product, *[v or '' for v in combo]),
+                                 option3=combo[2], recorded_by=recorded_by)
+        existing.add(key)
+        added += 1
+    return added, skipped

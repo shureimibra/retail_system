@@ -40,9 +40,13 @@ class Category(models.Model):
     shop = models.ForeignKey('accounts.Shop', on_delete=models.CASCADE, default=default_shop_id, related_name='categories')
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
+    # Which type it belongs to (Running → Shoes, Denim → Clothing). Empty = offered for every type.
+    product_type = models.ForeignKey('ProductType', on_delete=models.SET_NULL, null=True, blank=True,
+                                     related_name='categories')
 
     class Meta:
         verbose_name_plural = 'Categories'
+        ordering = ['name']
 
     def __str__(self):
         return self.name

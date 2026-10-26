@@ -1,7 +1,7 @@
 """Reads for Conversations: the inbox, one chat, and the deal beside it."""
 from datetime import timedelta
 
-from django.db.models import OuterRef, Q, Subquery
+from django.db.models import F, OuterRef, Q, Subquery
 from django.utils import timezone
 
 from intents.models import BlockedPurchaseIntent as Intent
@@ -21,7 +21,7 @@ def inbox(shop, show='all', q='', limit=None):
                      .annotate(last_body=Subquery(last.values('body')[:1]),
                                last_direction=Subquery(last.values('direction')[:1]),
                                last_status=Subquery(last.values('status')[:1]))
-                     .order_by('-unread_count', '-last_message_at'))
+                     .order_by(F('last_message_at').desc(nulls_last=True)))  # newest first, like WhatsApp
     if show == 'needs_reply':
         conversations = conversations.filter(unread_count__gt=0)
     q = (q or '').strip()

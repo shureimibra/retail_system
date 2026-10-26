@@ -1,0 +1,8 @@
+<div class="task">
+  <span class="badge badge-{{ row.badge_class }}">{{ row.badge }}</span>
+  <span class="grow"><span class="row-title">{{ row.title }}</span>{% if row.sub %}<span class="row-sub">{{ row.sub }}</span>{% endif %}</span>
+  {% if row.at %}<span class="faint small nowrap">{{ row.at|timesince }} ago</span>{% endif %}
+  <a class="btn btn-sm" href="{{ row.url }}">{{ row.action }}</a>
+  {% if row.dismiss_id %}<form method="post" action="{% url 'dashboard:dismiss-alert' row.dismiss_id %}">{% csrf_token %}
+    <button class="btn btn-plain btn-sm" type="submit" title="Hide this alert. Their item stays in Waiting.">Dismiss</button></form>{% endif %}
+</div>

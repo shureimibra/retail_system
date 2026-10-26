@@ -1,0 +1,16 @@
+{% comment %}A photo upload: the current picture, a plain "choose a new one", and a separate "remove". Usage: {% include "ui/photo_field.html" with field=form.image remove=form.remove_image help="…" %}{% endcomment %}
+<div class="field photo-field{% if field.errors %} has-error{% endif %}">
+  <span class="field-label">{{ field.label }} <span class="faint">(optional)</span></span>
+  <div class="photo-pick">
+    {% if field.value and field.value.url %}<img class="photo-preview" src="{{ field.value.url }}" alt="Current {{ field.label|lower }}" width="72" height="72">
+    {% else %}<span class="photo-preview empty-thumb" aria-hidden="true">No photo</span>{% endif %}
+    <div class="photo-controls">
+      <label class="btn btn-sm" for="{{ field.id_for_label }}">{% if field.value and field.value.url %}Replace{% else %}Choose a photo{% endif %}</label>
+      {{ field }}
+      <span class="small faint" data-file-name></span>
+      {% if remove and field.value and field.value.url %}<label class="check small" for="{{ remove.id_for_label }}">{{ remove }} <span>Remove this photo</span></label>{% endif %}
+    </div>
+  </div>
+  {% if help %}<p class="help">{{ help }}</p>{% endif %}
+  {% for error in field.errors %}<p class="error">{{ error }}</p>{% endfor %}
+</div>

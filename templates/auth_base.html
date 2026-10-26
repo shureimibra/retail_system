@@ -10,7 +10,7 @@
 <body>
 <main class="auth">
   <div class="auth-card">
-    <div class="brand"><span class="brand-mark">R</span><span class="brand-text"><b>Retail OS</b></span></div>
+    <div class="brand">{% include "ui/brand_mark.html" with shop=login_shop %}<span class="brand-text"><b>{{ login_shop.name|default:"Retail OS" }}</b></span></div>
     {% block content %}{% endblock %}
   </div>
 </main>

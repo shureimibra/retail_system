@@ -8,13 +8,12 @@ from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.utils.dateparse import parse_date
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import CreateView, TemplateView, UpdateView
 
 from analytics.selectors import get_to_order
-from core.periods import resolve_period
+from core.periods import future_window, parse_future_date, resolve_period
 from core.shops import ShopViewMixin, can_manage_catalog
 from .forms import BlockedPurchaseIntentForm
 from .models import BlockedPurchaseIntent
@@ -138,6 +137,7 @@ class IntentListView(ShopViewMixin, TemplateView):
             'can_order': can_manage_catalog(self.request),
             'any_orderable': any(i.can_order for g in page.object_list for i in g['items']),
             'today': today,
+            'date_min': future_window()[0], 'date_max': future_window()[1],
         })
         return context
 
@@ -173,6 +173,7 @@ class ToOrderView(ShopViewMixin, ManagersOnlyMixin, TemplateView):
             'customer_count': sum(len(r['customers']) for r in rows),
             'money_waiting': sum(r['money_waiting'] for r in rows),
             'any_open': any(r['open_ids'] for r in rows),
+            'date_min': future_window()[0], 'date_max': future_window()[1],
         })
         return context
 
@@ -184,10 +185,14 @@ class MarkOrderedView(ShopViewMixin, ManagersOnlyMixin, View):
         ids = [i for i in request.POST.getlist('intent') if i.isdigit()]
         for row in request.POST.getlist('row'):
             ids += [i for i in row.split(',') if i.isdigit()]
+        next_url = request.POST.get('next', '')
+        if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            next_url = reverse('intents:to_order')
         try:
-            expected_at = parse_date(request.POST.get('expected_at') or '')
-        except ValueError:
-            expected_at = None
+            expected_at = parse_future_date(request.POST.get('expected_at'), 'The arrival date')
+        except ValueError as error:
+            messages.error(request, str(error))
+            return HttpResponseRedirect(next_url)
         intents = list(Intent.objects.filter(shop=request.shop, id__in=ids, status=Intent.OPEN))
         if not intents:
             messages.error(request, 'Choose at least one item that is still waiting.')
@@ -195,9 +200,6 @@ class MarkOrderedView(ShopViewMixin, ManagersOnlyMixin, View):
             moved = mark_ordered(intents, expected_at=expected_at, actor=request.user)
             when = f', due {expected_at.day} {expected_at:%b}' if expected_at else ''
             messages.success(request, f'{moved} marked as ordered{when}')
-        next_url = request.POST.get('next', '')
-        if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
-            next_url = reverse('intents:to_order')
         return HttpResponseRedirect(next_url)
 
 
