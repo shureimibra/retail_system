@@ -30,6 +30,7 @@ class ScreensTestCase(TestCase):
         self.black42 = ProductVariation.objects.create(product=self.product, option1='42', option2='Black', sku='NAZ-42-BLA')
         self.white41 = ProductVariation.objects.create(product=self.product, option1='41', option2='White', sku='NAZ-41-WHI',
                                                        stock_quantity=3)
+        self.black41 = ProductVariation.objects.create(product=self.product, option1='41', option2='Black', sku='NAZ-41-BLA')
         self.n = 0
 
     def login(self, role):
@@ -50,7 +51,7 @@ class WaitingTests(ScreensTestCase):
     def test_items_are_grouped_by_customer(self):
         jane = self.customer('Jane', 'Smith')
         self.request(jane)
-        self.request(jane, variation=self.white41, reason=Intent.COLOUR_MISSING)
+        self.request(jane, variation=self.black41, reason=Intent.COLOUR_MISSING)
         self.request(self.customer('Peter'))
         self.login('owner')
         response = self.client.get('/intents/')
@@ -71,7 +72,7 @@ class WaitingTests(ScreensTestCase):
 
     def test_search_and_filters(self):
         self.request(self.customer('Jane', phone='+254722345678'))
-        self.request(self.customer('Peter'), variation=self.white41)
+        self.request(self.customer('Peter'), variation=self.black41)
         self.login('owner')
         self.assertEqual(self.client.get('/intents/?q=722345').context['item_count'], 1)
         self.assertEqual(self.client.get('/intents/?q=naz-41').context['item_count'], 1)
@@ -231,7 +232,7 @@ class CustomerScreenTests(ScreensTestCase):
         jane = self.customer('Jane', 'Smith')
         paid = self.request(jane)
         services.record_payment(paid, 12500, 'mpesa', reference='QK7H2L9', actor=self.users['owner'])
-        open_item = self.request(jane, variation=self.white41, reason=Intent.COLOUR_MISSING)
+        open_item = self.request(jane, variation=self.black41, reason=Intent.COLOUR_MISSING)
         self.login('cashier')
         response = self.client.get(f'/customers/{jane.pk}/')
         self.assertEqual([i.pk for i in response.context['open_items']], [open_item.pk])

@@ -23,6 +23,7 @@ def process_due(now=None):
         'expired_no_reply': _expire_unanswered(now),
         'expired_not_collected': _expire_uncollected(now),
         'expired_waiting': _expire_long_waits(now),
+        'expired_quiet': _expire_quiet_conversations(now),
         'holds_returned': holds_returned,
     }
     summary['messages_retried'] = len(retry_due_messages())
@@ -80,6 +81,21 @@ def _expire_long_waits(now):
     expired = 0
     for intent in Intent.objects.filter(status__in=Intent.WAITING_STATUSES, expires_at__lte=now):
         transition(intent, Intent.EXPIRED, note='Still waiting when the 30 days ran out')
+        expired += 1
+    return expired
+
+
+def _expire_quiet_conversations(now):
+    """
+    The customer replied but paid nothing before their held unit's time ran out. Close it so
+    the unit goes to the next customer waiting. A deposit always keeps the hold (Reserved).
+    """
+    from products.models import StockHold
+    expired = 0
+    quiet = (Intent.objects.filter(status=Intent.IN_CONVERSATION, payments__isnull=True,
+                                   holds__status=StockHold.ACTIVE, holds__expires_at__lt=now).distinct())
+    for intent in quiet:
+        transition(intent, Intent.EXPIRED, note='No deposit before the held unit\'s time ran out; it went to the next customer')
         expired += 1
     return expired
 

@@ -25,15 +25,10 @@
     </a>
     {% endif %}
 
-    <ol class="chat" id="chat" aria-label="Messages">
+    <ol class="chat" id="chat" aria-label="Messages" aria-live="polite" data-updates="{% url 'notifications:conversation-updates' conversation.pk %}" data-can-write="{{ can_write|yesno:'1,0' }}">
       {% for m in chat %}
       {% ifchanged m.created_at.date %}<li class="chat-day">{{ m.created_at|date:"l j F" }}</li>{% endifchanged %}
-      <li class="bubble {{ m.direction }}{% if m.status == 'failed' or m.status == 'skipped' %} is-failed{% endif %}">
-        {% if m.template_key %}<span class="bubble-kind">{% if m.template_key == 'restock_alert' %}Back in stock{% elif m.template_key == 'price_drop' %}Price drop{% elif m.template_key == 'deposit_receipt' %}Receipt{% elif m.template_key == 'check_in' %}Check-in{% else %}Reminder{% endif %} · sent automatically</span>{% endif %}
-        {% if m.media_url %}<img class="bubble-photo" src="{{ m.media_url }}" alt="Photo of the item" loading="lazy">{% endif %}
-        <span class="bubble-text">{{ m.body|linebreaksbr }}</span>
-        <span class="bubble-meta">{{ m.created_at|time:"H:i" }}{% if m.direction == 'out' %} · {{ m.get_status_display }}{% if m.error_detail %}: {{ m.error_detail }}{% endif %}{% endif %}</span>
-      </li>
+      {% include "notifications/_bubble.html" %}
       {% empty %}
       <li class="chat-day">No messages yet.</li>
       {% endfor %}
@@ -55,6 +50,8 @@
         </div>
         <p class="small faint">{% if channel == 'whatsapp' %}Free replies open for {{ hours_left }} h. {% endif %}Goes to {{ customer.first_name }} on {{ channel_label }}.</p>
       </form>
+      {% if main %}<form method="post" class="check-in-inline">{% csrf_token %}<input type="hidden" name="intent" value="{{ main.pk }}">
+        <button class="btn btn-plain btn-sm" type="submit" name="action" value="check_in">{% icon "send" "sm" %}Send the check-in message instead</button></form>{% endif %}
       {% else %}
       <div class="window-closed">
         <p class="muted">WhatsApp only allows your own words within 24 hours of the customer's last message. Send the short check-in message; once they reply, you can write freely again.</p>
@@ -149,6 +146,31 @@
 (function () {
   var chat = document.getElementById('chat');
   if (chat) chat.scrollTop = chat.scrollHeight;
+
+  // Live: new replies show up without refreshing. If nobody is typing, the whole page refreshes
+  // so the deal panel and reply box follow too; while someone types, messages are only added.
+  function typing() {
+    var el = document.activeElement;
+    var drafts = Array.prototype.some.call(document.querySelectorAll('.convo textarea, .convo input[type=text], .convo input[type=number]'),
+                                           function (i) { return i.value && i.defaultValue !== i.value; });
+    return drafts || (el && /^(TEXTAREA|INPUT|SELECT)$/.test(el.tagName));
+  }
+  if (chat && chat.dataset.updates) {
+    setInterval(function () {
+      if (document.visibilityState !== 'visible') return;
+      var bubbles = chat.querySelectorAll('.bubble'), last = bubbles[bubbles.length - 1];
+      var after = last ? last.dataset.id : 0;
+      fetch(chat.dataset.updates + '?after=' + after, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (data) {
+        if (!data.count && String(data.can_write ? 1 : 0) === chat.dataset.canWrite) return;
+        if (!typing()) { window.location.reload(); return; }
+        if (data.html) {
+          var nearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+          chat.insertAdjacentHTML('beforeend', data.html);
+          if (nearBottom) chat.scrollTop = chat.scrollHeight;
+        }
+      }).catch(function () {});
+    }, 5000);
+  }
   var body = document.getElementById('body');
   document.querySelectorAll('[data-fill]').forEach(function (button) {
     button.addEventListener('click', function (e) {

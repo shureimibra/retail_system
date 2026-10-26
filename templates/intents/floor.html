@@ -42,21 +42,47 @@
           <select id="product" name="product" required>
             <option value="">Choose an item</option>
             {% for p in products %}<option value="{{ p.pk }}"{% if form.product == p.pk|stringformat:"s" %} selected{% endif %}>{{ p.name }} · {{ p.base_price|money:request.shop }}</option>{% endfor %}
-          </select>
-          {% if can_add_products %}<p class="help">Not listed? <a href="{% url 'products:create' %}">Add the item</a>.</p>{% endif %}</div>
-        <div class="field"><label for="variation">Size and colour</label>
-          <select id="variation" name="variation">
+            {% if can_add_products %}<option value="new"{% if form.product == 'new' %} selected{% endif %}>+ An item the shop doesn't have yet</option>{% endif %}
+          </select></div>
+
+        {% if can_add_products %}
+        <div class="new-item" data-new-item{% if form.product != 'new' %} hidden{% endif %}>
+          <div class="field"><label for="new_name">What is it?</label><input id="new_name" name="new_name" type="text" maxlength="200" value="{{ form.new_name }}" placeholder="e.g. Puma Suede Classic"></div>
+          <div class="form-row">
+            <div class="field"><label for="new_type">Type</label>
+              <select id="new_type" name="new_type">{% for t in product_types %}<option value="{{ t.pk }}"{% if form.new_type == t.pk|stringformat:"s" %} selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+            <div class="field"><label for="new_price">Price you'd sell it at</label><input id="new_price" name="new_price" type="number" inputmode="decimal" min="0" step="1" value="{{ form.new_price }}"></div>
+          </div>
+          <p class="help">It's added to Products{% if not is_manager %}, marked "Needs review" for the owner{% endif %}, and shows on To order.</p>
+        </div>
+        {% endif %}
+
+        <div class="field" data-options-field><span class="field-label" id="variation-label">Size and colour</span>
+          <select id="variation" name="variation" aria-labelledby="variation-label">
             <option value="">Any, or not sure</option>
-            {% for v in variations %}<option value="{{ v.pk }}" data-product="{{ v.product_id }}" data-label="{{ v.label }}" data-left="{{ v.available_quantity }}"{% if form.variation == v.pk|stringformat:"s" %} selected{% endif %}>{{ v.product.name }} · {{ v.label|default:v.sku }} ({{ v.available_quantity }} left)</option>{% endfor %}
+            {% for v in variations %}<option value="{{ v.pk }}" data-product="{{ v.product_id }}" data-label="{{ v.label }}" data-left="{{ v.available_quantity }}"{% if form.variation == v.pk|stringformat:"s" %} selected{% endif %}>{{ v.product.name }} · {{ v.label|default:v.sku }} ({{ v.available_quantity }} in stock)</option>{% endfor %}
           </select>
-          <div class="chips-pick" id="variation-chips" hidden></div></div>
+          <div class="chips-pick" id="variation-chips" hidden></div>
+          <p class="stock-warning" id="stock-warning" role="alert" hidden></p>
+          <details class="typed-option" data-typed{% if form.new_option1 or form.new_option2 %} open{% endif %}>
+            <summary><span>Not in the list? Type the <span data-typed-names>size and colour</span></span></summary>
+            <div class="form-row">
+              <div class="field"><label for="new_option1" data-option-name="0">Size</label><input id="new_option1" name="new_option1" type="text" maxlength="50" value="{{ form.new_option1 }}" autocomplete="off"></div>
+              <div class="field"><label for="new_option2" data-option-name="1">Colour</label><input id="new_option2" name="new_option2" type="text" maxlength="50" value="{{ form.new_option2 }}" autocomplete="off"></div>
+            </div>
+            <p class="help">What they asked for exactly. It's added with 0 in stock, so it shows on To order.</p>
+          </details>
+        </div>
+
         <fieldset class="field">
           <legend class="field-label">Why not</legend>
-          <div class="chips-pick">
-            {% for value, label in reasons %}<label class="pick-chip"><input type="radio" name="reason" value="{{ value }}"{% if form.reason == value %} checked{% endif %} required>
-              <span>{{ label }}{% if value in price_reasons %}<small>messaged on a price drop</small>{% endif %}</span></label>{% endfor %}
+          <div class="chips-pick reasons">
+            {% for value, label, hint in reasons %}<label class="pick-chip reason-chip"><input type="radio" name="reason" value="{{ value }}"{% if form.reason == value %} checked{% endif %} required data-restock="{% if value in restock_reasons %}1{% endif %}">
+              <span>{{ label }}<small>{{ hint }}</small></span></label>{% endfor %}
           </div>
         </fieldset>
+        <div class="field"><label for="note">Note <span class="faint" data-note-optional>(optional)</span></label>
+          <textarea id="note" name="note" rows="2" maxlength="500" placeholder="Anything the team should know">{{ form.note }}</textarea></div>
       </fieldset>
 
       <fieldset class="floor-step" data-step="2">
@@ -106,30 +132,72 @@
     e.preventDefault(); outcome.hidden = true; form.hidden = false; layout(); go(0);
   });
 
-  // Size and colour: only the chosen item's options, as big chips with what's left.
+  // Size and colour: only the chosen item's options, as big chips showing what's in stock.
+  var catalog = JSON.parse(document.getElementById('catalog').textContent);
   var product = document.getElementById('product'), variation = document.getElementById('variation');
-  var chips = document.getElementById('variation-chips');
+  var chips = document.getElementById('variation-chips'), warning = document.getElementById('stock-warning');
+  var newItem = document.querySelector('[data-new-item]'), typed = document.querySelector('[data-typed]');
+  var typedInputs = [document.getElementById('new_option1'), document.getElementById('new_option2')];
+  var note = document.getElementById('note'), noteOptional = document.querySelector('[data-note-optional]');
+  function selectedLeft() {
+    var o = variation.options[variation.selectedIndex];
+    return variation.value && o ? parseInt(o.dataset.left || '0', 10) : 0;
+  }
+  function reasonInput() { return form.querySelector('input[name=reason]:checked'); }
+  function checkStock() {
+    var reason = reasonInput(), left = selectedLeft();
+    var clash = reason && reason.dataset.restock && left > 0 && !typedInputs.some(function (i) { return i && i.value.trim(); });
+    warning.hidden = !clash;
+    if (clash) warning.textContent = 'This one is in stock (' + left + ' free). Sell it now, or choose another reason such as price.';
+    var other = reason && reason.value === 'other';
+    noteOptional.textContent = other ? '(needed for "Something else")' : '(optional)';
+    return !clash;
+  }
   function drawChips() {
+    var isNew = product.value === 'new';
+    if (newItem) newItem.hidden = !isNew;
+    var names = (catalog[product.value] || {}).options || ['Size', 'Colour'];
+    document.querySelectorAll('[data-option-name]').forEach(function (label, i) { label.textContent = names[i] || (i ? 'Colour' : 'Size'); });
+    document.querySelector('[data-typed-names]').textContent = names.slice(0, 2).join(' and ').toLowerCase();
     var options = Array.prototype.filter.call(variation.options, function (o) { return o.dataset.product === product.value; });
     chips.innerHTML = '';
-    variation.parentNode.querySelector('select').hidden = true;
+    variation.hidden = true;
     chips.hidden = false;
-    if (!product.value) { chips.innerHTML = '<p class="help">Choose the item first.</p>'; variation.value = ''; return; }
+    if (!product.value) { chips.innerHTML = '<p class="help">Choose the item first.</p>'; variation.value = ''; checkStock(); return; }
+    if (isNew) { chips.innerHTML = '<p class="help">A new item: type the size and colour below.</p>'; variation.value = ''; typed.open = true; checkStock(); return; }
     if (variation.value && !options.some(function (o) { return o.value === variation.value; })) variation.value = '';
     [{ value: '', label: 'Any or not sure', left: '' }].concat(options.map(function (o) {
       return { value: o.value, label: o.dataset.label || o.text, left: o.dataset.left };
     })).forEach(function (item) {
+      var left = item.left === '' ? null : parseInt(item.left, 10);
       var b = document.createElement('button');
-      b.type = 'button'; b.className = 'pick-chip' + (variation.value === item.value ? ' is-on' : '');
+      b.type = 'button';
+      b.className = 'pick-chip' + (variation.value === item.value ? ' is-on' : '') + (left > 0 ? ' is-instock' : '');
       b.setAttribute('aria-pressed', String(variation.value === item.value));
       b.innerHTML = '<span></span>';
       b.firstChild.textContent = item.label;
-      if (item.left !== '') { var s = document.createElement('small'); s.textContent = item.left + ' left'; b.firstChild.appendChild(s); }
-      b.addEventListener('click', function () { variation.value = item.value; drawChips(); summary(); });
+      if (left !== null) {
+        var s = document.createElement('small');
+        s.textContent = left > 0 ? left + ' in stock · sell it' : '0 in stock';
+        b.firstChild.appendChild(s);
+      }
+      b.addEventListener('click', function () {
+        variation.value = item.value;
+        typedInputs.forEach(function (i) { if (i) i.value = ''; });
+        drawChips(); summary();
+      });
       chips.appendChild(b);
     });
+    checkStock();
   }
   product.addEventListener('change', function () { drawChips(); summary(); });
+  typedInputs.forEach(function (input) {
+    if (input) input.addEventListener('input', function () {
+      if (input.value.trim() && variation.value) { variation.value = ''; drawChips(); }
+      checkStock(); summary();
+    });
+  });
+  form.querySelectorAll('input[name=reason]').forEach(function (r) { r.addEventListener('change', checkStock); });
   drawChips();
 
   // Known customer: fill in the name.
@@ -155,9 +223,11 @@
   function summary() {
     var p = product.options[product.selectedIndex];
     var v = variation.value ? variation.options[variation.selectedIndex].dataset.label : '';
-    var reason = form.querySelector('input[name=reason]:checked');
+    var typedText = typedInputs.map(function (i) { return i ? i.value.trim() : ''; }).filter(Boolean).join(' / ');
+    var reason = reasonInput();
     var parts = [];
-    if (product.value) parts.push(p.text.split(' · ')[0] + (v ? ' · ' + v : ''));
+    var itemName = product.value === 'new' ? (document.getElementById('new_name').value.trim() || 'New item') : p.text.split(' · ')[0];
+    if (product.value) parts.push(itemName + ((typedText || v) ? ' · ' + (typedText || v) : ''));
     if (reason) parts.push(reason.parentNode.querySelector('span').firstChild.textContent.trim());
     if (name.value || phone.value) parts.push('for ' + (name.value || phone.value));
     summaryEl.textContent = parts.join(' · ');
@@ -172,7 +242,14 @@
   function valid(index) {
     if (index === 0) {
       if (!product.value) { product.focus(); return false; }
-      if (!form.querySelector('input[name=reason]:checked')) { form.querySelector('input[name=reason]').focus(); return false; }
+      if (product.value === 'new') {
+        var nm = document.getElementById('new_name'), pr = document.getElementById('new_price');
+        if (!nm.value.trim()) { nm.focus(); return false; }
+        if (pr.value === '') { pr.focus(); return false; }
+      }
+      if (!reasonInput()) { form.querySelector('input[name=reason]').focus(); return false; }
+      if (!checkStock()) { warning.scrollIntoView({ block: 'center' }); return false; }
+      if (reasonInput().value === 'other' && !note.value.trim()) { note.focus(); return false; }
     }
     if (index === 1 && phone.value.replace(/\D/g, '').length < 9) { phone.focus(); return false; }
     return true;

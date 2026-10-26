@@ -70,9 +70,8 @@ class RPCMSTestCase(TestCase):
         self.assertEqual(Message.objects.filter(direction='out').count(), 0)
 
     def test_stock_decrease_sends_nothing(self):
-        self.variation.stock_quantity = 5
-        self.variation.save()
         self._intent()
+        type(self.variation).objects.filter(pk=self.variation.pk).update(stock_quantity=5)
         with self.captureOnCommitCallbacks(execute=True):
             adjust_stock(self.variation.id, -1)
         self.assertEqual(Message.objects.filter(direction='out').count(), 0)

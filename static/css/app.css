@@ -698,3 +698,22 @@ button.pick-chip > span { display: grid; gap: 1px; }
 .connections .grow { display: grid; gap: 2px; }
 .test-result { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: var(--r-control); background: var(--ok-bg); font-size: 14px; }
 .test-result.is-error { background: var(--crit-bg); }
+
+/* Floor mode: stock on each size, typed options, a new item */
+button.pick-chip.is-instock { border-style: dashed; }
+button.pick-chip.is-instock small { color: var(--ok); }
+.stock-warning { margin: 8px 0 0; padding: 10px 12px; border-radius: var(--r-control); background: var(--warn-bg); font-size: 14.5px; }
+.stock-warning[hidden] { display: none; }
+.typed-option { margin-top: 10px; }
+.typed-option summary { cursor: pointer; color: var(--accent-ink); font-weight: 500; min-height: 36px; display: flex; align-items: center; }
+.typed-option[open] summary { margin-bottom: 8px; }
+.new-item { display: grid; gap: 12px; padding: 12px; border: 1px dashed var(--border-strong); border-radius: var(--r-control); }
+.new-item[hidden] { display: none; }
+.reasons .reason-chip { flex: 1 1 200px; }
+.reasons .reason-chip > span { justify-items: start; text-align: left; }
+.reasons .reason-chip small { white-space: normal; }
+.next-line { color: var(--fg-2); }
+.item-link { color: inherit; text-decoration: none; }
+.item-link:hover { text-decoration: underline; }
+.ok-text { color: var(--ok); font-weight: 500; }
+.next-step p { margin: 6px 0 10px; }

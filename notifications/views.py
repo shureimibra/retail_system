@@ -14,6 +14,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.views.generic import ListView, TemplateView
 
@@ -163,6 +164,23 @@ class ConversationView(LoginRequiredMixin, TemplateView):
             change_item(intent, variation, actor=request.user)
             messages.success(request, f'Changed to {variation.label}')
         return redirect(here + '#deal')
+
+
+def conversation_updates(request, pk):
+    """New messages since the last one on screen, for the live chat. Opening them marks them read."""
+    from django.contrib.auth.views import redirect_to_login
+    if not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path())
+    conversation = get_object_or_404(Conversation, pk=pk, shop=request.shop)
+    after = request.GET.get('after', '0')
+    new = list(conversation.messages.filter(pk__gt=int(after) if after.isdigit() else 0).order_by('created_at'))
+    if new:
+        services.mark_read(conversation)
+    last_in = conversation.messages.filter(direction=Message.INBOUND).order_by('-created_at').first()
+    channel = last_in.channel if last_in else Message.WHATSAPP
+    html = ''.join(render_to_string('notifications/_bubble.html', {'m': m}, request=request) for m in new)
+    return JsonResponse({'count': len(new), 'html': html,
+                         'can_write': channel != Message.WHATSAPP or selectors.reply_window(conversation) > 0})
 
 
 def _amount(value):

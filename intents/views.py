@@ -18,7 +18,8 @@ from core.periods import resolve_period
 from core.shops import ShopViewMixin, can_manage_catalog
 from .forms import BlockedPurchaseIntentForm
 from .models import BlockedPurchaseIntent
-from .services import create_blocked_purchase_intent, mark_ordered, transition
+from .next_step import next_step
+from .services import create_blocked_purchase_intent, decline, mark_ordered
 
 Intent = BlockedPurchaseIntent
 TABS = [
@@ -106,10 +107,14 @@ class IntentListView(ShopViewMixin, TemplateView):
         queryset, period = self.filtered()
         today = timezone.localdate()
         groups = OrderedDict()
-        for intent in queryset.select_related('customer', 'product', 'variation').order_by('-created_at'):
+        manager = can_manage_catalog(self.request)
+        for intent in (queryset.select_related('customer', 'product', 'variation')
+                       .prefetch_related('customer__conversations', 'variation__holds').order_by('-created_at')):
             group = groups.setdefault(intent.customer_id, {'customer': intent.customer, 'items': [], 'money': 0})
             intent.days_waiting = (today - timezone.localdate(intent.created_at)).days
             intent.can_order = intent.status == Intent.OPEN and intent.constraint_type in Intent.RESTOCK_REASONS
+            intent.next = next_step(intent, manager)
+            intent.in_stock = intent.variation.available_quantity if intent.variation else None
             group['items'].append(intent)
             group['money'] += float(intent.estimated_value or 0)
         page = Paginator(list(groups.values()), self.groups_per_page).get_page(self.request.GET.get('page'))
@@ -216,16 +221,20 @@ class IntentCreateView(ShopViewMixin, CreateView):
 
     def form_valid(self, form):
         data = form.cleaned_data
-        self.object = create_blocked_purchase_intent(
-            customer=data['customer'],
-            product=data['product'],
-            variation=data.get('variation'),
-            constraint_type=data['constraint_type'],
-            requested_quantity=data.get('requested_quantity') or 1,
-            estimated_value=data.get('estimated_value'),
-            notes=data.get('notes', ''),
-            recorded_by=self.request.user,
-        )
+        try:
+            self.object = create_blocked_purchase_intent(
+                customer=data['customer'],
+                product=data['product'],
+                variation=data.get('variation'),
+                constraint_type=data['constraint_type'],
+                requested_quantity=data.get('requested_quantity') or 1,
+                estimated_value=data.get('estimated_value'),
+                notes=data.get('notes', ''),
+                recorded_by=self.request.user,
+            )
+        except ValueError as error:
+            form.add_error(None, str(error))
+            return self.form_invalid(form)
         messages.success(self.request, 'Missed sale saved')
         return HttpResponseRedirect(self.get_success_url())
 
@@ -239,16 +248,46 @@ class IntentUpdateView(ShopViewMixin, UpdateView):
     template_name = 'intents/intent_form.html'
     success_url = reverse_lazy('intents:list')
 
+    LOCKED_WHEN_MOVING = ('customer', 'product', 'variation', 'constraint_type', 'requested_quantity', 'estimated_value')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields.pop('status', None)
+        if self.object.status not in Intent.WAITING_STATUSES:
+            # A unit may be held and the customer messaged: change the item from the conversation instead.
+            for name in self.LOCKED_WHEN_MOVING:
+                if name in form.fields:
+                    form.fields[name].disabled = True
+        return form
+
     def form_valid(self, form):
         if not form.instance.estimated_value:
             form.instance.estimated_value = form.instance.product.base_price * form.instance.requested_quantity
-        new_status = form.cleaned_data.get('status', self.object.status)
-        form.instance.status = BlockedPurchaseIntent.objects.get(pk=self.object.pk).status
-        response = super().form_valid(form)
-        if new_status != self.object.status:
-            transition(self.object, new_status, actor=self.request.user, note='Changed on the edit page')
-        return response
+        variation = form.cleaned_data.get('variation')
+        if (self.object.status in Intent.WAITING_STATUSES and form.cleaned_data.get('constraint_type') in Intent.RESTOCK_REASONS
+                and variation is not None and variation.available_quantity > 0):
+            form.add_error('variation', f'{variation.label or variation.sku} is in stock ({variation.available_quantity} free). '
+                                        'Sell it now, or choose another reason.')
+            return self.form_invalid(form)
+        messages.success(self.request, 'Saved')
+        return super().form_valid(form)
+
+    def post(self, request, *args, **kwargs):
+        if request.POST.get('action') == 'decline':
+            intent = self.get_object()
+            if intent.status in Intent.CLOSED_STATUSES:
+                messages.error(request, 'This item is already closed.')
+            else:
+                decline(intent, request.POST.get('reason', '').strip()[:200], actor=request.user)
+                messages.success(request, 'Closed as declined. It is not counted as revenue.')
+            return HttpResponseRedirect(reverse('intents:update', args=[intent.pk]))
+        return super().post(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse('intents:update', args=[self.object.pk])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['next'] = next_step(self.object, can_manage_catalog(self.request))
+        context['locked'] = self.object.status not in Intent.WAITING_STATUSES
         return _capture_context(self.request, context)

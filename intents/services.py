@@ -75,6 +75,9 @@ def create_blocked_purchase_intent(customer, product, variation, constraint_type
                                    preferred_channel=None, needed_by=None):
     if customer.shop_id != product.shop_id or (variation and variation.product_id != product.id):
         raise ValueError('Customer, product and variation must belong to the same shop and product.')
+    if constraint_type in Intent.RESTOCK_REASONS and variation is not None and variation.available_quantity > 0:
+        raise ValueError(f'{variation.label or variation.sku} is in stock ({variation.available_quantity} free). '
+                         'Sell it now, or choose another reason.')
     if estimated_value is None:
         unit_price = variation.effective_price if variation else product.base_price
         estimated_value = unit_price * requested_quantity
@@ -115,7 +118,10 @@ def mark_ordered(intents, expected_at=None, actor=None):
     for intent in intents:
         if intent.status == Intent.OPEN:
             intent.expected_at = expected_at
-            intent.save(update_fields=['expected_at', 'updated_at'])
+            arrives = (timezone.make_aware(datetime.combine(expected_at, time(23, 59))) if expected_at
+                       else timezone.now() + timedelta(days=30))
+            intent.expires_at = max(intent.expires_at, arrives + timedelta(days=14))
+            intent.save(update_fields=['expected_at', 'expires_at', 'updated_at'])
             transition(intent, Intent.ON_ORDER, actor=actor, note='Ordered from supplier',
                        expected_at=expected_at.isoformat() if expected_at else None)
             moved += 1
@@ -292,8 +298,8 @@ def find_or_add_customer(shop, phone, name='', email=''):
 
 
 def capture_from_floor(shop, customer, product, variation, constraint_type, needed_by=None, consent_given=True,
-                       recorded_by=None, visit_id=None):
+                       recorded_by=None, visit_id=None, notes=''):
     """Log a missed sale from Floor mode. "Same customer, another item" reuses the visit so it counts once."""
     visit = Visit.objects.filter(shop=shop, pk=visit_id, customer=customer).first() if visit_id else None
     return create_blocked_purchase_intent(customer, product, variation, constraint_type, recorded_by=recorded_by,
-                                          visit=visit, consent_given=consent_given, needed_by=needed_by)
+                                          visit=visit, consent_given=consent_given, needed_by=needed_by, notes=notes)
