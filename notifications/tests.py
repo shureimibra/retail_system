@@ -371,3 +371,27 @@ class TwilioWhatsAppTests(MessagingTestCase):
         self.assertEqual((whatsapp.status, whatsapp.error_code), ('failed', '63015'))
         self.assertIn('join code', whatsapp.error_detail)
         self.assertEqual((sms.channel, sms.status), ('sms', 'delivered'))
+
+
+@override_settings(TWILIO_AUTH_TOKEN='tok', SITE_URL='https://shop.example')
+class TwilioRepliesAtTheBareAddressTests(MessagingTestCase):
+    def post(self, path, signed_url, data):
+        from twilio.request_validator import RequestValidator
+        signature = RequestValidator('tok').compute_signature(signed_url, data)
+        return self.client.post(path, data, HTTP_X_TWILIO_SIGNATURE=signature)
+
+    def test_reply_sent_to_the_site_root_is_received(self):
+        intent = self.waiting()
+        self.restock()
+        data = {'From': 'whatsapp:+254722345678', 'To': 'whatsapp:+14155238886', 'Body': 'Yes', 'MessageSid': 'SMin1'}
+        # The Twilio console had the bare address, with no path and no final slash.
+        self.assertEqual(self.post('/', 'https://shop.example', data).status_code, 200)
+        self.assertTrue(Message.objects.filter(direction=Message.INBOUND, body='Yes').exists())
+        intent.refresh_from_db()
+        self.assertEqual(intent.status, Intent.IN_CONVERSATION)
+
+    def test_unsigned_post_to_the_root_is_refused(self):
+        response = self.client.post('/', {'From': 'whatsapp:+254722345678', 'Body': 'Yes'}, HTTP_X_TWILIO_SIGNATURE='forged')
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Message.objects.filter(direction=Message.INBOUND).exists())
+        self.assertEqual(self.client.get('/').status_code, 302)

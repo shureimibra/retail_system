@@ -2,6 +2,7 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.routers import DefaultRouter
 from products.api_views import CategoryViewSet, ProductTypeViewSet, ProductViewSet, ProductVariationViewSet
 from customers.api_views import CustomerViewSet
@@ -20,6 +21,15 @@ router.register(r'variations', ProductVariationViewSet, basename='api-variation'
 router.register(r'customers', CustomerViewSet, basename='api-customer')
 router.register(r'intents', BlockedPurchaseIntentViewSet, basename='api-intent')
 router.register(r'conversations', ConversationViewSet, basename='api-conversation')
+
+@csrf_exempt
+def site_root(request):
+    """Home for people; and if Twilio's console points at the bare site address, its messages still arrive."""
+    if request.method == 'POST' and 'X-Twilio-Signature' in request.headers:
+        from notifications.views import twilio_webhook
+        return twilio_webhook(request)
+    return redirect('dashboard:home')
+
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
@@ -51,7 +61,7 @@ urlpatterns = [
     path('api/v1/visits/bought/', record_bought_visit),
     path('api/v1/', include((router.urls, 'api-v1'))),
     
-    path('', lambda req: redirect('dashboard:home')),
+    path('', site_root),
 ]
 
 if settings.DEBUG:

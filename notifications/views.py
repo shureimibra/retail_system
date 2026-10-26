@@ -192,7 +192,9 @@ def twilio_webhook(request):
         signature = request.headers.get('X-Twilio-Signature', '')
         url = (settings.SITE_URL.rstrip('/') + request.get_full_path() if settings.SITE_URL.startswith('https://')
                else request.build_absolute_uri())
-        if not RequestValidator(settings.TWILIO_AUTH_TOKEN).validate(url, request.POST, signature):
+        validator = RequestValidator(settings.TWILIO_AUTH_TOKEN)
+        # Twilio signs the address exactly as typed in its console, with or without the final slash.
+        if not any(validator.validate(u, request.POST, signature) for u in {url, url.rstrip('/')}):
             return HttpResponseForbidden('Invalid signature')
 
     if request.POST.get('MessageStatus') and request.POST.get('MessageSid') and not request.POST.get('Body'):
