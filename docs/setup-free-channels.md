@@ -28,7 +28,28 @@ Meta, Twilio and Safaricom send replies and confirmations over the internet, so 
 
 ---
 
-## 1. WhatsApp: Meta's free test number
+## 1. WhatsApp: Twilio WhatsApp Sandbox (fastest; best for demos)
+
+**What you get:** real WhatsApp messages, with the item photo, on real Kenyan phones. Replies come back into Conversations. No business profile, ID documents or Meta approval needed.
+
+**Limits:**
+- Messages come from Twilio's shared sandbox number (+1 415 523 8886), not your shop's name.
+- Each phone must first **join** the sandbox.
+- WhatsApp only allows messages within 24 hours of that phone's last message to the sandbox. If a phone goes quiet, it re-sends the join code.
+
+1. In the Twilio console, open **Messaging → Try it out → Send a WhatsApp message**. Note your join code, for example `join happy-tiger`.
+2. **On every phone that should receive messages** (yours, the client's): open WhatsApp, send the join code to **+1 415 523 8886**, and wait for Twilio's confirmation.
+3. In the sandbox's **Sandbox settings**, set "When a message comes in" to `https://<your tunnel>/notifications/webhook/` (HTTP POST), so replies reach Retail OS.
+4. In `.env` (your Twilio SID and token are already there):
+   ```
+   WHATSAPP_PROVIDER=twilio_whatsapp
+   ```
+   Restart `runserver`.
+5. Test it: Settings → Messaging → **Send a test message** → WhatsApp → your number.
+
+**Item photos:** these need the tunnel running and `SITE_URL` set to it, because WhatsApp downloads the photo from your laptop.
+
+## 1b. WhatsApp: Meta's free test number (later; needs a complete business profile)
 
 **Limits:**
 - Sends only to the few phone numbers you add as recipients (Meta allows up to 5).
@@ -59,6 +80,9 @@ Meta, Twilio and Safaricom send replies and confirmations over the internet, so 
 **The token lasts 24 hours.** When it expires, sending fails with an authentication error: copy a fresh token into `.env`. For a token that doesn't expire, create a System User in Meta Business settings (also free).
 
 ## 2. SMS: Twilio trial
+
+> **Kenya:** Kenyan networks reject SMS from the trial's US number (Twilio error 21612). Real SMS to Kenyan phones needs a registered sender name, which is paid. While testing, use Twilio's **Virtual Phone** (in the console) to see SMS arrive, or keep SMS on the simulator.
+
 
 **Limits:**
 - Your trial includes a set number of free SMS (about 100).

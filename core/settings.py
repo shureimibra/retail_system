@@ -177,6 +177,9 @@ LOGOUT_REDIRECT_URL = 'accounts:login'
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
+# WhatsApp through Twilio. The default is Twilio's free WhatsApp Sandbox number; testers first send it
+# the "join <code>" message shown in the Twilio console.
+TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '+14155238886')
 
 # Celery Configuration
 # Without a broker URL (local development, tests) tasks run inline, so no Redis

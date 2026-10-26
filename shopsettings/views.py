@@ -168,7 +168,8 @@ class MessagingView(ShopFormView):
 
 
 PROVIDER_NAMES = {'simulator': 'Simulator (nothing is sent)', 'whatsapp_cloud': 'Meta WhatsApp Cloud API',
-                  'africastalking': "Africa's Talking", 'twilio': 'Twilio', 'email': 'Email server'}
+                  'africastalking': "Africa's Talking", 'twilio': 'Twilio', 'twilio_whatsapp': 'Twilio WhatsApp',
+                  'email': 'Email server'}
 
 
 def channel_connections():
@@ -184,6 +185,10 @@ def channel_connections():
             notes.append(f'{approved} of {len(s.WHATSAPP_TEMPLATES)} message templates set. The rest go by SMS until approved.')
             if not (s.WHATSAPP_APP_SECRET and s.WHATSAPP_VERIFY_TOKEN):
                 notes.append('Replies need WHATSAPP_APP_SECRET and WHATSAPP_VERIFY_TOKEN.')
+        elif provider == 'twilio_whatsapp':
+            missing = [k for k in ('TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN') if not getattr(s, k)]
+            if s.TWILIO_WHATSAPP_FROM == '+14155238886':
+                notes.append('Twilio WhatsApp Sandbox: each phone must first send the join code to +1 415 523 8886.')
         elif provider == 'twilio':
             missing = [k for k in ('TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER') if not getattr(s, k)]
             notes.append('On a trial account, only numbers verified in Twilio receive messages.')
@@ -219,7 +224,8 @@ def send_test_message(shop, channel, to):
     if provider.name == 'simulator':
         return {'ok': True, 'text': f'Simulator: nothing was really sent. Choose a provider for {channel} in .env to send for real.'}
     if result.ok:
-        extra = " WhatsApp test messages use Meta's \"hello world\" template." if provider.name == 'whatsapp_cloud' else ''
+        extra = {'whatsapp_cloud': " WhatsApp test messages use Meta's \"hello world\" template.",
+                 'twilio_whatsapp': ' If nothing arrives, check this phone has joined the Twilio WhatsApp Sandbox.'}.get(provider.name, '')
         return {'ok': True, 'text': f'Sent to {address} through {where}. Check the phone or inbox.{extra}'}
     return {'ok': False, 'text': f'{where} refused it: {result.error_detail or result.error_code}'}
 

@@ -138,8 +138,41 @@ class TwilioSMSProvider:
         return SendResult(ok=True, provider_message_id=sent.sid)
 
 
+class TwilioWhatsAppProvider:
+    """
+    WhatsApp through Twilio: the free WhatsApp Sandbox for testing and demos, or the shop's own
+    approved WhatsApp number later (set TWILIO_WHATSAPP_FROM). Sends the written text, with the
+    item photo when there is one.
+    """
+    name = 'twilio_whatsapp'
+    # Not joined the sandbox (63015), outside the 24-hour window (63016), not on WhatsApp (63003).
+    PERMANENT_ERRORS = {63015, 63016, 63003, 21211, 21610, 21614}
+
+    def send(self, message):
+        from twilio.base.exceptions import TwilioRestException
+        from twilio.rest import Client
+        extra = {}
+        if message.media_url and message.media_url.startswith('https://'):
+            extra['media_url'] = [message.media_url]
+        if settings.SITE_URL.startswith('https://'):
+            extra['status_callback'] = settings.SITE_URL.rstrip('/') + '/notifications/webhook/'
+        try:
+            sent = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN).messages.create(
+                body=message.body, from_=f'whatsapp:{settings.TWILIO_WHATSAPP_FROM}',
+                to=f'whatsapp:{message.to_address}', **extra)
+        except TwilioRestException as error:
+            detail = str(error.msg)[:300]
+            if error.code == 63015:
+                detail = 'This phone has not joined the Twilio WhatsApp Sandbox yet (send the join code first).'
+            return SendResult(ok=False, error_code=str(error.code), error_detail=detail,
+                              permanent=error.code in self.PERMANENT_ERRORS)
+        except Exception as error:
+            return SendResult(ok=False, error_code='network', error_detail=str(error)[:300])
+        return SendResult(ok=True, provider_message_id=sent.sid)
+
+
 PROVIDERS = {cls.name: cls for cls in (SimulatorProvider, EmailProvider, WhatsAppCloudProvider,
-                                       AfricasTalkingSMSProvider, TwilioSMSProvider)}
+                                       AfricasTalkingSMSProvider, TwilioSMSProvider, TwilioWhatsAppProvider)}
 
 
 def provider_for(channel):
