@@ -50,7 +50,6 @@ Every item in **Waiting** says its **next step** and has a button for it.
 | S16 | Cashier | Sign in as the cashier | They can use Log missed sale, reply and take deposits. To order, Reports, Payments settings and Receive stock are refused. |
 | S17 | Live chat | Keep a conversation open and reply from your phone; then start typing and reply again | New replies appear within about 5 seconds, with no refresh. While you type, your draft is kept. "Send the check-in message instead" is always available. |
 | S18 | Waiting tells you what's next | Open Waiting → All records | Every item has "Next: …" and a button (To order, Receive stock, Reply, Open deal…), and shows the stock now. |
-
 | S19 | Needs you now | Reply from your phone, open the chat but don't answer; check Home. Then answer it. | The customer stays in **Needs you now** ("waiting for your answer") until you reply, even after reading it. Replies come first, then overdue pickups, promises due, failed messages. Only 5 show; the rest are under **Show all**. **Dismiss** hides a failed-message alert only: the customer stays in Waiting. |
 | S20 | Conversations order | Get replies from two numbers at different times | The newest message is at the top, like WhatsApp, read or not. |
 | S21 | Product categories | Add product → Type Shoes, then Clothing, then Other | Only that type's categories are offered; "Or a new category" adds one; **Other** asks what it is (e.g. Watches). Missing fields are listed at the top. |
