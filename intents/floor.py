@@ -1,6 +1,7 @@
-"""Floor mode: the till screen. How did the visit end, and if they didn't buy, what, who and when, in three steps."""
+"""Log missed sale: what they wanted, who, and when, in three steps. Saving returns you to where you started."""
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode, urlsplit
 
 from django.contrib import messages
 from django.db import transaction
@@ -8,6 +9,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import TemplateView
 
 from core.phones import normalize_phone
@@ -31,6 +33,15 @@ FORM_FIELDS = ('product', 'variation', 'reason', 'phone', 'name', 'email', 'with
                'new_name', 'new_type', 'new_price')
 
 
+def _back(request, url):
+    """A safe page on this site to return to after saving (never Log missed sale itself); Home otherwise."""
+    safe = url and url_has_allowed_host_and_scheme(url, {request.get_host()}, request.is_secure())
+    parts = urlsplit(url or '')
+    if safe and parts.path.startswith('/') and not parts.path.startswith(reverse('floor')):
+        return parts.path + (f'?{parts.query}' if parts.query else '')
+    return reverse('dashboard:home')
+
+
 class FloorView(ShopViewMixin, TemplateView):
     template_name = 'intents/floor.html'
 
@@ -46,7 +57,7 @@ class FloorView(ShopViewMixin, TemplateView):
                           .order_by('product__name', 'option1', 'option2', 'option3'))
         form = self.request.session.pop('floor_form', {})
         context.update({
-            'start': 'item' if get.get('start') == 'item' or customer or form else 'outcome',
+            'back': _back(self.request, get.get('back') or self.request.META.get('HTTP_REFERER')),
             'products': products,
             'variations': variations,
             'catalog': {str(p.pk): {'price': float(p.base_price),
@@ -66,10 +77,11 @@ class FloorView(ShopViewMixin, TemplateView):
     def post(self, request):
         shop = request.shop
         post = request.POST
+        back = _back(request, post.get('back'))
         if post.get('action') == 'bought':
             services.record_bought_visit(shop, recorded_by=request.user)
             messages.success(request, 'Sale logged. Thank you!')
-            return redirect('floor')
+            return redirect(back)
 
         problems = []
         reason = post.get('reason', '')
@@ -98,13 +110,13 @@ class FloorView(ShopViewMixin, TemplateView):
                 messages.error(request, problem)
             # Keep what was typed so nothing has to be entered twice.
             request.session['floor_form'] = {k: post.get(k, '') for k in FORM_FIELDS}
-            return redirect(reverse('floor') + '?start=item')
+            return redirect(reverse('floor') + '?' + urlencode({'back': back}))
 
         item = f'{product.name}{" " + variation.label if variation else ""}'
         messages.success(request, f'Saved: {item} for {customer.first_name or customer.phone_number}')
         if post.get('then') == 'another':
-            return redirect(reverse('floor') + f'?start=item&customer={customer.pk}&visit={intent.visit_id}')
-        return redirect('floor')
+            return redirect(reverse('floor') + '?' + urlencode({'customer': customer.pk, 'visit': intent.visit_id, 'back': back}))
+        return redirect(back)
 
     def _item(self, request, problems):
         """The product and size/colour they wanted, adding a new item or option when the shop doesn't have it."""

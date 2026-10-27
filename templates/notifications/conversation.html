@@ -135,7 +135,7 @@
     </section>
     {% empty %}
     <section class="panel"><div class="empty"><p>{{ customer.first_name }} has no open items.</p>
-      <a class="btn" href="{% url 'floor' %}?start=item&amp;customer={{ customer.pk }}">Log missed sale</a></div></section>
+      <a class="btn" href="{% url 'floor' %}?customer={{ customer.pk }}">Log missed sale</a></div></section>
     {% endfor %}
   </aside>
 </div>

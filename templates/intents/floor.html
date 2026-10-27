@@ -12,7 +12,7 @@
 <header class="floor-bar">
   {% include "ui/brand_mark.html" with shop=request.shop %}
   <span class="grow"><b>{{ request.shop.name }}</b> <span class="faint small">· {{ user.get_full_name|default:user.username }}</span></span>
-  <a class="btn btn-plain" href="{% url 'dashboard:home' %}">{% icon "x" "sm" %}Exit</a>
+  <a class="btn btn-plain" href="{{ back }}">{% icon "x" "sm" %}Exit</a>
 </header>
 
 {% if messages %}
@@ -22,22 +22,15 @@
 {% endif %}
 
 <main class="floor-main">
-  <section class="floor-outcome" id="outcome"{% if start == 'item' %} hidden{% endif %} aria-labelledby="outcome-title">
-    <h1 id="outcome-title">How did this visit end?</h1>
-    <div class="outcome-buttons">
-      <form method="post">{% csrf_token %}<button class="outcome is-bought" type="submit" name="action" value="bought">{% icon "circle-check" %}<span>Bought</span><small>One tap. Counts towards walk-in conversion.</small></button></form>
-      <a class="outcome" href="?start=item" data-start-item>{% icon "clipboard-list" %}<span>Didn't buy</span><small>Log what they wanted, in three steps.</small></a>
-    </div>
-  </section>
-
-  <div class="capture-head" id="capture-head"{% if start != 'item' %} hidden{% endif %}>
+  <div class="capture-head" id="capture-head">
     <h1>Log missed sale</h1>
-    <form method="post">{% csrf_token %}<button class="btn" type="submit" name="action" value="bought">{% icon "circle-check" "sm" %}They bought after all</button></form>
+    <form method="post">{% csrf_token %}<input type="hidden" name="back" value="{{ back }}"><button class="btn" type="submit" name="action" value="bought">{% icon "circle-check" "sm" %}They bought after all</button></form>
   </div>
-  <form method="post" class="floor-form" id="capture"{% if start != 'item' %} hidden{% endif %} novalidate>
+  <form method="post" class="floor-form" id="capture" novalidate>
     {% csrf_token %}
+    <input type="hidden" name="back" value="{{ back }}">
     {% if visit %}<input type="hidden" name="visit" value="{{ visit }}">{% endif %}
-    {% if customer %}<p class="floor-same">Another item for <b>{{ customer.first_name|default:customer.phone_number }}</b>. <a href="{% url 'floor' %}">New customer</a></p>{% endif %}
+    {% if customer %}<p class="floor-same">Another item for <b>{{ customer.first_name|default:customer.phone_number }}</b>. <a href="{% url 'floor' %}?back={{ back|urlencode }}">New customer</a></p>{% endif %}
 
     <div class="steps">
       <fieldset class="floor-step" data-step="1">
@@ -130,11 +123,6 @@
 <script>
 (function () {
   var form = document.getElementById('capture');
-  var outcome = document.getElementById('outcome');
-  var startLink = document.querySelector('[data-start-item]');
-  if (startLink) startLink.addEventListener('click', function (e) {
-    e.preventDefault(); outcome.hidden = true; form.hidden = false; document.getElementById('capture-head').hidden = false; layout(); go(0);
-  });
 
   // Size and colour: only the chosen item's options, as big chips showing what's in stock.
   var catalog = JSON.parse(document.getElementById('catalog').textContent);
@@ -273,7 +261,7 @@
     for (var i = 0; i < 2; i++) { if (!valid(i)) { e.preventDefault(); go(i); return; } }
   });
   phoneSize.addEventListener('change', layout);
-  if (!form.hidden) layout();
+  layout();
 })();
 </script>
 </body>

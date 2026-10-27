@@ -142,12 +142,25 @@ class FloorTests(ChatTestCase):
         self.client.post('/floor/', {'action': 'bought'})
         self.assertEqual(Visit.objects.filter(shop=self.shop, outcome=Visit.BOUGHT).count(), 1)
 
+    def test_saving_returns_to_where_you_started(self):
+        self.login('cashier')
+        page = self.client.get('/floor/', HTTP_REFERER='http://testserver/intents/?show=all').content.decode()
+        self.assertNotIn('How did this visit end', page)
+        self.assertIn('name="back" value="/intents/?show=all"', page)
+        response = self.client.post('/floor/', {'product': self.product.pk, 'reason': Intent.OUT_OF_STOCK,
+                                                'phone': '0712000999', 'then': 'done', 'back': '/intents/?show=all'})
+        self.assertRedirects(response, '/intents/?show=all', fetch_redirect_response=False)
+        # Another site, or Log missed sale itself, is never a place to return to.
+        for bad in ('https://evil.example/x', '/floor/'):
+            response = self.client.post('/floor/', {'action': 'bought', 'back': bad})
+            self.assertRedirects(response, '/dashboard/', fetch_redirect_response=False)
+
     def test_didnt_buy_adds_the_customer_and_the_missed_sale(self):
         self.login('cashier')
         response = self.client.post('/floor/', {'product': self.product.pk, 'variation': self.grey42.pk,
                                                 'reason': Intent.SIZE_MISSING, 'phone': '0712 345 678',
                                                 'name': 'Mary Achieng', 'within': '4', 'then': 'done'})
-        self.assertRedirects(response, '/floor/', fetch_redirect_response=False)
+        self.assertRedirects(response, '/dashboard/', fetch_redirect_response=False)  # no "How did this visit end?"
         mary = Customer.objects.get(shop=self.shop, phone_number='+254712345678')
         intent = mary.intents.get()
         self.assertEqual((mary.first_name, mary.last_name), ('Mary', 'Achieng'))
@@ -192,6 +205,6 @@ class FloorTests(ChatTestCase):
 
     def test_pages_load(self):
         self.login('cashier')
-        for url in ['/floor/', f'/floor/?start=item&customer={self.jane.pk}', '/notifications/?q=jane', self.url]:
+        for url in ['/floor/', f'/floor/?customer={self.jane.pk}', '/notifications/?q=jane', self.url]:
             with self.subTest(url=url):
                 self.assertEqual(self.client.get(url).status_code, 200)

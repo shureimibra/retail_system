@@ -642,18 +642,6 @@ a.cell:hover { border-color: var(--accent); }
 .floor-notes { max-width: 1280px; margin: 12px auto 0; padding: 0 16px; display: grid; gap: 6px; }
 .floor-note { display: flex; gap: 8px; align-items: center; margin: 0; padding: 10px 14px; border-radius: var(--r-control); background: var(--ok-bg); color: var(--fg); font-size: 15px; }
 .floor-note.is-error { background: var(--crit-bg); }
-.floor-outcome h1 { font-size: 24px; margin: 8px 0 20px; }
-.outcome-buttons { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
-@media (min-width: 600px) { .outcome-buttons { grid-template-columns: 1fr 1fr; } }
-.outcome-buttons form { display: contents; }
-.outcome { display: grid; gap: 6px; justify-items: start; text-align: left; min-height: 150px; padding: 22px; border-radius: var(--r-card);
-  border: 1px solid var(--border-strong); background: var(--surface); color: var(--fg); text-decoration: none; font: inherit; cursor: pointer; width: 100%; }
-.outcome .icon { width: 28px; height: 28px; color: var(--accent); }
-.outcome span { font-size: 22px; font-weight: 600; }
-.outcome small { font-size: 14px; color: var(--fg-2); }
-.outcome:hover { border-color: var(--accent); }
-.outcome.is-bought { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-.outcome.is-bought .icon, .outcome.is-bought small { color: var(--accent-fg); }
 .floor-same { margin: 0 0 12px; font-size: 15px; }
 .steps { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
 @media (min-width: 600px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

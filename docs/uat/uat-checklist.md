@@ -7,6 +7,8 @@ Run these on your laptop with real WhatsApp (Twilio sandbox) and your own phone.
 - Your phone has joined the Twilio WhatsApp sandbox (send the join code to +1 415 523 8886 within the last 24 hours).
 - Sign in as the owner. For S16, also create a cashier in Settings → Team and roles.
 - Use your own number for the customer in every scenario.
+- The sample shop already has some customers. One of them, **Jane Smith**, has a deposit on Adidas Ultraboost 42 / Grey, so Home shows **Reserved 1** and one unit of that size is held for her. That's sample data, not your test.
+- **Save** takes you back to the page you started from (Home, Waiting, a conversation…). **Save, same customer, another item** keeps you on the form.
 - In a third terminal, run `python manage.py process_due --every 15`. On a laptop nothing else sends reminders, retries failed messages or expires old requests (in production a background worker does it). For S11–S13 you can also run `python manage.py process_due` once whenever you like.
 
 ## How statuses move
@@ -15,7 +17,7 @@ Nobody sets a status by hand. Each one changes because of a real action:
 
 | Status | Moves when | Who |
 |---|---|---|
-| Open | You log the missed sale in Floor mode | Staff |
+| Open | You log the missed sale (Log missed sale) | Staff |
 | On order | To order (or Waiting) → tick → **Mark as ordered** | Owner or manager |
 | Back in stock → Notified | You **Receive stock** on the product page: a unit is held and the WhatsApp goes out | **Automatic** after receiving |
 | In conversation | The customer replies on WhatsApp | **Automatic** |
@@ -38,8 +40,8 @@ Every item in **Waiting** says its **next step** and has a button for it.
 | S04 | An item the shop doesn't sell | Log missed sale → Item → **+ An item the shop doesn't have yet** → name, type, price, size/colour → Out of stock → Save | It appears in Products (as a cashier: "Needs review") and on To order. If the owner switched off "Cashiers can add products", a cashier is told to ask. |
 | S05 | Any size will do | Log missed sale → Any or not sure → Out of stock → Save. Receive any size. | You're messaged when **any** size arrives. |
 | S06 | Price too high / over budget | Log missed sale → an in-stock size → **Price too high / over budget** → Save. Product page → Change price **up**, then **down**. | Raising it sends nothing; lowering it sends the price-drop WhatsApp. Receiving stock does not message price customers. |
-| S07 | Something else | Log missed sale → Something else, without a note → Save; then add a note → Save | Without a note it's refused. Waiting shows "Next: Follow up with them yourself". |
-| S08 | Customer said no to messages | Log missed sale → untick the WhatsApp consent → Save. Receive the stock. | No message is sent; a unit is held. The item page says "didn't agree to messages. Call them." |
+| S07 | Something else | Log missed sale → choose the item (or **+ An item the shop doesn't have yet**, e.g. Handbag) → Something else, without a note → Save; then add a note → Save | An item is always needed (it gives the price for recovered money). Without a note it's refused. Waiting shows "Next: Follow up with them yourself". |
+| S08 | Customer doesn't want WhatsApp | Log missed sale → in step 3, **untick** "The customer agreed to a WhatsApp when it's back" → Save. Then Receive the stock. | No WhatsApp is sent; one unit is put aside for them. Waiting and the item page say they didn't agree to messages: call them. (A customer who **replies** No to a message is different: open the chat → **Close as declined**.) |
 | S09 | Two customers, one unit | Log the same size for two numbers. Receive 1. Close the first as declined. | The first person gets the message, the second keeps waiting. After the decline, the second person is messaged automatically. |
 | S10 | Customer replies STOP | After the back-in-stock message, reply **STOP** | No more reminders. The customer shows "Opted out". |
 | S11 | No reply at all | Receive stock, don't reply, run `python manage.py process_due` on later days (or wait) | Reminders go out on days 2, 4 and 7. On day 8 it expires and the unit goes to the next customer. |

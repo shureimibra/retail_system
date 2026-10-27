@@ -209,7 +209,7 @@ class CategoryTests(FeedbackCase):
 
 class ReasonAndCaptureTests(FeedbackCase):
     def test_one_price_reason_on_the_floor(self):
-        page = self.client.get('/floor/?start=item').content.decode()
+        page = self.client.get('/floor/').content.decode()
         self.assertIn('Price too high / over budget', page)
         self.assertNotIn('value="over_budget"', page)
 
@@ -220,7 +220,7 @@ class ReasonAndCaptureTests(FeedbackCase):
         self.assertEqual(rows, [{'label': 'Price too high / over budget', 'count': 2, 'percent': 100}])
 
     def test_they_bought_after_all_from_log_missed_sale(self):
-        page = self.client.get('/floor/?start=item').content.decode()
+        page = self.client.get('/floor/').content.decode()
         self.assertIn('They bought after all', page)
         self.assertNotIn('>Floor mode<', self.client.get('/dashboard/').content.decode())
         self.client.post('/floor/', {'action': 'bought'})

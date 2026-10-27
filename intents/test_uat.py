@@ -301,7 +301,7 @@ class S15_SameCustomerAnotherItem(UATCase):
         self.floor(new_option1='45', new_option2='Grey', visit=first.visit_id, reason=Intent.SIZE_MISSING)
         self.assertEqual(Visit.objects.count(), 1)
         self.assertEqual(Customer.objects.count(), 1)
-        self.assertTrue(response.redirect_chain[-1][0].startswith('/floor/?start=item&customer='))
+        self.assertTrue(response.redirect_chain[-1][0].startswith('/floor/?customer='))
 
 
 class S16_CashierDoesTheFloorAndTheChat(UATCase):

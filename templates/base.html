@@ -47,7 +47,7 @@
         <span class="shop-name">{{ request.shop.name }}</span>
       </a>
       <span class="spacer"></span>
-      <a class="btn btn-primary log-sale" href="{% url 'floor' %}?start=item">{% icon "plus" "sm" %}Log missed sale</a>
+      <a class="btn btn-primary log-sale" href="{% url 'floor' %}">{% icon "plus" "sm" %}Log missed sale</a>
       <a class="avatar" href="{% url 'settings:account' %}" title="{{ user.get_full_name|default:user.username }}">{{ user|initials }}</a>
     </header>
 
@@ -60,7 +60,7 @@
 <nav class="tabbar" aria-label="Main">
   <a href="{% url 'dashboard:home' %}"{% if nav_current == 'dashboard' %} aria-current="page"{% endif %}>{% icon "house" %}Home</a>
   <a href="{% url 'intents:list' %}"{% if nav_current == 'intents' %} aria-current="page"{% endif %}>{% icon "clipboard-list" %}Waiting</a>
-  <a href="{% url 'floor' %}?start=item" aria-label="Log missed sale"><span class="plus">{% icon "plus" %}</span></a>
+  <a href="{% url 'floor' %}" aria-label="Log missed sale"><span class="plus">{% icon "plus" %}</span></a>
   <a href="{% url 'notifications:list' %}"{% if nav_current == 'notifications' %} aria-current="page"{% endif %}>{% icon "message-circle" %}Chats{% if unread_replies %}<span class="badge-count badge-count-tab">{{ unread_replies }}</span>{% endif %}</a>
   <button type="button" id="moreBtn" aria-haspopup="dialog" aria-expanded="false">{% icon "ellipsis" %}More</button>
 </nav>
