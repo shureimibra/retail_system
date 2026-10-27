@@ -78,7 +78,7 @@ def needs_you(shop):
     """
     today = timezone.localdate()
     rows = []
-    last = Message.objects.filter(conversation=OuterRef('pk')).order_by('-created_at')
+    last = Message.objects.filter(conversation=OuterRef('pk')).order_by('-created_at', '-id')
     waiting = (Conversation.objects.filter(shop=shop)
                .annotate(last_direction=Subquery(last.values('direction')[:1]), last_body=Subquery(last.values('body')[:1]))
                .filter(last_direction=Message.INBOUND).select_related('customer'))

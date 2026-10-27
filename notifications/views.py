@@ -69,6 +69,20 @@ def open_chat(request, customer_id):
 
 
 class ConversationView(LoginRequiredMixin, TemplateView):
+    def suggestion(self, intent, last_in):
+        """The reply that fits the customer's last message, while it's still waiting for an answer."""
+        latest = self.conversation.messages.order_by('-created_at', '-id').first()
+        if last_in is None or latest is None or latest.direction != Message.INBOUND:
+            return ''
+        return compose.suggest_quick_reply(last_in.body, intent)
+
+    def quick_replies(self, intent, last_in):
+        """[(key, label, text, suggested)]: the suggested one first."""
+        suggested = self.suggestion(intent, last_in)
+        options = list(compose.QUICK_REPLIES) + ([compose.THANKS] if suggested == 'thanks' else [])
+        rows = [(key, label, compose.quick_reply(key, intent), key == suggested) for key, label in options]
+        return sorted(rows, key=lambda row: not row[3])
+
     """One customer: the chat, a reply box, and the deal for each open item beside it."""
     template_name = 'notifications/conversation.html'
 
@@ -83,7 +97,7 @@ class ConversationView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         conversation = self.conversation
-        last_in = conversation.messages.filter(direction=Message.INBOUND).order_by('-created_at').first()
+        last_in = conversation.messages.filter(direction=Message.INBOUND).order_by('-created_at', '-id').first()
         channel = last_in.channel if last_in else Message.WHATSAPP
         hours_left = selectors.reply_window(conversation)
         deals = selectors.deals(conversation)
@@ -97,8 +111,8 @@ class ConversationView(LoginRequiredMixin, TemplateView):
             'can_write': channel != Message.WHATSAPP or hours_left > 0,
             'deals': deals,
             'main': deals[0] if deals else None,
-            'quick_replies': [(key, label, compose.quick_reply(key, deals[0])) for key, label in compose.QUICK_REPLIES]
-                             if deals else [],
+            'quick_replies': self.quick_replies(deals[0], last_in) if deals else [],
+            'suggested': self.suggestion(deals[0], last_in) if deals else '',
             'payment_methods': Payment.METHOD_CHOICES,
             'mpesa_mode': mpesa_mode()[0],
             'mpesa_ready': mpesa_mode()[1],
@@ -134,7 +148,7 @@ class ConversationView(LoginRequiredMixin, TemplateView):
             if not body:
                 messages.error(request, 'Write a message first.')
                 return redirect(here + '#composer')
-            last_in = conversation.messages.filter(direction=Message.INBOUND).order_by('-created_at').first()
+            last_in = conversation.messages.filter(direction=Message.INBOUND).order_by('-created_at', '-id').first()
             channel = last_in.channel if last_in else Message.WHATSAPP
             if channel == Message.WHATSAPP and not selectors.reply_window(conversation):
                 messages.error(request, "WhatsApp only allows your own words within 24 hours of the customer's "
@@ -185,7 +199,7 @@ def conversation_updates(request, pk):
     new = list(conversation.messages.filter(pk__gt=int(after) if after.isdigit() else 0).order_by('created_at'))
     if new:
         services.mark_read(conversation)
-    last_in = conversation.messages.filter(direction=Message.INBOUND).order_by('-created_at').first()
+    last_in = conversation.messages.filter(direction=Message.INBOUND).order_by('-created_at', '-id').first()
     channel = last_in.channel if last_in else Message.WHATSAPP
     html = ''.join(render_to_string('notifications/_bubble.html', {'m': m}, request=request) for m in new)
     return JsonResponse({'count': len(new), 'html': html,

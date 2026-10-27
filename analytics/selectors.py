@@ -5,6 +5,7 @@ from products.models import Product, ProductVariation
 from customers.models import Customer
 import datetime
 
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 def _filter_intents(shop, start_date=None, end_date=None, status=None):
@@ -132,8 +133,45 @@ def get_to_order(shop):
                                or customer.phone_number[-2:])
     for row in rows.values():
         row['to_order'] = max(0, row['waiting'] - (row['available'] or 0) - row['on_order'])
+    _add_suggestions(shop, rows.values())
     far = datetime.date.max
     return sorted(rows.values(), key=lambda r: (-r['money_waiting'], r['needed_by'] or far, r['product_name']))
+
+DEMAND_WEEKS = 8
+
+
+def _add_suggestions(shop, rows):
+    """
+    How many to order: customers waiting now, plus the customers likely to ask (or buy at the till) before the
+    delivery arrives, judged from the last 8 weeks, minus free stock and what's already on order. Advice only.
+    """
+    from products.models import StockMovement
+    since = timezone.now() - datetime.timedelta(weeks=DEMAND_WEEKS)
+    ids = [r['variation_id'] for r in rows if r['variation_id']]
+    asked = dict(BlockedPurchaseIntent.objects.filter(shop=shop, variation_id__in=ids, created_at__gte=since)
+                 .exclude(constraint_type__in=BlockedPurchaseIntent.PRICE_DROP_REASONS)
+                 .values('variation_id').annotate(n=Count('id')).values_list('variation_id', 'n'))
+    sold = dict(StockMovement.objects.filter(variation_id__in=ids, kind=StockMovement.TILL_SALE, created_at__gte=since)
+                .values('variation_id').annotate(n=Sum('quantity_change')).values_list('variation_id', 'n'))
+    days = shop.delivery_days or 7
+    for row in rows:
+        free, on_order = row['available'] or 0, row['on_order']
+        expected = 0
+        if row['variation_id']:
+            per_week = (asked.get(row['variation_id'], 0) + abs(sold.get(row['variation_id']) or 0)) / DEMAND_WEEKS
+            expected = round(per_week * days / 7)
+        row['expected'] = expected
+        row['suggested'] = max(0, row['waiting'] + expected - free - on_order)
+        parts = [f"{row['waiting']} waiting"]
+        if expected:
+            parts.append(f'about {expected} more in {days} days')
+        why = ' + '.join(parts)
+        if free:
+            why += f', {free} free in stock'
+        if on_order:
+            why += f', {on_order} already on order'
+        row['why'] = f"{why} → order {row['suggested']}"
+
 
 def get_constraint_distribution(shop, start_date=None, end_date=None, status=None):
     base_qs = _filter_intents(shop, start_date, end_date, status)

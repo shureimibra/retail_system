@@ -1,6 +1,6 @@
 # Phase 6 design note: an assistant for the owner, free
 
-**Status:** draft for the owner's approval · branch `phase-6/assistant` (after Phase 5b)
+**Status:** approved by the owner 27 Oct 2026 · built on `phase-6/assistant` (after Phase 5b)
 **Owner's decisions (27 Oct 2026):**
 - The assistant must be free for now. It's an **Ask box inside Retail OS that uses no AI API**: it answers set questions from the shop's own data, so no customer data leaves the system and nobody needs a subscription.
 - No MCP tool for now.
@@ -10,13 +10,16 @@
 
 ## 1. What this phase delivers
 
-1. **Ask box on Home.** Type or tap a question like "What should I order?" or "Who's waiting for size 42?", and get a short answer with a link to the full page.
+1. **Ask panel.** Opened from an **Ask** button in the top bar. Type or tap a question like "What should I order?" or "Who's waiting for size 42?", and get a short answer with a link to the full page.
 2. **Order suggestions on To order.** Each size shows how many to buy, and why.
 3. **Smart quick replies in Conversations.** From the customer's last message, the chat suggests the right ready-made reply, already filled in. Staff edit it and press Send.
 
 ## 2. The Ask box
 
-**Where:** at the top of Home, for the owner and managers. Under the box are 4 tap-to-ask examples that change with what's happening, for example "Who's waiting for my answer?" when replies are waiting.
+**Where (owner's ask, 27 Oct: "don't crowd Home"):** not on Home. An **Ask** button in the top bar, next to Log missed sale, for the owner and managers.
+- It opens a panel: from the right on a computer, full screen on a phone. Closing it puts it away.
+- Inside the panel: a question box, 4 tap-to-ask examples that change with what's happening (for example "Who's waiting for my answer?" when replies are waiting), and the questions and answers shown like a chat.
+- It uses the app's normal look. No sparkles or "AI" styling: it's a tool, and it says what it can answer.
 
 **How it understands:** it looks for known words and details in the question, not free conversation:
 - a size (42) or a colour;
@@ -85,6 +88,6 @@ The existing three quick replies stay. There are two new ones: **Deposit** and *
 ## 6. Order of work
 
 1. Order suggestions on To order, plus the delivery-time setting.
-2. The Ask box: the questions above, examples under the box, and the "I can answer these" list.
+2. The Ask panel: the questions above, examples under the box, and the "I can answer these" list.
 3. Smart quick replies.
 4. Tests, then your UAT, sign-off and merge.

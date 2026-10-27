@@ -162,14 +162,14 @@ class ToOrderView(ShopViewMixin, ManagersOnlyMixin, TemplateView):
         groups = []
         for name in sorted(suppliers, key=lambda n: (n == '', n.lower())):
             group_rows = suppliers[name]
-            lines = [f"- {r['product_name']} {r['variation_label']}{' (' + r['sku'] + ')' if r['sku'] else ''} x {r['to_order']}"
-                     for r in group_rows if r['to_order'] > 0]
+            lines = [f"- {r['product_name']} {r['variation_label']}{' (' + r['sku'] + ')' if r['sku'] else ''} x {r['suggested']}"
+                     for r in group_rows if r['suggested'] > 0]
             text = f'Order from {self.request.shop.name}:\n' + '\n'.join(lines)
             groups.append({'supplier': name, 'rows': group_rows, 'text': text,
                            'share_url': 'https://wa.me/?text=' + quote(text, safe='') if lines else ''})
         context.update({
             'groups': groups,
-            'item_count': sum(1 for r in rows if r['to_order'] > 0),
+            'item_count': sum(1 for r in rows if r['suggested'] > 0),
             'customer_count': sum(len(r['customers']) for r in rows),
             'money_waiting': sum(r['money_waiting'] for r in rows),
             'any_open': any(r['open_ids'] for r in rows),

@@ -83,10 +83,10 @@ class ShopAndFollowUpTests(SettingsTestCase):
     def test_follow_up_days_are_validated_and_tidied(self):
         self.login('manager')
         bad = self.client.post('/settings/follow-ups/', {'follow_up_days': 'tomorrow', 'expire_days_after_last_follow_up': 1,
-                                                         'stock_hold_days': 8, 'reserve_pickup_days': 5})
+                                                         'stock_hold_days': 8, 'reserve_pickup_days': 5, 'delivery_days': 7})
         self.assertContains(bad, 'Use whole days between 1 and 60')
         self.client.post('/settings/follow-ups/', {'follow_up_days': '5, 1, 3, 3', 'expire_days_after_last_follow_up': 2,
-                                                   'stock_hold_days': 10, 'reserve_pickup_days': 3})
+                                                   'stock_hold_days': 10, 'reserve_pickup_days': 3, 'delivery_days': 7})
         self.shop.refresh_from_db()
         self.assertEqual((self.shop.follow_up_days, self.shop.follow_up_schedule), ('1, 3, 5', [1, 3, 5]))
 

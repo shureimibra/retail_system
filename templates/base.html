@@ -51,6 +51,7 @@
       </a>
       <span class="spacer"></span>
       <a class="offline-badge" href="{% url 'floor' %}" data-offline-badge hidden></a>
+      {% if is_manager %}<button class="btn btn-plain ask-open" type="button" data-ask-open aria-controls="askPanel" aria-expanded="false">{% icon "search" "sm" %}<span>Ask</span></button>{% endif %}
       <a class="btn btn-primary log-sale" href="{% url 'floor' %}">{% icon "plus" "sm" %}Log missed sale</a>
       <a class="avatar" href="{% url 'settings:account' %}" title="{{ user.get_full_name|default:user.username }}">{{ user|initials }}</a>
     </header>
@@ -84,6 +85,19 @@
     </form>
   </nav>
 </div>
+
+{% if is_manager %}
+<div class="ask-scrim" data-ask-scrim hidden></div>
+<aside class="ask-panel" id="askPanel" role="dialog" aria-modal="true" aria-labelledby="askTitle" hidden data-ask-url="{% url 'dashboard:ask' %}">
+  <div class="ask-head"><h2 id="askTitle">Ask</h2><span class="faint small grow">About your shop. Answers come from your own records.</span>
+    <button class="btn btn-plain btn-icon" type="button" data-ask-close aria-label="Close">{% icon "x" %}</button></div>
+  <div class="ask-thread" data-ask-thread aria-live="polite"><div data-ask-examples></div></div>
+  <form class="ask-compose" data-ask-form>{% csrf_token %}
+    <input name="q" type="text" maxlength="300" autocomplete="off" placeholder="e.g. Who's waiting for size 42?" aria-label="Your question">
+    <button class="btn btn-primary" type="submit">Ask</button>
+  </form>
+</aside>
+{% endif %}
 
 {% if messages %}
 <div class="toasts" role="status" aria-live="polite">
@@ -183,6 +197,7 @@
 })();
 </script>
 {% include "offline/scripts.html" %}
+{% if is_manager %}<script src="{% static 'js/ask.js' %}"></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,15 @@
+{% if question %}
+<div class="ask-turn">
+  <p class="ask-q">{{ question }}</p>
+  <div class="ask-a">
+    {% if result.title %}<p class="ask-title">{{ result.title }}</p>{% endif %}
+    {% if result.lines %}
+    <ul class="ask-lines">
+      {% for line in result.lines %}<li>{% if line.url %}<a href="{{ line.url }}">{{ line.text }}</a>{% else %}<span>{{ line.text }}</span>{% endif %}{% if line.sub %}<small>{{ line.sub }}</small>{% endif %}</li>{% endfor %}
+    </ul>
+    {% elif result.empty %}<p>{{ result.empty }}</p>{% endif %}
+    {% if result.examples %}<div class="ask-chips">{% for q in result.examples %}<button class="ask-chip" type="button" data-ask="{{ q }}">{{ q }}</button>{% endfor %}</div>{% endif %}
+    {% if result.more %}<a class="ask-more" href="{{ result.more.url }}">{{ result.more.label }} →</a>{% endif %}
+  </div>
+</div>
+{% endif %}

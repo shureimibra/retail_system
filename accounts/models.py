@@ -27,6 +27,8 @@ class Shop(models.Model):
     expire_days_after_last_follow_up = models.PositiveSmallIntegerField(default=1)
     stock_hold_days = models.PositiveSmallIntegerField(default=8)
     reserve_pickup_days = models.PositiveSmallIntegerField(default=5)
+    # How long a supplier usually takes. To order suggests enough for the customers likely to ask meanwhile.
+    delivery_days = models.PositiveSmallIntegerField(default=7)
     default_channel = models.CharField(max_length=20, default='whatsapp',
                                        choices=[('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'Email')])
     # Sent by the "Send payment details" quick reply in Conversations.

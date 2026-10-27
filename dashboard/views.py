@@ -33,3 +33,21 @@ def dismiss_alert(request, pk):
     from notifications.models import Message
     Message.objects.filter(pk=pk, shop=request.shop, status=Message.FAILED).update(alert_dismissed=True)
     return redirect('dashboard:home')
+
+
+@login_required
+def ask(request):
+    """The Ask panel: GET gives the examples to tap, POST answers a question. Owners and managers only."""
+    from django.core.exceptions import PermissionDenied
+    from django.shortcuts import render
+    from core.shops import can_manage_catalog
+    from . import ask as assistant
+    if request.shop is None or not can_manage_catalog(request):
+        raise PermissionDenied('Only the owner or a manager can use Ask.')
+    if request.method == 'POST':
+        question = request.POST.get('q', '').strip()[:300]
+        if not question:
+            return render(request, 'dashboard/ask_answer.html', {'question': '', 'result': None})
+        return render(request, 'dashboard/ask_answer.html',
+                      {'question': question, 'result': assistant.answer(request.shop, question)})
+    return render(request, 'dashboard/ask_examples.html', {'examples': assistant.examples(request.shop)})

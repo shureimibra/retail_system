@@ -6,4 +6,5 @@ app_name = 'dashboard'
 urlpatterns = [
     path('', views.DashboardHomeView.as_view(), name='home'),
     path('dismiss/<int:pk>/', views.dismiss_alert, name='dismiss-alert'),
+    path('ask/', views.ask, name='ask'),
 ]

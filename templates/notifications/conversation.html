@@ -40,7 +40,7 @@
         {% csrf_token %}{% if main %}<input type="hidden" name="intent" value="{{ main.pk }}">{% endif %}
         {% if quick_replies %}
         <div class="quick" aria-label="Quick replies">
-          {% for key, label, text in quick_replies %}<button class="chip" type="submit" name="action" value="quick:{{ key }}" data-fill="{{ text }}">{{ label }}</button>{% endfor %}
+          {% for key, label, text, is_suggested in quick_replies %}<button class="chip{% if is_suggested %} is-suggested{% endif %}" type="submit" name="action" value="quick:{{ key }}" data-fill="{{ text }}">{% if is_suggested %}<span class="suggested-tag">Suggested</span>{% endif %}{{ label }}</button>{% endfor %}
         </div>
         {% endif %}
         <div class="compose-row">
@@ -124,7 +124,8 @@
           </form>
         </details>
         {% endif %}
-        <details class="deal-more"><summary>Declined</summary>
+        <details class="deal-more"{% if suggested == 'thanks' and forloop.first %} open{% endif %}><summary>Declined</summary>
+          {% if suggested == 'thanks' and forloop.first %}<p class="help">They seem to have said no. If so, thank them, then close this.</p>{% endif %}
           <form method="post" class="form" novalidate>{% csrf_token %}<input type="hidden" name="intent" value="{{ d.pk }}">
             <div class="field"><label for="why-{{ d.pk }}">Why <span class="faint">(optional)</span></label><input id="why-{{ d.pk }}" name="reason" type="text" maxlength="200" placeholder="Bought elsewhere"></div>
             <p class="help">Closes this item. Declined is never counted as revenue, and any held unit goes to the next customer waiting.</p>

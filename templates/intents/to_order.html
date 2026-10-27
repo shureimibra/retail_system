@@ -26,15 +26,16 @@
       {% if group.share_url %}<a class="btn btn-sm" href="{{ group.share_url }}" target="_blank" rel="noopener">{% icon "send" "sm" %}Share list on WhatsApp</a>{% endif %}</div>
     <div class="table-wrap">
       <table class="table table-cards to-order">
-        <thead><tr><th class="pick"><span class="visually-hidden">Ordered</span></th><th>Item</th><th>Waiting</th><th class="r">Order</th><th class="r">Money waiting</th><th>Needed by</th><th>Status</th></tr></thead>
+        <thead><tr><th class="pick"><span class="visually-hidden">Ordered</span></th><th>Item</th><th>Waiting</th><th class="r">Suggested order</th><th class="r">Money waiting</th><th>Needed by</th><th>Status</th></tr></thead>
         <tbody>
         {% for row in group.rows %}
         <tr>
           <td class="pick">{% if row.open_ids %}<input type="checkbox" name="row" value="{{ row.open_ids|join:',' }}" aria-label="Ordered: {{ row.product_name }} {{ row.variation_label }}">{% endif %}</td>
           <td class="card-title"><a class="primary" href="{% url 'products:detail' row.product_id %}">{{ row.product_name }} · {{ row.variation_label }}</a>
-            <span class="sub">{% if row.sku %}<span class="mono">{{ row.sku }}</span> · {% endif %}{% if row.available %}{{ row.available }} free in stock{% else %}none free in stock{% endif %}</span></td>
+            <span class="sub">{% if row.sku %}<span class="mono">{{ row.sku }}</span> · {% endif %}{% if row.available %}{{ row.available }} free in stock{% else %}none free in stock{% endif %}</span>
+            <span class="sub suggest-why">{{ row.why }}</span></td>
           <td data-label="Waiting"><span class="initials" title="{{ row.customers|join:', ' }}">{% for i in row.initials|slice:":3" %}<span class="avatar avatar-xs">{{ i }}</span>{% endfor %}{% if row.initials|length > 3 %}<span class="more">+{{ row.initials|length|add:"-3" }}</span>{% endif %}</span></td>
-          <td data-label="Order" class="r num">{{ row.to_order }}</td>
+          <td data-label="Order" class="r num"><b>{{ row.suggested }}</b>{% if row.suggested != row.to_order %}<span class="sub">{{ row.to_order }} for waiting customers</span>{% endif %}</td>
           <td data-label="Money waiting" class="r num">{{ row.money_waiting|money:request.shop }}</td>
           <td data-label="Needed by">{{ row.needed_by|date:"D j M"|default:"Not set" }}</td>
           <td data-label="Status">{% if row.open_ids %}<span class="badge badge-open">Open</span>{% else %}<span class="badge badge-on_order">On order{% if row.expected_at %} · {{ row.expected_at|date:"D j M" }}{% endif %}</span>{% endif %}</td>

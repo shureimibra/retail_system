@@ -61,14 +61,17 @@ class ShopDetailsForm(PhotoFieldsMixin, forms.ModelForm):
 class FollowUpsForm(forms.ModelForm):
     class Meta:
         model = Shop
-        fields = ['follow_up_days', 'expire_days_after_last_follow_up', 'stock_hold_days', 'reserve_pickup_days']
+        fields = ['follow_up_days', 'expire_days_after_last_follow_up', 'stock_hold_days', 'reserve_pickup_days',
+                  'delivery_days']
         labels = {
             'follow_up_days': 'Send reminders on these days',
             'expire_days_after_last_follow_up': 'Close the request this many days after the last reminder',
             'stock_hold_days': 'Hold a unit for a waiting customer for (days)',
             'reserve_pickup_days': 'Reserved items wait for pickup for (days)',
+            'delivery_days': 'Your supplier usually delivers in (days)',
         }
-        help_texts = {'follow_up_days': 'Days after the first message, separated by commas. For example: 2, 4, 7.'}
+        help_texts = {'follow_up_days': 'Days after the first message, separated by commas. For example: 2, 4, 7.',
+                      'delivery_days': 'To order suggests enough for the customers likely to ask before a delivery arrives.'}
 
     def clean_follow_up_days(self):
         raw = self.cleaned_data['follow_up_days']
@@ -76,6 +79,12 @@ class FollowUpsForm(forms.ModelForm):
         if not parts or not all(p.isdigit() and 0 < int(p) <= 60 for p in parts):
             raise forms.ValidationError('Use whole days between 1 and 60, separated by commas, like 2, 4, 7.')
         return ', '.join(str(d) for d in sorted({int(p) for p in parts}))
+
+    def clean_delivery_days(self):
+        days = self.cleaned_data['delivery_days']
+        if not 1 <= days <= 90:
+            raise forms.ValidationError('Use a number of days between 1 and 90.')
+        return days
 
 
 class MessagingForm(forms.ModelForm):
