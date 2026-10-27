@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Check before saving{% endblock %}
+{% block page %}
+<div class="content narrow">
+  <div>
+    <a class="back" href="{% url 'products:import' %}">{% icon "chevron-left" "sm" %}Import stock</a>
+    <div class="page-head"><div><h1>Check before saving</h1>
+      <p>{{ stock_import.file_name }}{% if stock_import.applied_at %} · saved {{ stock_import.applied_at|date:"j M Y, H:i" }}{% endif %}</p></div></div>
+  </div>
+
+  <p class="import-summary">
+    {% if changes or new_items or prices %}
+      <b>{{ summary.count|default:0 }}</b> count{{ summary.count|default:0|pluralize }} change{% if summary.new_option %}, <b>{{ summary.new_option }}</b> new size{{ summary.new_option|pluralize }} or colour{{ summary.new_option|pluralize }}{% endif %}{% if summary.new_item %}, <b>{{ summary.new_item }}</b> new item{{ summary.new_item|pluralize }}{% endif %}{% if summary.price %}, <b>{{ summary.price }}</b> price change{{ summary.price|pluralize }}{% endif %}.
+      {% if plan.unchanged %}{{ plan.unchanged }} row{{ plan.unchanged|pluralize }} stay{{ plan.unchanged|pluralize:"s," }} the same.{% endif %}
+    {% else %}
+      Nothing to change{% if plan.unchanged %}: all {{ plan.unchanged }} row{{ plan.unchanged|pluralize }} match today's stock{% endif %}.
+    {% endif %}
+  </p>
+
+  {% if plan.problems %}
+  <section class="panel" aria-labelledby="problems">
+    <div class="panel-head"><h2 id="problems">{% icon "triangle-alert" "sm" %}{{ plan.problems|length }} row{{ plan.problems|length|pluralize }} can't be used</h2></div>
+    <div class="panel-body stack">
+      <p class="muted">Fix {{ plan.problems|length|pluralize:"it,them" }} in the file and upload again, or save the rest now and fix {{ plan.problems|length|pluralize:"it,them" }} later.</p>
+      <ul class="import-problems">{% for p in plan.problems %}<li><b>Row {{ p.row }}</b> {{ p.text }}</li>{% endfor %}</ul>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if changes %}
+  <section class="panel" aria-labelledby="counts">
+    <div class="panel-head"><h2 id="counts">Stock</h2>{% if summary.up %}<span class="faint small">Customers waiting for a size that goes up are told</span>{% endif %}</div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Item</th><th class="r">Now</th><th class="r">After saving</th></tr></thead>
+        <tbody>
+        {% for a in changes %}
+        <tr><td>{{ a.item }}{% if a.kind == 'new_option' %} <span class="badge badge-ok">New</span>{% endif %}</td>
+          <td class="r num">{% if a.kind == 'count' %}{{ a.old }}{% else %}<span class="faint">none</span>{% endif %}</td>
+          <td class="r num"><b>{{ a.new }}</b></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if new_items or prices %}
+  <section class="panel" aria-labelledby="items">
+    <div class="panel-head"><h2 id="items">Items and prices</h2></div>
+    <div class="rows">
+      {% for a in new_items %}<div><span class="grow">{{ a.item }}<span class="row-sub">New item at {{ a.price|money:request.shop }}</span></span><span class="badge badge-ok">New</span></div>{% endfor %}
+      {% for a in prices %}<div><span class="grow">{{ a.item }}<span class="row-sub">Price {{ a.old|money:request.shop }} → {{ a.new|money:request.shop }}</span></span></div>{% endfor %}
+    </div>
+    {% if prices %}<p class="panel-body help">A lower price tells customers who said it was too expensive.</p>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if not stock_import.applied_at %}
+  <form method="post" class="form-actions">
+    {% csrf_token %}
+    <button class="btn" type="submit" name="action" value="cancel">Cancel</button>
+    {% if changes or new_items or prices %}<button class="btn btn-primary" type="submit" name="action" value="save">Save these changes</button>{% endif %}
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

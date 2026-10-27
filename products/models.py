@@ -237,3 +237,22 @@ class ProductOptionPhoto(models.Model):
 
     def __str__(self):
         return f'{self.product.name} · {self.value}'
+
+
+class StockImport(models.Model):
+    """One uploaded stock file: the preview plan, and when (and by whom) it was saved."""
+    shop = models.ForeignKey('accounts.Shop', on_delete=models.CASCADE, related_name='stock_imports')
+    file_name = models.CharField(max_length=200)
+    plan = models.JSONField(default=dict)
+    skipped = models.JSONField(default=list, blank=True)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+')
+    applied_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.file_name} ({self.created_at:%d %b %Y})'

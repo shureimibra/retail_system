@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-head">
   <div><h1>Products</h1><p>Your items, their sizes and colours, and what's in stock.</p></div>
-  <div class="actions"><a class="btn" href="{% url 'products:create' %}">{% icon "plus" "sm" %}Add product</a></div>
+  <div class="actions">{% if can_manage %}<a class="btn" href="{% url 'products:import' %}">{% icon "download" "sm" %}Import stock</a>{% endif %}<a class="btn" href="{% url 'products:create' %}">{% icon "plus" "sm" %}Add product</a></div>
 </div>
 <div class="panel">
   {% if products %}
