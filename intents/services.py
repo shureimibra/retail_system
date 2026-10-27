@@ -72,7 +72,7 @@ def transition(intent, to_status, actor=None, note='', **data):
 
 def create_blocked_purchase_intent(customer, product, variation, constraint_type, requested_quantity=1, estimated_value=None,
                                    notes="", recorded_by=None, visit=None, consent_given=True,
-                                   preferred_channel=None, needed_by=None):
+                                   preferred_channel=None, needed_by=None, source=Intent.FROM_FLOOR):
     if customer.shop_id != product.shop_id or (variation and variation.product_id != product.id):
         raise ValueError('Customer, product and variation must belong to the same shop and product.')
     if constraint_type in Intent.RESTOCK_REASONS and variation is not None and variation.available_quantity > 0:
@@ -82,7 +82,7 @@ def create_blocked_purchase_intent(customer, product, variation, constraint_type
         unit_price = variation.effective_price if variation else product.base_price
         estimated_value = unit_price * requested_quantity
     with transaction.atomic():
-        if visit is None:
+        if visit is None and source == Intent.FROM_FLOOR:
             visit = Visit.objects.create(shop_id=product.shop_id, customer=customer, outcome=Visit.DIDNT_BUY,
                                          recorded_by=recorded_by)
         intent = Intent.objects.create(
@@ -99,6 +99,7 @@ def create_blocked_purchase_intent(customer, product, variation, constraint_type
             consent_given=consent_given,
             preferred_channel=preferred_channel or product.shop.default_channel,
             needed_by=needed_by,
+            source=source,
         )
         log_event(intent, 'created', actor=recorded_by, note=intent.get_constraint_type_display())
     return intent

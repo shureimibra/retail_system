@@ -4,6 +4,7 @@ item page, so staff never have to guess (or change a status by hand): statuses m
 real actions (order, receive stock, a reply, a payment, declined), most of them automatic.
 """
 from django.urls import reverse
+from django.utils.text import Truncator
 
 from .models import BlockedPurchaseIntent as Intent
 
@@ -25,7 +26,9 @@ def next_step(intent, manager=True):
             return {'text': 'Waiting for a lower price. They are messaged when you lower it.',
                     'action': 'Change price' if manager else '', 'url': product if manager else ''}
         if intent.constraint_type == Intent.OTHER:
-            return {'text': 'Follow up with them yourself (see the note).', 'action': 'Call or message', 'url': chat}
+            note = Truncator(intent.notes).chars(120) if intent.notes else ''
+            return {'text': f'Follow up with them yourself: {note}' if note else 'Follow up with them yourself.',
+                    'action': 'Call or message', 'url': chat}
         if manager:
             return {'text': 'Order it from your supplier.', 'action': 'To order', 'url': reverse('intents:to_order')}
         return {'text': 'Waiting for the owner or a manager to order it.', 'action': '', 'url': ''}

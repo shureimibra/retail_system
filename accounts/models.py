@@ -33,6 +33,9 @@ class Shop(models.Model):
     payment_details = models.TextField(blank=True, help_text='For example: M-Pesa Till 123456, Kimathi Street Store.')
     # Settings → Home layout: role → ordered widget keys. Empty means the defaults in dashboard/widgets.py.
     home_layout = models.JSONField(default=dict, blank=True)
+    # The public "Ask for your size" link: /ask/<link_name>/.
+    link_name = models.SlugField(max_length=60, unique=True, null=True, blank=True)
+    link_on = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):

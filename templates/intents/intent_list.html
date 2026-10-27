@@ -63,7 +63,7 @@
             <span class="pick">{% if intent.can_order %}<input type="checkbox" name="intent" value="{{ intent.pk }}" id="pick-{{ intent.pk }}" aria-label="Ordered: {{ intent.product.name }}{% if intent.variation %} {{ intent.variation.label }}{% endif %}">{% endif %}</span>
             {% endif %}
             <span class="grow"><a class="row-title item-link" href="{% url 'intents:update' intent.pk %}">{{ intent.product.name }}{% if intent.variation %} · {{ intent.variation.label }}{% endif %}</a>
-              <span class="row-sub">{{ intent.get_constraint_type_display }}
+              <span class="row-sub">{{ intent.get_constraint_type_display }}{% if intent.source == 'link' %} · <span class="tag">Shop link</span>{% endif %}
                 {% if intent.needed_by %} · <span class="{% if intent.needed_by <= today %}due{% endif %}">needed by {{ intent.needed_by|date:"D j M" }}</span>{% endif %}
                 {% if intent.status == 'on_order' and intent.expected_at %} · arrives {{ intent.expected_at|date:"D j M" }}{% endif %}
                 · {% if intent.days_waiting == 0 %}today{% else %}{{ intent.days_waiting }} day{{ intent.days_waiting|pluralize }}{% endif %}

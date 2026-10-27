@@ -5,7 +5,9 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -29,6 +31,7 @@ SECTIONS = [
     ('follow_ups', 'Follow-ups and holds', 'Reminder days, holds and pickups', MANAGERS, 'Shop'),
     ('messaging', 'Messaging', 'How customers are contacted', MANAGERS, 'Shop'),
     ('payments', 'Payments', 'M-Pesa and how customers pay you', OWNER, 'Shop'),
+    ('shop_link', 'Shop link', 'Customers ask for their size themselves', MANAGERS, 'Shop'),
 ]
 
 
@@ -250,6 +253,48 @@ class PaymentsView(ShopFormView):
             'site_is_public': s.SITE_URL.startswith('https://'),
         })
         return context
+
+
+def shop_link_url(shop):
+    from accounts.services import shop_link_name
+    return django_settings.SITE_URL.rstrip('/') + reverse('ask', args=[shop_link_name(shop)])
+
+
+class ShopLinkView(SettingsView):
+    """The public "Ask for your size" link: copy it, print its QR code, switch it off."""
+    section, who = 'shop_link', MANAGERS
+    template_name = 'shopsettings/shop_link.html'
+
+    def get_context_data(self, **kwargs):
+        import segno
+        context = super().get_context_data(**kwargs)
+        url = shop_link_url(self.request.shop)
+        context.update({
+            'link_url': url,
+            'link_on': self.request.shop.link_on,
+            'qr_svg': segno.make(url, error='m').svg_inline(scale=5, border=2, dark='#1d2421', light='#fbfaf7'),
+            'site_is_public': django_settings.SITE_URL.startswith('https://'),
+        })
+        return context
+
+    def post(self, request):
+        shop = request.shop
+        shop.link_on = request.POST.get('link_on') == 'on'
+        shop.save(update_fields=['link_on'])
+        return self.saved('The link is on' if shop.link_on else "The link is off. Anyone opening it sees that it's closed.")
+
+
+def shop_link_qr(request):
+    """The QR code as a PNG to print and put up at the counter."""
+    import io
+    import segno
+    if not request.user.is_authenticated or request.shop is None or not can_open(request, MANAGERS):
+        raise PermissionDenied
+    buffer = io.BytesIO()
+    segno.make(shop_link_url(request.shop), error='m').save(buffer, kind='png', scale=12, border=3)
+    response = HttpResponse(buffer.getvalue(), content_type='image/png')
+    response['Content-Disposition'] = 'attachment; filename="shop-link-qr.png"'
+    return response
 
 
 class ProductTypesView(SettingsView):

@@ -1,0 +1,53 @@
+{% extends "shopsettings/base.html" %}
+{% load ui %}
+{% block pane %}
+<div class="panel">
+  <div class="panel-head"><h2 id="pane-title">Shop link</h2>
+    {% if link_on %}<span class="badge badge-ok">On</span>{% else %}<span class="badge badge-notified">Off</span>{% endif %}</div>
+  <div class="panel-body stack">
+    <p class="muted">Customers open this link, choose the item and their size or colour, and leave their number. It lands in Waiting marked <b>Shop link</b>, and they get the WhatsApp when it's in. They never see prices or stock.</p>
+    <div class="link-copy">
+      <input class="mono" type="text" value="{{ link_url }}" readonly aria-label="Your shop link" id="link-url">
+      <button class="btn" type="button" data-copy="link-url">Copy</button>
+      <a class="btn btn-plain" href="{{ link_url }}" target="_blank" rel="noopener">Open</a>
+    </div>
+    <p class="small faint">Put it in your Instagram or TikTok bio, a WhatsApp status, or reply with it when someone asks for a size you don't have.</p>
+    {% if not site_is_public %}<p class="err-text small">Phones can't reach this address yet. Start the tunnel and set SITE_URL in .env to its https address.</p>{% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>QR code for the counter</h2></div>
+  <div class="panel-body link-qr">
+    <div class="qr-box">{{ qr_svg|safe }}</div>
+    <div class="stack">
+      <p class="muted">Print it and put it by the till or on the fitting room door: "Your size not here? Scan and we'll tell you when it's in."</p>
+      <div><a class="btn" href="{% url 'settings:shop_link_qr' %}">{% icon "download" "sm" %}Download for printing</a></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>Switch on or off</h2></div>
+  <form method="post" class="panel-body form">
+    {% csrf_token %}
+    <label class="check"><input type="checkbox" name="link_on"{% if link_on %} checked{% endif %}>
+      <span>Customers can use the link. When it's off, the page says it's closed and nothing is recorded.</span></label>
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Save</button></div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-copy]').forEach(function (button) {
+  button.addEventListener('click', function () {
+    var input = document.getElementById(button.dataset.copy);
+    input.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(input.value) : Promise.reject()).catch(function () { document.execCommand('copy'); });
+    button.textContent = 'Copied';
+    setTimeout(function () { button.textContent = 'Copy'; }, 2000);
+  });
+});
+</script>
+{% endblock %}

@@ -17,4 +17,6 @@ urlpatterns = [
     path('follow-ups/', views.FollowUpsView.as_view(), name='follow_ups'),
     path('messaging/', views.MessagingView.as_view(), name='messaging'),
     path('payments/', views.PaymentsView.as_view(), name='payments'),
+    path('shop-link/', views.ShopLinkView.as_view(), name='shop_link'),
+    path('shop-link/qr.png', views.shop_link_qr, name='shop_link_qr'),
 ]

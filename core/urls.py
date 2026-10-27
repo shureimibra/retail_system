@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.routers import DefaultRouter
 from products.api_views import CategoryViewSet, ProductTypeViewSet, ProductViewSet, ProductVariationViewSet
 from customers.api_views import CustomerViewSet
+from intents.ask import AskView
 from intents.floor import FloorView, customer_lookup
 from intents.api_views import BlockedPurchaseIntentViewSet, record_bought_visit
 from analytics.api_views import DashboardStatsAPIView, AnalyticsAPIView, FunnelAPIView, ToOrderAPIView
@@ -44,6 +45,7 @@ urlpatterns = [
     path('payments/', include('payments.urls')),
     path('floor/', FloorView.as_view(), name='floor'),
     path('floor/customer/', customer_lookup, name='floor-customer'),
+    path('ask/<slug:name>/', AskView.as_view(), name='ask'),
 
     
     # API endpoints

@@ -76,6 +76,12 @@ class BlockedPurchaseIntent(models.Model):
     # What staff choose from when logging: the two price reasons are one choice.
     CAPTURE_CHOICES = CONSTRAINT_CHOICES[:4] + CONSTRAINT_CHOICES[5:]  # all but OVER_BUDGET
 
+    # Where the request came from. Only Log missed sale counts as a walk-in visit.
+    FROM_FLOOR = 'floor'
+    FROM_LINK = 'link'
+    FROM_API = 'api'
+    SOURCE_CHOICES = [(FROM_FLOOR, 'Log missed sale'), (FROM_LINK, 'Shop link'), (FROM_API, 'Connection')]
+
     WHATSAPP = 'whatsapp'
     SMS = 'sms'
     EMAIL = 'email'
@@ -89,6 +95,7 @@ class BlockedPurchaseIntent(models.Model):
 
     constraint_type = models.CharField('reason', max_length=50, choices=CONSTRAINT_CHOICES)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default=OPEN)
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default=FROM_FLOOR)
 
     requested_quantity = models.PositiveIntegerField(default=1)
     estimated_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
