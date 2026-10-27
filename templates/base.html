@@ -7,10 +7,13 @@
   <link rel="icon" href="{% static 'icons/favicon.svg' %}" type="image/svg+xml">
   <link rel="preload" href="{% static 'fonts/ibm-plex-sans-latin-400-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <meta name="theme-color" content="#0B6670">
+  <link rel="apple-touch-icon" href="{% static 'icons/app-192.png' %}">
   <script>try { if (localStorage.getItem('sidebar') === 'collapsed') document.documentElement.dataset.sidebar = 'collapsed'; } catch (e) {}</script>
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body{% include 'offline/body_attrs.html' %}>
 {% include "ui/icon_sprite.svg" %}
 <div class="shell">
   <aside class="sidebar" id="sidebar" aria-label="Main">
@@ -33,7 +36,7 @@
     </nav>
     <div class="bottom nav">
       <a href="{% url 'settings:index' %}"{% if nav_current == 'settings' %} aria-current="page"{% endif %}>{% icon "settings" %}<span>Settings</span></a>
-      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
+      <form method="post" action="{% url 'accounts:logout' %}" data-sign-out>{% csrf_token %}
         <button class="nav-link" type="submit">{% icon "log-out" %}<span>Sign out</span></button>
       </form>
     </div>
@@ -47,6 +50,7 @@
         <span class="shop-name">{{ request.shop.name }}</span>
       </a>
       <span class="spacer"></span>
+      <a class="offline-badge" href="{% url 'floor' %}" data-offline-badge hidden></a>
       <a class="btn btn-primary log-sale" href="{% url 'floor' %}">{% icon "plus" "sm" %}Log missed sale</a>
       <a class="avatar" href="{% url 'settings:account' %}" title="{{ user.get_full_name|default:user.username }}">{{ user|initials }}</a>
     </header>
@@ -75,7 +79,7 @@
     <a href="{% url 'customers:list' %}">{% icon "users" %}Customers</a>
     {% if is_manager %}<a href="{% url 'reports:index' %}">{% icon "chart-column" %}Reports</a>{% endif %}
     <a href="{% url 'settings:index' %}">{% icon "settings" %}Settings</a>
-    <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
+    <form method="post" action="{% url 'accounts:logout' %}" data-sign-out>{% csrf_token %}
       <button class="nav-link" type="submit">{% icon "log-out" %}Sign out</button>
     </form>
   </nav>
@@ -178,6 +182,7 @@
   });
 })();
 </script>
+{% include "offline/scripts.html" %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

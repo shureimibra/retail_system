@@ -6,8 +6,11 @@
   <title>Log missed sale · {{ request.shop.name }}</title>
   <link rel="icon" href="{% static 'icons/favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <meta name="theme-color" content="#0B6670">
+  <link rel="apple-touch-icon" href="{% static 'icons/app-192.png' %}">
 </head>
-<body class="floor-body">
+<body class="floor-body"{% include 'offline/body_attrs.html' %} data-stock-at="{% now 'H:i' %}">
 {% include "ui/icon_sprite.svg" %}
 <header class="floor-bar">
   {% include "ui/brand_mark.html" with shop=request.shop %}
@@ -15,6 +18,8 @@
   <a class="btn btn-plain" href="{{ back }}">{% icon "x" "sm" %}Exit</a>
 </header>
 
+<p class="offline-bar" data-offline-bar role="status" aria-live="polite" hidden></p>
+<div class="floor-notes offline-notes"><p class="floor-note" data-offline-saved hidden></p><div class="floor-note is-error offline-failed" data-offline-failed hidden></div></div>
 {% if messages %}
 <div class="floor-notes" role="status" aria-live="polite">
   {% for message in messages %}<p class="floor-note{% if message.tags == 'error' %} is-error{% endif %}">{% if message.tags == 'error' %}{% icon "triangle-alert" "sm" %}{% else %}{% icon "circle-check" "sm" %}{% endif %}{{ message }}</p>{% endfor %}
@@ -24,9 +29,9 @@
 <main class="floor-main">
   <div class="capture-head" id="capture-head">
     <h1>Log missed sale</h1>
-    <form method="post">{% csrf_token %}<input type="hidden" name="back" value="{{ back }}"><button class="btn" type="submit" name="action" value="bought">{% icon "circle-check" "sm" %}They bought after all</button></form>
+    <form method="post" action="{% url 'floor' %}" data-floor-form>{% csrf_token %}<input type="hidden" name="back" value="{{ back }}"><button class="btn" type="submit" name="action" value="bought">{% icon "circle-check" "sm" %}They bought after all</button></form>
   </div>
-  <form method="post" class="floor-form" id="capture" novalidate>
+  <form method="post" action="{% url 'floor' %}" class="floor-form" id="capture" novalidate data-floor-form>
     {% csrf_token %}
     <input type="hidden" name="back" value="{{ back }}">
     {% if visit %}<input type="hidden" name="visit" value="{{ visit }}">{% endif %}
@@ -264,5 +269,6 @@
   layout();
 })();
 </script>
+{% include "offline/scripts.html" %}
 </body>
 </html>

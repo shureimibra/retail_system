@@ -7,12 +7,13 @@ from rest_framework.routers import DefaultRouter
 from products.api_views import CategoryViewSet, ProductTypeViewSet, ProductViewSet, ProductVariationViewSet
 from customers.api_views import CustomerViewSet
 from intents.ask import AskView
-from intents.floor import FloorView, customer_lookup
+from intents.floor import FloorView, customer_lookup, floor_sync, floor_token
 from intents.api_views import BlockedPurchaseIntentViewSet, record_bought_visit
 from analytics.api_views import DashboardStatsAPIView, AnalyticsAPIView, FunnelAPIView, ToOrderAPIView
 from reports.api_views import ReportsAPIView
 from notifications.api_views import ConversationViewSet
 from core.api_views import health_check
+from core.offline import manifest, service_worker
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename='api-category')
@@ -45,7 +46,11 @@ urlpatterns = [
     path('payments/', include('payments.urls')),
     path('floor/', FloorView.as_view(), name='floor'),
     path('floor/customer/', customer_lookup, name='floor-customer'),
+    path('floor/sync/', floor_sync, name='floor-sync'),
+    path('floor/token/', floor_token, name='floor-token'),
     path('ask/<slug:name>/', AskView.as_view(), name='ask'),
+    path('sw.js', service_worker, name='service-worker'),
+    path('manifest.webmanifest', manifest, name='manifest'),
 
     
     # API endpoints

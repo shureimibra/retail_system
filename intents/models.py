@@ -26,7 +26,12 @@ class Visit(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name='visits')
     outcome = models.CharField(max_length=20, choices=OUTCOME_CHOICES, default=DIDNT_BUY)
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    # Made on the phone when it's saved, so a record sent twice (offline, weak signal) is kept once.
+    client_ref = models.CharField(max_length=40, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['shop', 'client_ref'], name='unique_visit_client_ref')]
 
 
 class BlockedPurchaseIntent(models.Model):
@@ -96,6 +101,7 @@ class BlockedPurchaseIntent(models.Model):
     constraint_type = models.CharField('reason', max_length=50, choices=CONSTRAINT_CHOICES)
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default=OPEN)
     source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default=FROM_FLOOR)
+    client_ref = models.CharField(max_length=40, null=True, blank=True)
 
     requested_quantity = models.PositiveIntegerField(default=1)
     estimated_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -115,6 +121,9 @@ class BlockedPurchaseIntent(models.Model):
     expires_at = models.DateTimeField(default=get_default_expiry)
 
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['shop', 'client_ref'], name='unique_intent_client_ref')]
 
     def __str__(self):
         return f"Intent for {self.product.name} by {self.customer.phone_number} - {self.status}"

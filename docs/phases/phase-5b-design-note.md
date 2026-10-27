@@ -1,6 +1,6 @@
 # Phase 5b design note: Log missed sale without internet
 
-**Status:** draft for the owner's approval · branch `phase-5b/offline-capture`
+**Status:** approved by the owner 27 Oct 2026 ("provided it doesn't interrupt what works now") · built on `phase-5b/offline-capture`
 **Owner's ask (27 Oct 2026):** "Offline Log missed sale". Only capture works offline; everything else stays online.
 **Still free:** this uses only the browser (an installable web app). No app store, no paid service.
 
@@ -38,6 +38,11 @@ When the shop's internet drops, staff keep logging missed sales on the phone as 
 - **Sending:** a new endpoint that takes one record with its phone id, applies the usual Log missed sale rules, and answers "saved" or "already had it".
 - **Server:** a `client_ref` on missed sales and visits, unique per shop, so a repeat send is recognised.
 - **Status bar:** the online, offline and not-sent state on Log missed sale and in the app's top bar.
+
+## 4b. Not interrupting what works now
+- Online, Log missed sale behaves exactly as before. The only difference is a hidden id on each save, which also stops a double-tapped Save from creating two records.
+- The offline helper only steps in for Log missed sale and the app's own styles and icons. Other pages are never served from the phone's copy, so they're always current.
+- If the browser doesn't support it (very old phones), nothing changes: the page works online as today.
 
 ## 5. Not in this phase
 

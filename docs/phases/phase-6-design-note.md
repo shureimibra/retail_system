@@ -1,6 +1,7 @@
 # Phase 6 design note: AI and an assistant for the owner
 
-**Status:** draft for the owner's approval · built after Phase 5b
+**Status:** direction decided by the owner 27 Oct 2026; details to confirm before building · after Phase 5b
+**Owner's decision (27 Oct):** the assistant must be free for now. It will be an **"Ask" box inside Retail OS that uses no AI API**, answering set questions from the shop's own data, so no customer data leaves the system and nobody needs a subscription. A real AI can be switched on behind it later with one platform key the owner of Retail OS holds. The MCP tool (section 2) is not being built for now.
 **From the approved spec:** "MCP server, forecasting, reply-drafting assistant."
 **Owner's rule:** nothing paid for now. That shapes this phase more than any other, because AI that writes text runs on a paid model. Below, each part says whether it's free.
 

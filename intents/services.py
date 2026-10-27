@@ -72,7 +72,7 @@ def transition(intent, to_status, actor=None, note='', **data):
 
 def create_blocked_purchase_intent(customer, product, variation, constraint_type, requested_quantity=1, estimated_value=None,
                                    notes="", recorded_by=None, visit=None, consent_given=True,
-                                   preferred_channel=None, needed_by=None, source=Intent.FROM_FLOOR):
+                                   preferred_channel=None, needed_by=None, source=Intent.FROM_FLOOR, client_ref=None):
     if customer.shop_id != product.shop_id or (variation and variation.product_id != product.id):
         raise ValueError('Customer, product and variation must belong to the same shop and product.')
     if constraint_type in Intent.RESTOCK_REASONS and variation is not None and variation.available_quantity > 0:
@@ -84,7 +84,7 @@ def create_blocked_purchase_intent(customer, product, variation, constraint_type
     with transaction.atomic():
         if visit is None and source == Intent.FROM_FLOOR:
             visit = Visit.objects.create(shop_id=product.shop_id, customer=customer, outcome=Visit.DIDNT_BUY,
-                                         recorded_by=recorded_by)
+                                         recorded_by=recorded_by, client_ref=client_ref)
         intent = Intent.objects.create(
             shop_id=product.shop_id,
             visit=visit,
@@ -100,6 +100,7 @@ def create_blocked_purchase_intent(customer, product, variation, constraint_type
             preferred_channel=preferred_channel or product.shop.default_channel,
             needed_by=needed_by,
             source=source,
+            client_ref=client_ref,
         )
         log_event(intent, 'created', actor=recorded_by, note=intent.get_constraint_type_display())
     return intent
@@ -299,8 +300,9 @@ def find_or_add_customer(shop, phone, name='', email=''):
 
 
 def capture_from_floor(shop, customer, product, variation, constraint_type, needed_by=None, consent_given=True,
-                       recorded_by=None, visit_id=None, notes=''):
+                       recorded_by=None, visit_id=None, notes='', client_ref=None):
     """Log a missed sale from Floor mode. "Same customer, another item" reuses the visit so it counts once."""
     visit = Visit.objects.filter(shop=shop, pk=visit_id, customer=customer).first() if visit_id else None
     return create_blocked_purchase_intent(customer, product, variation, constraint_type, recorded_by=recorded_by,
-                                          visit=visit, consent_given=consent_given, needed_by=needed_by, notes=notes)
+                                          visit=visit, consent_given=consent_given, needed_by=needed_by, notes=notes,
+                                          client_ref=client_ref)
