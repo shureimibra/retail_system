@@ -1,6 +1,6 @@
 # Phase 3 design brief: the working screens
 
-**Status:** approved by the owner · 22 Oct 2026 · 3a built on `phase-3a/work-queue`
+**Status:** approved by the owner · 22 Oct 2026 · 3a, 3b and 3c built (branches `phase-3a/work-queue`, `phase-3b/stock-and-demand`, `phase-3c/talk-and-capture`)
 **Inputs:** `PRODUCT.md`, `DESIGN.md`, the approved spec (`docs/design/retail-os-design-spec.html`, sections 8 and 9), the Phase 2 shell, and the owner's notes so far:
 - keep it simple and borrow only what's needed
 - no customer balance profile

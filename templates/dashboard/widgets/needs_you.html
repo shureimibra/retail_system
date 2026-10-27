@@ -3,15 +3,16 @@
   <div class="panel-head"><h2 id="needs-you">Needs you now</h2>{% if data.needs_you %}<span class="faint small">{{ data.needs_you|length }} to do</span>{% endif %}</div>
   {% if data.needs_you %}
   <div class="rows">
-    {% for row in data.needs_you %}
-    <div class="task">
-      <span class="badge badge-{{ row.badge_class }}">{{ row.badge }}</span>
-      <span class="grow"><span class="row-title">{{ row.title }}</span>{% if row.sub %}<span class="row-sub">{{ row.sub }}</span>{% endif %}</span>
-      {% if row.at %}<span class="faint small nowrap">{{ row.at|timesince }} ago</span>{% endif %}
-      <a class="btn btn-sm" href="{{ row.url }}">{{ row.action }}</a>
-    </div>
-    {% endfor %}
+    {% for row in data.needs_you|slice:":5" %}{% include "dashboard/widgets/_task.html" %}{% endfor %}
   </div>
+  {% if data.needs_you|length > 5 %}
+  <details class="more-tasks">
+    <summary>Show all ({{ data.needs_you|length }})</summary>
+    <div class="rows more-tasks-list">
+      {% for row in data.needs_you|slice:"5:" %}{% include "dashboard/widgets/_task.html" %}{% endfor %}
+    </div>
+  </details>
+  {% endif %}
   {% else %}
   <div class="empty">{% icon "circle-check" %}<p>Nothing needs you right now.</p></div>
   {% endif %}

@@ -70,6 +70,21 @@ def adjust_stock(variation_id, quantity_change, recorded_by=None, reference=''):
                                StockMovement.ADJUSTED, recorded_by, reference)
 
 
+@transaction.atomic
+def record_till_sale(variation_id, quantity, recorded_by=None, reference=''):
+    """
+    An ordinary sale at the till. Stock goes down, but never into units put aside for customers.
+    Returns (variation, units taken off): fewer than asked means the count was already wrong.
+    """
+    if quantity <= 0:
+        raise ValueError('Sold quantity must be more than zero.')
+    variation = ProductVariation.objects.select_for_update().get(id=variation_id)
+    taken = min(quantity, variation.available_quantity)
+    if taken:
+        _apply_stock_change(variation, variation.stock_quantity - taken, StockMovement.TILL_SALE, recorded_by, reference)
+    return variation, taken
+
+
 def _apply_stock_change(variation, new_quantity, kind, recorded_by, reference):
     old_quantity = variation.stock_quantity
     if new_quantity == old_quantity:
@@ -128,3 +143,30 @@ def set_option_photo(product, value, image):
     photo.image = image
     photo.save()
     return photo
+
+
+MAX_NEW_OPTIONS = 200
+
+
+def add_option_combinations(product, option_lists, recorded_by=None):
+    """
+    Every combination of the given sizes × colours (× third option), each with 0 in stock.
+    Returns (added, already_listed). Existing combinations are left alone.
+    """
+    from itertools import product as combinations
+    lists = [values or [None] for values in option_lists]
+    if all(values == [None] for values in lists):
+        return 0, 0
+    existing = {tuple((v or '').lower() for v in combo)
+                for combo in product.variations.values_list('option1', 'option2', 'option3')}
+    added = skipped = 0
+    for combo in list(combinations(*lists))[:MAX_NEW_OPTIONS]:
+        key = tuple((v or '').lower() for v in combo)
+        if key in existing:
+            skipped += 1
+            continue
+        create_product_variation(product, combo[0], combo[1], 0, suggest_sku(product, *[v or '' for v in combo]),
+                                 option3=combo[2], recorded_by=recorded_by)
+        existing.add(key)
+        added += 1
+    return added, skipped

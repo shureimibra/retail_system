@@ -4,7 +4,7 @@
 {% block page %}
 <div class="content narrow">
   <div>
-    <a class="back" href="{% url 'intents:list' %}">{% icon "chevron-left" "sm" %}Missed sales</a>
+    <a class="back" href="{% url 'intents:list' %}">{% icon "chevron-left" "sm" %}Waiting</a>
     <div class="page-head">
       <div>
         <h1>{% if object %}{{ object.product.name }}{% if object.variation %} · {{ object.variation.label }}{% endif %}{% else %}Log missed sale{% endif %}</h1>
@@ -17,6 +17,25 @@
 
   {% if steps %}
   <div class="stepper" aria-label="Progress">{% for label, state in steps %}<span class="{{ state }}">{{ label }}</span>{% endfor %}</div>
+  {% endif %}
+
+  {% if object and next.text %}
+  <section class="panel next-step" aria-labelledby="next-title">
+    <div class="panel-body">
+      <h2 id="next-title" class="deal-sub">Next step</h2>
+      <p>{{ next.text }}</p>
+      <div class="button-row">
+        {% if next.url %}<a class="btn btn-primary" href="{{ next.url }}">{{ next.action }}</a>{% endif %}
+      </div>
+      <details class="deal-more"><summary>Customer said no? Close it</summary>
+        <form method="post" class="form" novalidate>{% csrf_token %}<input type="hidden" name="action" value="decline">
+          <div class="field"><label for="why">Why <span class="faint">(optional)</span></label><input id="why" name="reason" type="text" maxlength="200" placeholder="Bought elsewhere"></div>
+          <p class="help">Declined is never counted as revenue. A held unit goes to the next customer waiting.</p>
+          <div class="form-actions"><button class="btn btn-critical" type="submit">Close as declined</button></div>
+        </form>
+      </details>
+    </div>
+  </section>
   {% endif %}
 
   <form method="post" class="panel panel-body form" id="captureForm" novalidate>
@@ -37,7 +56,7 @@
     </div>
     {% field form.constraint_type %}
     <div class="form-row">{% field form.requested_quantity %}{% field form.estimated_value %}</div>
-    {% if form.status %}{% field form.status "Only the next steps that make sense are offered." %}{% endif %}
+    {% if locked %}<p class="help">The item details are locked because the customer has been told or a unit is held. To switch size or colour, use <b>Change item</b> in their conversation.</p>{% endif %}
     {% field form.notes %}
 
     <div class="form-actions">

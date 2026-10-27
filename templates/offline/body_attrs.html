@@ -1,0 +1,1 @@
+{% if user.is_authenticated and request.shop %} data-user="{{ user.pk }}" data-user-name="{{ user.get_full_name|default:user.username }}" data-sw-url="{% url 'service-worker' %}" data-token-url="{% url 'floor-token' %}" data-sync-url="{% url 'floor-sync' %}" data-floor-url="{% url 'floor' %}"{% endif %}

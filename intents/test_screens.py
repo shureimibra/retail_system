@@ -30,6 +30,7 @@ class ScreensTestCase(TestCase):
         self.black42 = ProductVariation.objects.create(product=self.product, option1='42', option2='Black', sku='NAZ-42-BLA')
         self.white41 = ProductVariation.objects.create(product=self.product, option1='41', option2='White', sku='NAZ-41-WHI',
                                                        stock_quantity=3)
+        self.black41 = ProductVariation.objects.create(product=self.product, option1='41', option2='Black', sku='NAZ-41-BLA')
         self.n = 0
 
     def login(self, role):
@@ -50,7 +51,7 @@ class WaitingTests(ScreensTestCase):
     def test_items_are_grouped_by_customer(self):
         jane = self.customer('Jane', 'Smith')
         self.request(jane)
-        self.request(jane, variation=self.white41, reason=Intent.COLOUR_MISSING)
+        self.request(jane, variation=self.black41, reason=Intent.COLOUR_MISSING)
         self.request(self.customer('Peter'))
         self.login('owner')
         response = self.client.get('/intents/')
@@ -71,7 +72,7 @@ class WaitingTests(ScreensTestCase):
 
     def test_search_and_filters(self):
         self.request(self.customer('Jane', phone='+254722345678'))
-        self.request(self.customer('Peter'), variation=self.white41)
+        self.request(self.customer('Peter'), variation=self.black41)
         self.login('owner')
         self.assertEqual(self.client.get('/intents/?q=722345').context['item_count'], 1)
         self.assertEqual(self.client.get('/intents/?q=naz-41').context['item_count'], 1)
@@ -203,11 +204,24 @@ class ProductDetailTests(ScreensTestCase):
 
     def test_add_a_size_with_a_made_up_sku(self):
         self.login('owner')
-        self.client.post(self.url, {'action': 'add', 'option1': '43', 'option2': 'Black', 'stock': '2'})
+        self.client.post(self.url, {'action': 'add', 'option1': '43', 'option2_more': 'Black'})
         added = ProductVariation.objects.get(product=self.product, option1='43')
-        self.assertEqual((added.sku, added.stock_quantity), ('NAZ-43-BLA', 2))
-        self.client.post(self.url, {'action': 'add', 'option1': '43', 'option2': 'Black'})
+        self.assertEqual((added.sku, added.stock_quantity), ('NAZ-43-BLA', 0))
+        self.client.post(self.url, {'action': 'add', 'option1': '43', 'option2_more': 'black'})
         self.assertEqual(ProductVariation.objects.filter(product=self.product, option1='43').count(), 1)
+
+    def test_add_many_sizes_and_colours_at_once(self):
+        self.login('owner')
+        response = self.client.post(self.url, {'action': 'add', 'option1': ['44', '45'], 'option1_more': '46, 44',
+                                               'option2_more': 'Black, White, Black/White'}, follow=True)
+        self.assertContains(response, 'Added 9 options')
+        labels = set(ProductVariation.objects.filter(product=self.product, option1__in=['44', '45', '46'])
+                     .values_list('option1', 'option2'))
+        self.assertEqual(len(labels), 9)
+        self.assertIn(('46', 'Black/White'), labels)
+        response = self.client.post(self.url, {'action': 'add', 'option1': ['44', '47'], 'option2_more': 'Black'}, follow=True)
+        self.assertContains(response, 'Added 1 option with 0 in stock')
+        self.assertContains(response, '1 were already listed')
 
     def test_photo_per_colour_is_used_for_every_size(self):
         self.login('owner')
@@ -231,7 +245,7 @@ class CustomerScreenTests(ScreensTestCase):
         jane = self.customer('Jane', 'Smith')
         paid = self.request(jane)
         services.record_payment(paid, 12500, 'mpesa', reference='QK7H2L9', actor=self.users['owner'])
-        open_item = self.request(jane, variation=self.white41, reason=Intent.COLOUR_MISSING)
+        open_item = self.request(jane, variation=self.black41, reason=Intent.COLOUR_MISSING)
         self.login('cashier')
         response = self.client.get(f'/customers/{jane.pk}/')
         self.assertEqual([i.pk for i in response.context['open_items']], [open_item.pk])

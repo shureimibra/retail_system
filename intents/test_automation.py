@@ -76,9 +76,26 @@ class FollowUpTests(AutomationTestCase):
         self.restock(1)
         inbound.receive('whatsapp', jane.customer.phone_number, 'Yes please')
         self.run_due(2)
-        self.run_due(8)
+        self.run_due(7)
         self.assertEqual(self.reminders(jane), [])
         self.assertEqual(self.reload(jane).status, Intent.IN_CONVERSATION)
+
+    def test_quiet_customer_without_deposit_gives_the_unit_to_the_next(self):
+        jane, john = self.request('Jane'), self.request('John')
+        self.restock(1)
+        inbound.receive('whatsapp', jane.customer.phone_number, 'Yes please')
+        self.run_due(9)  # the 8-day hold has run out and Jane paid nothing
+        self.assertEqual(self.reload(jane).status, Intent.EXPIRED)
+        self.assertEqual(self.reload(john).status, Intent.NOTIFIED)
+
+    def test_deposit_keeps_the_unit_past_the_hold(self):
+        jane = self.request('Jane')
+        self.restock(1)
+        inbound.receive('whatsapp', jane.customer.phone_number, 'Yes please')
+        with self.captureOnCommitCallbacks(execute=True):
+            services.record_payment(self.reload(jane), 2000, 'mpesa', pickup_by=timezone.localdate() + timedelta(days=12))
+        self.run_due(9)
+        self.assertEqual(self.reload(jane).status, Intent.RESERVED)
 
     def test_expired_customers_unit_goes_to_the_next_in_line(self):
         jane, john = self.request('Jane'), self.request('John')

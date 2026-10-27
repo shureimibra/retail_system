@@ -102,7 +102,8 @@ class RestockMessageTests(MessagingTestCase):
         self.assertIn('Balance KSh 13,700', receipt.body)
 
 
-@override_settings(MESSAGING_PROVIDERS=WHATSAPP_CLOUD, WHATSAPP_TOKEN='t', WHATSAPP_PHONE_NUMBER_ID='123')
+@override_settings(MESSAGING_PROVIDERS=WHATSAPP_CLOUD, WHATSAPP_TOKEN='t', WHATSAPP_PHONE_NUMBER_ID='123',
+                   WHATSAPP_TEMPLATES={'restock_alert': 'restock_alert_v1'}, SITE_URL='https://shop.example')
 class WhatsAppCloudTests(MessagingTestCase):
     @patch('notifications.providers.requests.post')
     def test_template_send(self, post):
@@ -112,7 +113,33 @@ class WhatsAppCloudTests(MessagingTestCase):
         message = self.outbound().get()
         self.assertEqual((message.status, message.provider_message_id), ('sent', 'wamid.1'))
         payload = post.call_args.kwargs['json']
-        self.assertEqual((payload['to'], payload['type'], payload['template']['name']), ('254722345678', 'template', 'hello_world'))
+        template = payload['template']
+        self.assertEqual((payload['to'], payload['type'], template['name']), ('254722345678', 'template', 'restock_alert_v1'))
+        body = next(c for c in template['components'] if c['type'] == 'body')
+        values = [p['text'] for p in body['parameters']]
+        self.assertEqual(values[0], message.conversation.customer.first_name)
+        self.assertIn('Kimathi', values[3])
+        self.assertEqual(len(values), 5)
+
+    @patch('notifications.providers.requests.post')
+    def test_message_without_an_approved_template_goes_by_sms(self, post):
+        intent = self.waiting()
+        with self.settings(WHATSAPP_TEMPLATES={}):
+            self.restock()
+        post.assert_not_called()
+        whatsapp, sms = self.outbound().order_by('id')
+        self.assertEqual((whatsapp.status, whatsapp.error_code), ('failed', 'no_template'))
+        self.assertEqual((sms.channel, sms.status), ('sms', 'delivered'))
+        intent.refresh_from_db()
+        self.assertEqual(intent.status, Intent.NOTIFIED)
+
+    @patch('notifications.providers.requests.post')
+    def test_free_text_reply_needs_no_template(self, post):
+        from notifications.providers import WhatsAppCloudProvider
+        post.return_value = http_response(200, {'messages': [{'id': 'wamid.9'}]})
+        reply = Message(channel=Message.WHATSAPP, to_address='+254722345678', body='See you Saturday')
+        self.assertTrue(WhatsAppCloudProvider().send(reply).ok)
+        self.assertEqual(post.call_args.kwargs['json']['text'], {'body': 'See you Saturday'})
 
     @patch('notifications.providers.requests.post')
     def test_not_on_whatsapp_falls_back_to_sms(self, post):
@@ -316,3 +343,55 @@ class SimulatorAndInboxTests(MessagingTestCase):
         Membership.objects.create(user=stranger, shop=other, role=Membership.OWNER)
         self.client.login(username='stranger', password='pw12345!')
         self.assertEqual(self.client.get('/api/conversations/').json(), [])
+
+
+@override_settings(MESSAGING_PROVIDERS={'whatsapp': 'twilio_whatsapp', 'sms': 'simulator', 'email': 'simulator'},
+                   TWILIO_ACCOUNT_SID='AC1', TWILIO_AUTH_TOKEN='tok', TWILIO_WHATSAPP_FROM='+14155238886',
+                   SITE_URL='https://shop.example')
+class TwilioWhatsAppTests(MessagingTestCase):
+    @patch('twilio.rest.Client')
+    def test_whatsapp_through_the_twilio_sandbox(self, client):
+        client.return_value.messages.create.return_value.sid = 'SMwa1'
+        self.waiting()
+        self.restock()
+        message = self.outbound().get()
+        self.assertEqual((message.channel, message.status, message.provider_message_id), ('whatsapp', 'sent', 'SMwa1'))
+        kwargs = client.return_value.messages.create.call_args.kwargs
+        self.assertEqual((kwargs['from_'], kwargs['to']), ('whatsapp:+14155238886', 'whatsapp:+254722345678'))
+        self.assertEqual(kwargs['body'], message.body)
+        self.assertEqual(kwargs['status_callback'], 'https://shop.example/notifications/webhook/')
+
+    @patch('twilio.rest.Client')
+    def test_phone_that_has_not_joined_the_sandbox_gets_sms(self, client):
+        from twilio.base.exceptions import TwilioRestException
+        client.return_value.messages.create.side_effect = TwilioRestException(400, 'uri', msg='not joined', code=63015)
+        self.waiting()
+        self.restock()
+        whatsapp, sms = self.outbound().order_by('id')
+        self.assertEqual((whatsapp.status, whatsapp.error_code), ('failed', '63015'))
+        self.assertIn('join code', whatsapp.error_detail)
+        self.assertEqual((sms.channel, sms.status), ('sms', 'delivered'))
+
+
+@override_settings(TWILIO_AUTH_TOKEN='tok', SITE_URL='https://shop.example')
+class TwilioRepliesAtTheBareAddressTests(MessagingTestCase):
+    def post(self, path, signed_url, data):
+        from twilio.request_validator import RequestValidator
+        signature = RequestValidator('tok').compute_signature(signed_url, data)
+        return self.client.post(path, data, HTTP_X_TWILIO_SIGNATURE=signature)
+
+    def test_reply_sent_to_the_site_root_is_received(self):
+        intent = self.waiting()
+        self.restock()
+        data = {'From': 'whatsapp:+254722345678', 'To': 'whatsapp:+14155238886', 'Body': 'Yes', 'MessageSid': 'SMin1'}
+        # The Twilio console had the bare address, with no path and no final slash.
+        self.assertEqual(self.post('/', 'https://shop.example', data).status_code, 200)
+        self.assertTrue(Message.objects.filter(direction=Message.INBOUND, body='Yes').exists())
+        intent.refresh_from_db()
+        self.assertEqual(intent.status, Intent.IN_CONVERSATION)
+
+    def test_unsigned_post_to_the_root_is_refused(self):
+        response = self.client.post('/', {'From': 'whatsapp:+254722345678', 'Body': 'Yes'}, HTTP_X_TWILIO_SIGNATURE='forged')
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Message.objects.filter(direction=Message.INBOUND).exists())
+        self.assertEqual(self.client.get('/').status_code, 302)

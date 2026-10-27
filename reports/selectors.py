@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-from django.db.models import Count, Sum
+from django.db.models import Case, Count, F, Sum, Value, When
 from django.db.models.functions import TruncMonth
 from django.utils.dateparse import parse_date
 
@@ -54,11 +54,13 @@ def demand_by_item(shop, start=None, end=None):
     if end:
         qs = qs.filter(created_at__date__lte=end)
     reasons = dict(BlockedPurchaseIntent.CONSTRAINT_CHOICES)
-    rows = (qs.values('product__name', 'variation__option1', 'variation__option2', 'variation__option3', 'constraint_type')
+    qs = qs.annotate(reason=Case(When(constraint_type=BlockedPurchaseIntent.OVER_BUDGET, then=Value(BlockedPurchaseIntent.PRICE_TOO_HIGH)),
+                                 default=F('constraint_type')))
+    rows = (qs.values('product__name', 'variation__option1', 'variation__option2', 'variation__option3', 'reason')
             .annotate(count=Count('id'), money=Sum('estimated_value'))
             .order_by('-count', 'product__name'))
     return [{'product': r['product__name'],
              'option': ' / '.join(v for v in (r['variation__option1'], r['variation__option2'], r['variation__option3']) if v)
                        or 'Any option',
-             'reason': reasons.get(r['constraint_type'], r['constraint_type']),
+             'reason': reasons.get(r['reason'], r['reason']),
              'count': r['count'], 'money': float(r['money'] or 0)} for r in rows]

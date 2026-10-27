@@ -38,7 +38,9 @@ if not SECRET_KEY:
         raise ImproperlyConfigured('SECRET_KEY must be set when DEBUG is off.')
     SECRET_KEY = 'django-insecure-local-development-only'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+# Host names only. Stray spaces, "https://" and trailing slashes are forgiven, since this is easy to get wrong.
+ALLOWED_HOSTS = [h.strip().split('://')[-1].strip('/') for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+                 if h.strip()]
 
 
 # Application definition
@@ -66,6 +68,8 @@ INSTALLED_APPS = [
     'dashboard',
     'ui',
     'shopsettings',
+    'payments',
+    'connections',
 ]
 
 MIDDLEWARE = [
@@ -174,6 +178,9 @@ LOGOUT_REDIRECT_URL = 'accounts:login'
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
+# WhatsApp through Twilio. The default is Twilio's free WhatsApp Sandbox number; testers first send it
+# the "join <code>" message shown in the Twilio console.
+TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '+14155238886')
 
 # Celery Configuration
 # Without a broker URL (local development, tests) tasks run inline, so no Redis
@@ -219,7 +226,12 @@ MESSAGING_PROVIDERS = {
 }
 MESSAGE_MAX_ATTEMPTS = int(os.environ.get('MESSAGE_MAX_ATTEMPTS', '3'))
 # Public address of this site, used for photo links in WhatsApp messages.
-SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
+SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000').strip().rstrip('/')
+# The public address (for example the Cloudflare tunnel) is always allowed, and signing in through it works.
+_site_host = SITE_URL.split('://')[-1].split('/')[0].split(':')[0]
+if _site_host and _site_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_site_host)
+CSRF_TRUSTED_ORIGINS = [SITE_URL] if SITE_URL.startswith('https://') else []
 SIMULATOR_ENABLED = os.environ.get('SIMULATOR_ENABLED', str(DEBUG)).lower() in ('true', '1', 'yes')
 
 # Meta WhatsApp Cloud API (free test number for development)
@@ -230,7 +242,9 @@ WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN', '')
 WHATSAPP_API_VERSION = os.environ.get('WHATSAPP_API_VERSION', 'v21.0')
 WHATSAPP_TEMPLATE_LANGUAGE = os.environ.get('WHATSAPP_TEMPLATE_LANGUAGE', 'en')
 # Approved template name per message; hello_world is Meta's pre-approved test template.
-WHATSAPP_TEMPLATES = {'restock_alert': os.environ.get('WHATSAPP_TEMPLATE_RESTOCK', 'hello_world')}
+WHATSAPP_TEMPLATE_KEYS = ['restock_alert', 'price_drop', 'deposit_receipt', 'reminder_1', 'reminder_2', 'reminder_3',
+                          'check_in']
+WHATSAPP_TEMPLATES = {key: os.environ.get(f'WHATSAPP_TEMPLATE_{key.upper()}', '') for key in WHATSAPP_TEMPLATE_KEYS}
 
 # Africa's Talking (free sandbox for development)
 AFRICASTALKING_USERNAME = os.environ.get('AFRICASTALKING_USERNAME', 'sandbox')
@@ -250,11 +264,23 @@ EMAIL_BACKEND = ('django.core.mail.backends.smtp.EmailBackend' if EMAIL_HOST
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'Retail OS <no-reply@localhost>')
 EMAIL_SUBJECT_PREFIX = ''
 
+# M-Pesa (Safaricom Daraja). MPESA_ENV: off | sandbox | production. The sandbox is free and moves no real money.
+MPESA_ENV = os.environ.get('MPESA_ENV', 'off')
+MPESA_CONSUMER_KEY = os.environ.get('MPESA_CONSUMER_KEY', '')
+MPESA_CONSUMER_SECRET = os.environ.get('MPESA_CONSUMER_SECRET', '')
+# Sandbox defaults are Safaricom's published test business number and passkey.
+MPESA_SHORTCODE = os.environ.get('MPESA_SHORTCODE', '174379')
+MPESA_PASSKEY = os.environ.get('MPESA_PASSKEY', 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919')
+MPESA_TRANSACTION_TYPE = os.environ.get('MPESA_TRANSACTION_TYPE', 'CustomerPayBillOnline')
+# Secret part of the callback address, so only Safaricom (who we gave it to) can report payments.
+MPESA_CALLBACK_TOKEN = os.environ.get('MPESA_CALLBACK_TOKEN', '')
+
 if 'test' in sys.argv:
     MESSAGING_PROVIDERS = {'whatsapp': 'simulator', 'sms': 'simulator', 'email': 'simulator'}
     SIMULATOR_ENABLED = True
     WHATSAPP_APP_SECRET = WHATSAPP_VERIFY_TOKEN = ''
     AFRICASTALKING_WEBHOOK_TOKEN = ''
+    MPESA_ENV, MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_CALLBACK_TOKEN = 'off', '', '', ''
 
 
 # Follow-up days, hold days and pickup days are per shop (Settings → Follow-ups and holds).

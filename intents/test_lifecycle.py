@@ -248,17 +248,34 @@ class LifecycleApiTests(LifecycleTestCase):
 
 
 class EditPageTests(LifecycleTestCase):
-    def test_edit_page_offers_only_allowed_statuses_and_records_the_change(self):
+    def edit(self, intent, **extra):
+        data = {'customer': self.jane.id, 'product': self.product.id, 'variation': self.grey42.id,
+                'constraint_type': 'size_missing', 'requested_quantity': 1, 'estimated_value': '18700', 'notes': 'Call after 5'}
+        data.update(extra)
+        return self.client.post(f'/intents/{intent.id}/update/', data)
+
+    def test_status_only_moves_through_real_actions(self):
+        intent = self.intent()
+        self.client.login(username='owner', password='pw12345!')
+        page = self.client.get(f'/intents/{intent.id}/update/')
+        self.assertNotIn('status', page.context['form'].fields)
+        self.assertContains(page, 'Next step')
+        self.edit(intent, status='recovered')  # a forged status is ignored
+        self.reload(intent)
+        self.assertEqual((intent.status, intent.notes), (Intent.OPEN, 'Call after 5'))
+
+    def test_details_lock_once_the_item_is_moving(self):
         intent = self.intent()
         services.transition(intent, Intent.RESERVED)
         self.client.login(username='owner', password='pw12345!')
-        page = self.client.get(f'/intents/{intent.id}/update/')
-        offered = [value for value, _ in page.context['form'].fields['status'].choices]
-        self.assertEqual(set(offered), {'reserved', 'in_conversation', 'recovered', 'declined', 'expired'})
-        self.client.post(f'/intents/{intent.id}/update/', {
-            'customer': self.jane.id, 'product': self.product.id, 'variation': self.grey42.id,
-            'constraint_type': 'size_missing', 'requested_quantity': 1, 'estimated_value': '18700',
-            'status': 'declined', 'notes': ''})
+        self.assertTrue(self.client.get(f'/intents/{intent.id}/update/').context['form'].fields['variation'].disabled)
+        self.edit(intent, constraint_type='price_too_high')
         self.reload(intent)
-        self.assertEqual(intent.status, Intent.DECLINED)
-        self.assertEqual(intent.events.last().note, 'Changed on the edit page')
+        self.assertEqual((intent.constraint_type, intent.status), ('size_missing', Intent.RESERVED))
+
+    def test_close_as_declined(self):
+        intent = self.intent()
+        self.client.login(username='owner', password='pw12345!')
+        self.client.post(f'/intents/{intent.id}/update/', {'action': 'decline', 'reason': 'Bought elsewhere'})
+        self.reload(intent)
+        self.assertEqual((intent.status, intent.closed_reason), (Intent.DECLINED, 'Bought elsewhere'))

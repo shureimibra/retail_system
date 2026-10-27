@@ -27,7 +27,10 @@ class BlockedPurchaseIntentForm(ShopFormMixin, forms.ModelForm):
         if 'variation' in self.fields:
             self.fields['variation'].label_from_instance = lambda v: v.label or v.sku
         if 'constraint_type' in self.fields:
-            self.fields['constraint_type'].choices = [('', 'Choose a reason')] + list(BlockedPurchaseIntent.CONSTRAINT_CHOICES)
+            choices = list(BlockedPurchaseIntent.CAPTURE_CHOICES)
+            if self.instance.pk and self.instance.constraint_type == BlockedPurchaseIntent.OVER_BUDGET:
+                choices = list(BlockedPurchaseIntent.CONSTRAINT_CHOICES)  # an older record keeps its value
+            self.fields['constraint_type'].choices = [('', 'Choose a reason')] + choices
         if 'status' in self.fields and self.instance.pk:
             from .services import allowed_next_statuses
             allowed = {self.instance.status} | allowed_next_statuses(self.instance)

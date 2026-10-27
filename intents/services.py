@@ -72,16 +72,19 @@ def transition(intent, to_status, actor=None, note='', **data):
 
 def create_blocked_purchase_intent(customer, product, variation, constraint_type, requested_quantity=1, estimated_value=None,
                                    notes="", recorded_by=None, visit=None, consent_given=True,
-                                   preferred_channel=None, needed_by=None):
+                                   preferred_channel=None, needed_by=None, source=Intent.FROM_FLOOR, client_ref=None):
     if customer.shop_id != product.shop_id or (variation and variation.product_id != product.id):
         raise ValueError('Customer, product and variation must belong to the same shop and product.')
+    if constraint_type in Intent.RESTOCK_REASONS and variation is not None and variation.available_quantity > 0:
+        raise ValueError(f'{variation.label or variation.sku} is in stock ({variation.available_quantity} free). '
+                         'Sell it now, or choose another reason.')
     if estimated_value is None:
         unit_price = variation.effective_price if variation else product.base_price
         estimated_value = unit_price * requested_quantity
     with transaction.atomic():
-        if visit is None:
+        if visit is None and source == Intent.FROM_FLOOR:
             visit = Visit.objects.create(shop_id=product.shop_id, customer=customer, outcome=Visit.DIDNT_BUY,
-                                         recorded_by=recorded_by)
+                                         recorded_by=recorded_by, client_ref=client_ref)
         intent = Intent.objects.create(
             shop_id=product.shop_id,
             visit=visit,
@@ -96,6 +99,8 @@ def create_blocked_purchase_intent(customer, product, variation, constraint_type
             consent_given=consent_given,
             preferred_channel=preferred_channel or product.shop.default_channel,
             needed_by=needed_by,
+            source=source,
+            client_ref=client_ref,
         )
         log_event(intent, 'created', actor=recorded_by, note=intent.get_constraint_type_display())
     return intent
@@ -115,7 +120,10 @@ def mark_ordered(intents, expected_at=None, actor=None):
     for intent in intents:
         if intent.status == Intent.OPEN:
             intent.expected_at = expected_at
-            intent.save(update_fields=['expected_at', 'updated_at'])
+            arrives = (timezone.make_aware(datetime.combine(expected_at, time(23, 59))) if expected_at
+                       else timezone.now() + timedelta(days=30))
+            intent.expires_at = max(intent.expires_at, arrives + timedelta(days=14))
+            intent.save(update_fields=['expected_at', 'expires_at', 'updated_at'])
             transition(intent, Intent.ON_ORDER, actor=actor, note='Ordered from supplier',
                        expected_at=expected_at.isoformat() if expected_at else None)
             moved += 1
@@ -263,3 +271,38 @@ def change_item(intent, new_variation, actor=None):
     elif intent.status not in Intent.WAITING_STATUSES:
         transition(intent, Intent.OPEN, actor=actor, note='New item is not in stock yet')
     return intent
+
+
+# --- Floor mode -------------------------------------------------------------
+
+def find_or_add_customer(shop, phone, name='', email=''):
+    """The customer with this phone number, or a new one. Fills in a name or email the shop didn't have yet."""
+    from core.phones import normalize_phone
+    from customers.models import Customer
+    number = normalize_phone(phone, shop.phone_region)
+    if not number:
+        raise ValueError('Enter a phone number we can read, for example 0712 345 678.')
+    first, _, last = (name or '').strip().partition(' ')
+    customer = Customer.objects.filter(shop=shop, phone_number=number).first()
+    if customer is None:
+        return Customer.objects.create(shop=shop, phone_number=number, first_name=first[:100], last_name=last[:100],
+                                       email=email or None)
+    changed = []
+    if first and not customer.first_name:
+        customer.first_name, customer.last_name = first[:100], last[:100]
+        changed += ['first_name', 'last_name']
+    if email and not customer.email:
+        customer.email = email
+        changed.append('email')
+    if changed:
+        customer.save(update_fields=changed)
+    return customer
+
+
+def capture_from_floor(shop, customer, product, variation, constraint_type, needed_by=None, consent_given=True,
+                       recorded_by=None, visit_id=None, notes='', client_ref=None):
+    """Log a missed sale from Floor mode. "Same customer, another item" reuses the visit so it counts once."""
+    visit = Visit.objects.filter(shop=shop, pk=visit_id, customer=customer).first() if visit_id else None
+    return create_blocked_purchase_intent(customer, product, variation, constraint_type, recorded_by=recorded_by,
+                                          visit=visit, consent_given=consent_given, needed_by=needed_by, notes=notes,
+                                          client_ref=client_ref)

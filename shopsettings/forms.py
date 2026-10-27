@@ -1,4 +1,6 @@
 from django import forms
+
+from core.forms import PhotoFieldsMixin
 from django.contrib.auth import get_user_model
 
 from accounts.models import Membership, Shop
@@ -43,7 +45,8 @@ class LookForm(forms.ModelForm):
         widgets = {'theme': forms.RadioSelect}
 
 
-class ShopDetailsForm(forms.ModelForm):
+class ShopDetailsForm(PhotoFieldsMixin, forms.ModelForm):
+    photo_fields = ('logo',)
     phone_region = forms.ChoiceField(choices=REGIONS, label='Country for phone numbers',
                                      help_text='Local numbers like 0712 345 678 are saved with this country code.')
     currency = forms.ChoiceField(choices=CURRENCIES)
@@ -82,6 +85,20 @@ class MessagingForm(forms.ModelForm):
         labels = {'default_channel': 'Message new customers on'}
         widgets = {'default_channel': forms.RadioSelect}
         help_texts = {'default_channel': "If a customer can't be reached there, the next channel is tried."}
+
+
+class PaymentsForm(forms.ModelForm):
+    class Meta:
+        model = Shop
+        fields = ['payment_details']
+        labels = {'payment_details': 'How customers pay you'}
+        widgets = {'payment_details': forms.Textarea(attrs={'rows': 2})}
+        help_texts = {'payment_details': 'Sent by the "Send payment details" quick reply, e.g. M-Pesa Till 123456, Kimathi Street Store.'}
+
+
+class TestMessageForm(forms.Form):
+    channel = forms.ChoiceField(choices=[('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'Email')])
+    to = forms.CharField(max_length=254)
 
 
 class ProductTypeForm(forms.ModelForm):

@@ -1,4 +1,7 @@
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import redirect
+from django.views.decorators.http import require_POST
 from django.views.generic import TemplateView
 
 from core.periods import resolve_period
@@ -21,3 +24,12 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         context['data'] = {key: selectors.BUILDERS[key](shop, period) for key in keys}
         context['uses_period'] = any(key in ('key_numbers', 'reasons', 'conversion') for key in keys)
         return context
+
+
+@login_required
+@require_POST
+def dismiss_alert(request, pk):
+    """Hide a "couldn't reach" alert. The customer's item and conversation are untouched."""
+    from notifications.models import Message
+    Message.objects.filter(pk=pk, shop=request.shop, status=Message.FAILED).update(alert_dismissed=True)
+    return redirect('dashboard:home')

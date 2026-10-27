@@ -5,7 +5,9 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -28,6 +30,9 @@ SECTIONS = [
     ('team', 'Team and roles', 'Who works here and what they can do', OWNER, 'Shop'),
     ('follow_ups', 'Follow-ups and holds', 'Reminder days, holds and pickups', MANAGERS, 'Shop'),
     ('messaging', 'Messaging', 'How customers are contacted', MANAGERS, 'Shop'),
+    ('payments', 'Payments', 'M-Pesa and how customers pay you', OWNER, 'Shop'),
+    ('shop_link', 'Shop link', 'Customers ask for their size themselves', MANAGERS, 'Shop'),
+    ('connections', 'Connections', 'API keys for a POS or other systems', OWNER, 'Shop'),
 ]
 
 
@@ -150,12 +155,182 @@ class MessagingView(ShopFormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        names = {'simulator': 'Simulator (nothing is sent)', 'whatsapp_cloud': 'WhatsApp Cloud API',
-                 'africastalking': "Africa's Talking", 'twilio': 'Twilio', 'email': 'Email server'}
-        context['connections'] = [(label, names.get(django_settings.MESSAGING_PROVIDERS.get(key), 'Not set'))
-                                  for key, label in (('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'Email'))]
+        context['connections'] = channel_connections()
         context['simulator_enabled'] = django_settings.SIMULATOR_ENABLED
+        context.setdefault('test_form', forms.TestMessageForm(initial={'to': self.request.user.phone_number or ''}))
+        context['test_result'] = self.request.session.pop('test_result', None)
         return context
+
+    def post(self, request):
+        if request.POST.get('action') != 'test':
+            return super().post(request)
+        form = forms.TestMessageForm(request.POST)
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(test_form=form))
+        request.session['test_result'] = send_test_message(request.shop, form.cleaned_data['channel'], form.cleaned_data['to'])
+        return redirect(request.path + '#test')
+
+
+PROVIDER_NAMES = {'simulator': 'Simulator (nothing is sent)', 'whatsapp_cloud': 'Meta WhatsApp Cloud API',
+                  'africastalking': "Africa's Talking", 'twilio': 'Twilio', 'twilio_whatsapp': 'Twilio WhatsApp',
+                  'email': 'Email server'}
+
+
+def channel_connections():
+    """What each channel is connected to, and whether its keys are in place. Never shows the keys."""
+    s = django_settings
+    rows = []
+    for channel, label in (('whatsapp', 'WhatsApp'), ('sms', 'SMS'), ('email', 'Email')):
+        provider = s.MESSAGING_PROVIDERS.get(channel, 'simulator')
+        missing, notes = [], []
+        if provider == 'whatsapp_cloud':
+            missing = [k for k in ('WHATSAPP_TOKEN', 'WHATSAPP_PHONE_NUMBER_ID') if not getattr(s, k)]
+            approved = sum(1 for name in s.WHATSAPP_TEMPLATES.values() if name)
+            notes.append(f'{approved} of {len(s.WHATSAPP_TEMPLATES)} message templates set. The rest go by SMS until approved.')
+            if not (s.WHATSAPP_APP_SECRET and s.WHATSAPP_VERIFY_TOKEN):
+                notes.append('Replies need WHATSAPP_APP_SECRET and WHATSAPP_VERIFY_TOKEN.')
+        elif provider == 'twilio_whatsapp':
+            missing = [k for k in ('TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN') if not getattr(s, k)]
+            if s.TWILIO_WHATSAPP_FROM == '+14155238886':
+                notes.append('Twilio WhatsApp Sandbox: each phone must first send the join code to +1 415 523 8886.')
+        elif provider == 'twilio':
+            missing = [k for k in ('TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER') if not getattr(s, k)]
+            notes.append('On a trial account, only numbers verified in Twilio receive messages.')
+        elif provider == 'africastalking':
+            missing = [] if s.AFRICASTALKING_API_KEY else ['AFRICASTALKING_API_KEY']
+            if s.AFRICASTALKING_SANDBOX:
+                notes.append("Sandbox: messages show in Africa's Talking's web simulator, not on phones.")
+        elif provider == 'email':
+            if not s.EMAIL_HOST:
+                missing = ['EMAIL_HOST']
+        state = 'simulator' if provider == 'simulator' else ('missing' if missing else 'ready')
+        rows.append({'channel': channel, 'label': label, 'provider': PROVIDER_NAMES.get(provider, provider),
+                     'state': state, 'missing': missing, 'notes': notes})
+    if not s.SITE_URL.startswith('https://'):
+        rows[0]['notes'].append('Item photos and replies need a public https SITE_URL (the tunnel).')
+    return rows
+
+
+def send_test_message(shop, channel, to):
+    """Send one test message right now and report what the provider said, in plain words."""
+    from core.phones import normalize_phone
+    from notifications.models import Message
+    from notifications.providers import provider_for
+    address = to.strip() if channel == 'email' else normalize_phone(to, shop.phone_region)
+    if not address:
+        return {'ok': False, 'text': 'That phone number could not be read. Try 0712 345 678.'}
+    provider = provider_for(channel)
+    message = Message(shop=shop, channel=channel, to_address=address,
+                      body=f'Test from {shop.name} on Retail OS. If you can read this, {channel} works.',
+                      template_key='hello_world' if provider.name == 'whatsapp_cloud' else '')
+    result = provider.send(message)
+    where = PROVIDER_NAMES.get(provider.name, provider.name)
+    if provider.name == 'simulator':
+        return {'ok': True, 'text': f'Simulator: nothing was really sent. Choose a provider for {channel} in .env to send for real.'}
+    if result.ok:
+        extra = {'whatsapp_cloud': " WhatsApp test messages use Meta's \"hello world\" template.",
+                 'twilio_whatsapp': ' If nothing arrives, check this phone has joined the Twilio WhatsApp Sandbox.'}.get(provider.name, '')
+        return {'ok': True, 'text': f'Sent to {address} through {where}. Check the phone or inbox.{extra}'}
+    return {'ok': False, 'text': f'{where} refused it: {result.error_detail or result.error_code}'}
+
+
+class PaymentsView(ShopFormView):
+    section, who = 'payments', OWNER
+    template_name = 'shopsettings/payments.html'
+    form_class = forms.PaymentsForm
+    denied_message = 'Only the owner can change payments.'
+
+    def get_context_data(self, **kwargs):
+        from payments.services import mpesa_mode
+        context = super().get_context_data(**kwargs)
+        mode, ready = mpesa_mode()
+        s = django_settings
+        context.update({
+            'mpesa_mode': mode,
+            'mpesa_ready': ready,
+            'mpesa_shortcode': s.MPESA_SHORTCODE,
+            'mpesa_missing': [k for k in ('MPESA_CONSUMER_KEY', 'MPESA_CONSUMER_SECRET', 'MPESA_CALLBACK_TOKEN')
+                              if not getattr(s, k)] if mode != 'off' else [],
+            'site_is_public': s.SITE_URL.startswith('https://'),
+        })
+        return context
+
+
+def shop_link_url(shop):
+    from accounts.services import shop_link_name
+    return django_settings.SITE_URL.rstrip('/') + reverse('ask', args=[shop_link_name(shop)])
+
+
+class ShopLinkView(SettingsView):
+    """The public "Ask for your size" link: copy it, print its QR code, switch it off."""
+    section, who = 'shop_link', MANAGERS
+    template_name = 'shopsettings/shop_link.html'
+
+    def get_context_data(self, **kwargs):
+        import segno
+        context = super().get_context_data(**kwargs)
+        url = shop_link_url(self.request.shop)
+        context.update({
+            'link_url': url,
+            'link_on': self.request.shop.link_on,
+            'qr_svg': segno.make(url, error='m').svg_inline(scale=5, border=2, dark='#1d2421', light='#fbfaf7'),
+            'site_is_public': django_settings.SITE_URL.startswith('https://'),
+        })
+        return context
+
+    def post(self, request):
+        shop = request.shop
+        shop.link_on = request.POST.get('link_on') == 'on'
+        shop.save(update_fields=['link_on'])
+        return self.saved('The link is on' if shop.link_on else "The link is off. Anyone opening it sees that it's closed.")
+
+
+def shop_link_qr(request):
+    """The QR code as a PNG to print and put up at the counter."""
+    import io
+    import segno
+    if not request.user.is_authenticated or request.shop is None or not can_open(request, MANAGERS):
+        raise PermissionDenied
+    buffer = io.BytesIO()
+    segno.make(shop_link_url(request.shop), error='m').save(buffer, kind='png', scale=12, border=3)
+    response = HttpResponse(buffer.getvalue(), content_type='image/png')
+    response['Content-Disposition'] = 'attachment; filename="shop-link-qr.png"'
+    return response
+
+
+class ConnectionsView(SettingsView):
+    """API keys: a POS or another system uses one to send stock and sales, and read To order."""
+    section, who = 'connections', OWNER
+    template_name = 'shopsettings/connections.html'
+    denied_message = 'Only the owner can manage connections.'
+
+    def get_context_data(self, **kwargs):
+        from connections.models import ApiKey
+        context = super().get_context_data(**kwargs)
+        context.update({
+            'keys': ApiKey.objects.filter(shop=self.request.shop, revoked_at__isnull=True).select_related('created_by'),
+            'new_key': self.request.session.pop('new_api_key', None),
+            'permissions': ApiKey.PERMISSION_CHOICES,
+            'api_base': django_settings.SITE_URL.rstrip('/') + '/api/v1/connect/',
+        })
+        return context
+
+    def post(self, request):
+        from django.utils import timezone
+        from connections.models import ApiKey
+        if request.POST.get('action') == 'revoke':
+            key = get_object_or_404(ApiKey, shop=request.shop, pk=request.POST.get('key') or 0, revoked_at__isnull=True)
+            key.revoked_at = timezone.now()
+            key.save(update_fields=['revoked_at'])
+            return self.saved(f'{key.name} can no longer connect.')
+        name = request.POST.get('name', '').strip()[:60]
+        permission = request.POST.get('permission')
+        if not name or permission not in dict(ApiKey.PERMISSION_CHOICES):
+            messages.error(request, 'Give the key a name and choose what it may do.')
+            return redirect(request.path)
+        key, raw = ApiKey.issue(request.shop, name, permission, created_by=request.user)
+        request.session['new_api_key'] = {'name': key.name, 'key': raw}
+        return redirect(request.path)
 
 
 class ProductTypesView(SettingsView):

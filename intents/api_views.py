@@ -21,9 +21,23 @@ class PaymentInput(serializers.Serializer):
     reference = serializers.CharField(max_length=60, required=False, allow_blank=True)
     pickup_by = serializers.DateField(required=False, allow_null=True)
 
+    def validate_pickup_by(self, value):
+        return _future(value, 'The pickup date')
+
 
 class MarkOrderedInput(serializers.Serializer):
     expected_at = serializers.DateField(required=False, allow_null=True)
+
+    def validate_expected_at(self, value):
+        return _future(value, 'The arrival date')
+
+
+def _future(value, label):
+    from core.periods import parse_future_date
+    try:
+        return parse_future_date(value, label)
+    except ValueError as error:
+        raise serializers.ValidationError(str(error))
 
 
 def _bad_request(error):

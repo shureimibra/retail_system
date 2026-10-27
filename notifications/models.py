@@ -59,6 +59,9 @@ class Message(models.Model):
     body = models.TextField()
     template_key = models.CharField(max_length=40, blank=True, help_text='Which message this is, e.g. restock_alert.')
     media_url = models.URLField(max_length=500, blank=True)
+    alert_dismissed = models.BooleanField(default=False, help_text='Staff hid this failure from Home → Needs you now.')
+    template_params = models.JSONField(default=list, blank=True,
+                                       help_text='Values for the approved WhatsApp template, in order.')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=QUEUED)
     provider = models.CharField(max_length=30, blank=True)
     provider_message_id = models.CharField(max_length=120, blank=True, db_index=True)

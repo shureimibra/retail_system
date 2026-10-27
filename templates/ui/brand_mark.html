@@ -1,0 +1,1 @@
+{% if shop.logo %}<img class="brand-mark brand-logo" src="{{ shop.logo.url }}" alt="" width="30" height="30">{% else %}<span class="brand-mark">{{ shop.name|default:"R"|first|upper }}</span>{% endif %}

@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}{{ customer.first_name }} {{ customer.last_name }}{% endblock %}
+{% block page %}
+<div class="convo">
+  <aside class="convo-list panel" aria-label="Conversations">
+    <div class="panel-head"><h2><a href="{% url 'notifications:list' %}">Conversations</a></h2></div>
+    {% include "notifications/_inbox_rows.html" with rows=inbox current_id=conversation.pk %}
+  </aside>
+
+  <section class="convo-chat panel" aria-labelledby="chat-title">
+    <header class="chat-head">
+      <a class="back-icon" href="{% url 'notifications:list' %}" aria-label="All conversations">{% icon "chevron-left" %}</a>
+      <span class="avatar">{{ customer.first_name|first|upper }}{{ customer.last_name|first|upper }}</span>
+      <div class="grow"><h1 id="chat-title" class="chat-name"><a href="{% url 'customers:detail' customer.pk %}">{{ customer.first_name }} {{ customer.last_name }}</a></h1>
+        <span class="row-sub">{{ channel_label }} · <span class="mono">{{ customer.phone_number }}</span></span></div>
+      <a class="btn btn-sm" href="tel:{{ customer.phone_number }}">{% icon "phone" "sm" %}Call</a>
+    </header>
+
+    {% if main %}
+    <a class="deal-pin" href="#deal">
+      <span class="grow"><b>{{ main.product.name }}{% if main.variation %} · {{ main.variation.label }}{% endif %}</b>
+        <span class="row-sub">{{ main.estimated_value|money:request.shop }}{% if main.held_until %} · held until {{ main.held_until|date:"D j M" }}{% endif %}{% if main.paid %} · {{ main.paid|money:request.shop }} paid{% endif %}</span></span>
+      <span class="badge badge-{{ main.status }}">{{ main.get_status_display }}</span>
+    </a>
+    {% endif %}
+
+    <ol class="chat" id="chat" aria-label="Messages" aria-live="polite" data-updates="{% url 'notifications:conversation-updates' conversation.pk %}" data-can-write="{{ can_write|yesno:'1,0' }}">
+      {% for m in chat %}
+      {% ifchanged m.created_at.date %}<li class="chat-day">{{ m.created_at|date:"l j F" }}</li>{% endifchanged %}
+      {% include "notifications/_bubble.html" %}
+      {% empty %}
+      <li class="chat-day">No messages yet.</li>
+      {% endfor %}
+    </ol>
+
+    <div class="composer" id="composer">
+      {% if can_write %}
+      <form method="post" novalidate>
+        {% csrf_token %}{% if main %}<input type="hidden" name="intent" value="{{ main.pk }}">{% endif %}
+        {% if quick_replies %}
+        <div class="quick" aria-label="Quick replies">
+          {% for key, label, text in quick_replies %}<button class="chip" type="submit" name="action" value="quick:{{ key }}" data-fill="{{ text }}">{{ label }}</button>{% endfor %}
+        </div>
+        {% endif %}
+        <div class="compose-row">
+          <label class="visually-hidden" for="body">Reply to {{ customer.first_name }}</label>
+          <textarea id="body" name="body" rows="2" maxlength="1000" placeholder="Write a reply…">{{ draft }}</textarea>
+          <button class="btn btn-primary" type="submit" name="action" value="reply">{% icon "send" "sm" %}Send</button>
+        </div>
+        <p class="small faint">{% if channel == 'whatsapp' %}Free replies open for {{ hours_left }} h. {% endif %}Goes to {{ customer.first_name }} on {{ channel_label }}.</p>
+      </form>
+      {% if main %}<form method="post" class="check-in-inline">{% csrf_token %}<input type="hidden" name="intent" value="{{ main.pk }}">
+        <button class="btn btn-plain btn-sm" type="submit" name="action" value="check_in">{% icon "send" "sm" %}Send the check-in message instead</button></form>{% endif %}
+      {% else %}
+      <div class="window-closed">
+        <p class="muted">WhatsApp only allows your own words within 24 hours of the customer's last message. Send the short check-in message; once they reply, you can write freely again.</p>
+        {% if main %}<form method="post">{% csrf_token %}<input type="hidden" name="intent" value="{{ main.pk }}">
+          <button class="btn" type="submit" name="action" value="check_in">{% icon "send" "sm" %}Send check-in message</button></form>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <aside class="convo-deal" id="deal" aria-label="The deal">
+    {% for d in deals %}
+    <section class="panel deal">
+      <div class="panel-head"><h2>{{ d.product.name }}{% if d.variation %} · {{ d.variation.label }}{% endif %}</h2><span class="badge badge-{{ d.status }}">{{ d.get_status_display }}</span></div>
+      <div class="panel-body stack">
+        {% if d.steps %}<ol class="deal-steps" aria-label="Stage">{% for label, state in d.steps %}<li class="{{ state }}"{% if state == 'now' %} aria-current="step"{% endif %}>{{ label }}</li>{% endfor %}</ol>{% endif %}
+        <dl class="facts">
+          <dt>Price</dt><dd>{{ d.estimated_value|money:request.shop }}</dd>
+          {% if d.paid %}<dt>Paid</dt><dd>{{ d.paid|money:request.shop }} · {{ d.owed|money:request.shop }} left</dd>{% endif %}
+          {% if d.held_until %}<dt>Held</dt><dd>1 until {{ d.held_until|date:"D j M" }}</dd>{% endif %}
+          {% if d.pickup_by and d.status == 'reserved' %}<dt>Pick up by</dt><dd>{{ d.pickup_by|date:"D j M" }}</dd>{% endif %}
+          <dt>Logged</dt><dd>{{ d.created_at|date:"j M" }}{% if d.recorded_by %} by {{ d.recorded_by.first_name|default:d.recorded_by.username }}{% endif %} · {{ d.get_constraint_type_display|lower }}</dd>
+          {% if d.follow_up_state %}<dt>Follow-ups</dt><dd>{{ d.follow_up_state }}</dd>{% endif %}
+        </dl>
+
+        {% if d.mpesa %}
+        <div class="mpesa-state is-{{ d.mpesa.status }}"{% if d.mpesa.is_pending %} data-mpesa-status="{% url 'payments:mpesa-status' d.mpesa.pk %}"{% endif %} role="status" aria-live="polite">
+          {% if d.mpesa.is_pending %}<span class="spinner" aria-hidden="true"></span>
+            <span><b>Waiting for {{ customer.first_name|default:"the customer" }} to enter their M-Pesa PIN</b><span class="row-sub">{{ d.mpesa.amount|money:request.shop }} to {{ d.mpesa.phone }}. This page updates by itself.</span></span>
+          {% else %}{% icon "triangle-alert" "sm" %}
+            <span><b>{{ d.mpesa.get_status_display }}</b><span class="row-sub">{{ d.mpesa.result_desc|default:"No payment was made." }}</span></span>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if mpesa_ready and d.owed > 0 %}
+        <form method="post" class="form deal-form" novalidate>
+          {% csrf_token %}<input type="hidden" name="intent" value="{{ d.pk }}">
+          <h3 class="deal-sub">Ask for M-Pesa payment{% if mpesa_mode == 'sandbox' %} <span class="badge badge-notified">Sandbox</span>{% endif %}</h3>
+          <div class="form-row">
+            <div class="field"><label for="mp-amt-{{ d.pk }}">Amount</label><input id="mp-amt-{{ d.pk }}" name="amount" type="number" inputmode="numeric" min="1" step="1" max="{{ d.owed|floatformat:'0' }}" value="{{ d.owed|floatformat:'0' }}"></div>
+            <div class="field"><label for="mp-ph-{{ d.pk }}">Their M-Pesa number</label><input id="mp-ph-{{ d.pk }}" name="phone" type="tel" inputmode="tel" value="{{ customer.phone_number }}"></div>
+          </div>
+          <p class="help">Their phone shows the M-Pesa PIN prompt. When they pay, the payment records itself with the M-Pesa code. Lower the amount for a deposit.</p>
+          <div class="button-row"><button class="btn btn-primary" type="submit" name="action" value="mpesa">{% icon "phone" "sm" %}Send payment prompt</button></div>
+        </form>
+        {% endif %}
+
+        {% if mpesa_ready %}<details class="deal-more"><summary>Record a payment by hand</summary>{% endif %}
+        <form method="post" class="form deal-form" novalidate>
+          {% csrf_token %}<input type="hidden" name="intent" value="{{ d.pk }}">
+          {% if not mpesa_ready %}<h3 class="deal-sub">Record a deposit</h3>{% endif %}
+          <div class="form-row">
+            <div class="field"><label for="amt-{{ d.pk }}">Amount</label><input id="amt-{{ d.pk }}" name="amount" type="number" inputmode="decimal" min="1" step="1" max="{{ d.owed|floatformat:'0' }}" required></div>
+            <div class="field"><label for="ref-{{ d.pk }}">Reference <span class="faint">(e.g. M-Pesa code)</span></label><input id="ref-{{ d.pk }}" name="reference" type="text" maxlength="60" autocomplete="off"></div>
+          </div>
+          <fieldset class="choice-row" aria-label="Paid by">{% for value, label in payment_methods %}<label><input type="radio" name="method" value="{{ value }}"{% if forloop.first %} checked{% endif %}> {{ label }}</label>{% endfor %}</fieldset>
+          <div class="button-row">
+            <button class="btn btn-primary" type="submit" name="action" value="deposit">Save deposit and reserve</button>
+            <button class="btn" type="submit" name="action" value="paid" data-confirm-click="Record {{ d.owed|money:request.shop }} as paid in full?">Paid in full ({{ d.owed|money:request.shop }})</button>
+          </div>
+        </form>
+        {% if mpesa_ready %}</details>{% endif %}
+
+        {% if d.other_options %}
+        <details class="deal-more"><summary>Change item</summary>
+          <form method="post" class="form" novalidate>{% csrf_token %}<input type="hidden" name="intent" value="{{ d.pk }}">
+            <div class="field"><label for="chg-{{ d.pk }}">They'd take instead</label>
+              <select id="chg-{{ d.pk }}" name="variation">{% for v in d.other_options %}<option value="{{ v.pk }}">{{ v.label|default:v.sku }} ({{ v.available_quantity }} free)</option>{% endfor %}</select></div>
+            <div class="form-actions"><button class="btn" type="submit" name="action" value="change">Change item</button></div>
+          </form>
+        </details>
+        {% endif %}
+        <details class="deal-more"><summary>Declined</summary>
+          <form method="post" class="form" novalidate>{% csrf_token %}<input type="hidden" name="intent" value="{{ d.pk }}">
+            <div class="field"><label for="why-{{ d.pk }}">Why <span class="faint">(optional)</span></label><input id="why-{{ d.pk }}" name="reason" type="text" maxlength="200" placeholder="Bought elsewhere"></div>
+            <p class="help">Closes this item. Declined is never counted as revenue, and any held unit goes to the next customer waiting.</p>
+            <div class="form-actions"><button class="btn btn-critical" type="submit" name="action" value="decline">Close as declined</button></div>
+          </form>
+        </details>
+      </div>
+    </section>
+    {% empty %}
+    <section class="panel"><div class="empty"><p>{{ customer.first_name }} has no open items.</p>
+      <a class="btn" href="{% url 'floor' %}?customer={{ customer.pk }}">Log missed sale</a></div></section>
+    {% endfor %}
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var chat = document.getElementById('chat');
+  if (chat) chat.scrollTop = chat.scrollHeight;
+
+  // Live: new replies show up without refreshing. If nobody is typing, the whole page refreshes
+  // so the deal panel and reply box follow too; while someone types, messages are only added.
+  function typing() {
+    var el = document.activeElement;
+    var drafts = Array.prototype.some.call(document.querySelectorAll('.convo textarea, .convo input[type=text], .convo input[type=number]'),
+                                           function (i) { return i.value && i.defaultValue !== i.value; });
+    return drafts || (el && /^(TEXTAREA|INPUT|SELECT)$/.test(el.tagName));
+  }
+  if (chat && chat.dataset.updates) {
+    setInterval(function () {
+      if (document.visibilityState !== 'visible') return;
+      var bubbles = chat.querySelectorAll('.bubble'), last = bubbles[bubbles.length - 1];
+      var after = last ? last.dataset.id : 0;
+      fetch(chat.dataset.updates + '?after=' + after, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (data) {
+        if (!data.count && String(data.can_write ? 1 : 0) === chat.dataset.canWrite) return;
+        if (!typing()) { window.location.reload(); return; }
+        if (data.html) {
+          var nearBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+          chat.insertAdjacentHTML('beforeend', data.html);
+          if (nearBottom) chat.scrollTop = chat.scrollHeight;
+        }
+      }).catch(function () {});
+    }, 5000);
+  }
+  var body = document.getElementById('body');
+  document.querySelectorAll('[data-fill]').forEach(function (button) {
+    button.addEventListener('click', function (e) {
+      if (!body) return;
+      e.preventDefault();
+      body.value = button.dataset.fill;
+      body.focus();
+      body.setSelectionRange(body.value.length, body.value.length);
+    });
+  });
+  document.querySelectorAll('[data-confirm-click]').forEach(function (button) {
+    button.addEventListener('click', function (e) { if (!window.confirm(button.dataset.confirmClick)) e.preventDefault(); });
+  });
+  // A waiting M-Pesa prompt: check every few seconds and reload once it has an answer.
+  document.querySelectorAll('[data-mpesa-status]').forEach(function (box) {
+    var tries = 0;
+    var timer = setInterval(function () {
+      if (++tries > 60) { clearInterval(timer); return; }
+      fetch(box.dataset.mpesaStatus, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (data) {
+        if (data.status !== 'pending') { clearInterval(timer); window.location.reload(); }
+      }).catch(function () {});
+    }, 4000);
+  });
+  // "Paid in full" doesn't need an amount; let it submit even though the deposit amount is empty.
+  document.querySelectorAll('.deal-form button[value="paid"]').forEach(function (button) { button.formNoValidate = true; });
+})();
+</script>
+{% endblock %}

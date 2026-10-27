@@ -38,8 +38,9 @@ class EmailProvider:
     name = 'email'
 
     def send(self, message):
-        email = EmailMessage(subject=settings.EMAIL_SUBJECT_PREFIX + 'An update about your request',
-                             body=message.body, to=[message.to_address])
+        shop = getattr(message, 'shop', None)
+        subject = f'{shop.name}: an update about your request' if shop else 'An update about your request'
+        email = EmailMessage(subject=settings.EMAIL_SUBJECT_PREFIX + subject, body=message.body, to=[message.to_address])
         try:
             email.send(fail_silently=False)
         except Exception as error:  # SMTP and connection errors
@@ -58,8 +59,11 @@ class WhatsAppCloudProvider:
                f'{settings.WHATSAPP_PHONE_NUMBER_ID}/messages')
         to = message.to_address.lstrip('+')
         if message.template_key:
-            payload = {'messaging_product': 'whatsapp', 'to': to, 'type': 'template',
-                       'template': self._template(message)}
+            template = self._template(message)
+            if template is None:
+                return SendResult(ok=False, error_code='no_template', permanent=True,
+                                  error_detail='No approved WhatsApp template is set for this message yet')
+            payload = {'messaging_product': 'whatsapp', 'to': to, 'type': 'template', 'template': template}
         else:
             payload = {'messaging_product': 'whatsapp', 'to': to, 'type': 'text', 'text': {'body': message.body}}
         try:
@@ -77,13 +81,15 @@ class WhatsAppCloudProvider:
 
     @staticmethod
     def _template(message):
-        name = settings.WHATSAPP_TEMPLATES.get(message.template_key, 'hello_world')
+        if message.template_key == 'hello_world':  # Meta's pre-approved test template (Settings test button)
+            return {'name': 'hello_world', 'language': {'code': 'en_US'}}
+        name = settings.WHATSAPP_TEMPLATES.get(message.template_key)
+        if not name:
+            return None
         template = {'name': name, 'language': {'code': settings.WHATSAPP_TEMPLATE_LANGUAGE}}
-        if name == 'hello_world':  # Meta's pre-approved test template takes no parameters
-            template['language']['code'] = 'en_US'
-            return template
-        components = [{'type': 'body', 'parameters': [{'type': 'text', 'text': message.body}]}]
-        if message.media_url:
+        components = [{'type': 'body', 'parameters': [{'type': 'text', 'text': str(value)[:1000]}
+                                                      for value in (message.template_params or [])]}]
+        if message.media_url and message.template_key in ('restock_alert', 'price_drop'):
             components.insert(0, {'type': 'header', 'parameters': [{'type': 'image', 'image': {'link': message.media_url}}]})
         template['components'] = components
         return template
@@ -119,8 +125,11 @@ class TwilioSMSProvider:
         from twilio.base.exceptions import TwilioRestException
         from twilio.rest import Client
         try:
+            extra = {}
+            if settings.SITE_URL.startswith('https://'):
+                extra['status_callback'] = settings.SITE_URL.rstrip('/') + '/notifications/webhook/'
             sent = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN).messages.create(
-                body=message.body, from_=settings.TWILIO_PHONE_NUMBER, to=message.to_address)
+                body=message.body, from_=settings.TWILIO_PHONE_NUMBER, to=message.to_address, **extra)
         except TwilioRestException as error:
             return SendResult(ok=False, error_code=str(error.code), error_detail=str(error.msg)[:300],
                               permanent=error.code in (21211, 21610, 21614))
@@ -129,8 +138,41 @@ class TwilioSMSProvider:
         return SendResult(ok=True, provider_message_id=sent.sid)
 
 
+class TwilioWhatsAppProvider:
+    """
+    WhatsApp through Twilio: the free WhatsApp Sandbox for testing and demos, or the shop's own
+    approved WhatsApp number later (set TWILIO_WHATSAPP_FROM). Sends the written text, with the
+    item photo when there is one.
+    """
+    name = 'twilio_whatsapp'
+    # Not joined the sandbox (63015), outside the 24-hour window (63016), not on WhatsApp (63003).
+    PERMANENT_ERRORS = {63015, 63016, 63003, 21211, 21610, 21614}
+
+    def send(self, message):
+        from twilio.base.exceptions import TwilioRestException
+        from twilio.rest import Client
+        extra = {}
+        if message.media_url and message.media_url.startswith('https://'):
+            extra['media_url'] = [message.media_url]
+        if settings.SITE_URL.startswith('https://'):
+            extra['status_callback'] = settings.SITE_URL.rstrip('/') + '/notifications/webhook/'
+        try:
+            sent = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN).messages.create(
+                body=message.body, from_=f'whatsapp:{settings.TWILIO_WHATSAPP_FROM}',
+                to=f'whatsapp:{message.to_address}', **extra)
+        except TwilioRestException as error:
+            detail = str(error.msg)[:300]
+            if error.code == 63015:
+                detail = 'This phone has not joined the Twilio WhatsApp Sandbox yet (send the join code first).'
+            return SendResult(ok=False, error_code=str(error.code), error_detail=detail,
+                              permanent=error.code in self.PERMANENT_ERRORS)
+        except Exception as error:
+            return SendResult(ok=False, error_code='network', error_detail=str(error)[:300])
+        return SendResult(ok=True, provider_message_id=sent.sid)
+
+
 PROVIDERS = {cls.name: cls for cls in (SimulatorProvider, EmailProvider, WhatsAppCloudProvider,
-                                       AfricasTalkingSMSProvider, TwilioSMSProvider)}
+                                       AfricasTalkingSMSProvider, TwilioSMSProvider, TwilioWhatsAppProvider)}
 
 
 def provider_for(channel):

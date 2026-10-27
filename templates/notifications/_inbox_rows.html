@@ -1,0 +1,16 @@
+{% if rows %}
+<ul class="inbox-rows">
+  {% for c in rows %}
+  <li><a href="{% url 'notifications:conversation' c.pk %}"{% if current_id == c.pk %} aria-current="page"{% endif %} class="{% if c.unread_count %}is-unread{% endif %}">
+    <span class="avatar">{{ c.customer.first_name|first|upper }}{{ c.customer.last_name|first|upper }}</span>
+    <span class="grow">
+      <span class="inbox-top"><span class="row-title">{{ c.customer.first_name }} {{ c.customer.last_name }}</span>
+        <span class="faint small nowrap">{% if c.last_message_at %}{% now "Y-m-d" as today %}{% if c.last_message_at|date:"Y-m-d" == today %}{{ c.last_message_at|time:"H:i" }}{% else %}{{ c.last_message_at|date:"j M" }}{% endif %}{% endif %}</span></span>
+      <span class="row-sub inbox-snippet">{% if c.last_direction == 'out' %}You: {% endif %}{{ c.last_body|truncatechars:90 }}</span>
+      {% if c.main_item %}<span class="badge badge-{{ c.main_item.status }}">{{ c.main_item.get_status_display }}</span>{% endif %}
+    </span>
+    {% if c.unread_count %}<span class="badge-count" aria-label="{{ c.unread_count }} unread">{{ c.unread_count }}</span>{% endif %}
+  </a></li>
+  {% endfor %}
+</ul>
+{% endif %}

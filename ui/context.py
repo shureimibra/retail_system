@@ -15,7 +15,9 @@ NAV = [
 def shell(request):
     """What the app shell needs on every page: navigation, current section, theme, unread replies."""
     if not getattr(request, 'user', None) or not request.user.is_authenticated:
-        return {}
+        # The sign-in page shows the shop's logo (one shop per installation for now).
+        from accounts.models import Shop
+        return {'login_shop': Shop.objects.exclude(logo='').order_by('id').first() or Shop.objects.order_by('id').first()}
     match = getattr(request, 'resolver_match', None)
     current = match.app_name if match else ''
     if match and match.url_name == 'to_order':

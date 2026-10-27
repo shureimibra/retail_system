@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Import stock{% endblock %}
+{% block page %}
+<div class="content narrow">
+  <div>
+    <a class="back" href="{% url 'products:list' %}">{% icon "chevron-left" "sm" %}Products</a>
+    <div class="page-head"><div><h1>Import stock</h1><p>Count your stock on paper or in Excel, then update everything here at once.</p></div></div>
+  </div>
+
+  <section class="panel" aria-labelledby="step-1">
+    <div class="panel-head"><h2 id="step-1"><span class="step-no">1</span> Download your stock list</h2></div>
+    <div class="panel-body stack">
+      <p class="muted">An Excel file with every item, size and colour, and today's count. Keep it for the next count too.</p>
+      <div><a class="btn" href="{% url 'products:import_template' %}">{% icon "download" "sm" %}Download Excel</a></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="step-2">
+    <div class="panel-head"><h2 id="step-2"><span class="step-no">2</span> Change the counts and upload</h2></div>
+    <form method="post" enctype="multipart/form-data" class="panel-body form">
+      {% csrf_token %}
+      <ul class="import-tips">
+        <li>Change <b>In stock</b> to what you counted, including units put aside for customers.</li>
+        <li>New size, colour or item: add a row and leave SKU blank. A new item also needs its type and price.</li>
+        <li>Leave <b>In stock</b> empty to keep a count as it is.</li>
+      </ul>
+      <div class="field"><label for="file">Your filled-in file</label>
+        <input id="file" name="file" type="file" accept=".xlsx,.csv" required>
+        <p class="help">Excel (.xlsx) or .csv. Nothing is saved yet: you'll see every change first.</p></div>
+      <div class="form-actions"><button type="submit" class="btn btn-primary">Check the file</button></div>
+    </form>
+  </section>
+
+  {% if recent %}
+  <section class="panel" aria-labelledby="recent">
+    <div class="panel-head"><h2 id="recent">Earlier imports</h2></div>
+    <div class="rows">
+      {% for item in recent %}
+      <div><span class="grow">{{ item.file_name }}<span class="row-sub">{{ item.applied_at|date:"j M Y, H:i" }} · {{ item.applied_by.get_full_name|default:item.applied_by.username }}</span></span>
+        <span class="small muted">{{ item.plan.summary.count|default:0 }} counts{% if item.plan.summary.new_option %} · {{ item.plan.summary.new_option }} new{% endif %}</span></div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

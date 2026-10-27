@@ -1,0 +1,274 @@
+{% load static ui %}<!doctype html>
+<html lang="en"{% if theme %} data-theme="{{ theme }}"{% endif %}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Log missed sale · {{ request.shop.name }}</title>
+  <link rel="icon" href="{% static 'icons/favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <meta name="theme-color" content="#0B6670">
+  <link rel="apple-touch-icon" href="{% static 'icons/app-192.png' %}">
+</head>
+<body class="floor-body"{% include 'offline/body_attrs.html' %} data-stock-at="{% now 'H:i' %}">
+{% include "ui/icon_sprite.svg" %}
+<header class="floor-bar">
+  {% include "ui/brand_mark.html" with shop=request.shop %}
+  <span class="grow"><b>{{ request.shop.name }}</b> <span class="faint small">· {{ user.get_full_name|default:user.username }}</span></span>
+  <a class="btn btn-plain" href="{{ back }}">{% icon "x" "sm" %}Exit</a>
+</header>
+
+<p class="offline-bar" data-offline-bar role="status" aria-live="polite" hidden></p>
+<div class="floor-notes offline-notes"><p class="floor-note" data-offline-saved hidden></p><div class="floor-note is-error offline-failed" data-offline-failed hidden></div></div>
+{% if messages %}
+<div class="floor-notes" role="status" aria-live="polite">
+  {% for message in messages %}<p class="floor-note{% if message.tags == 'error' %} is-error{% endif %}">{% if message.tags == 'error' %}{% icon "triangle-alert" "sm" %}{% else %}{% icon "circle-check" "sm" %}{% endif %}{{ message }}</p>{% endfor %}
+</div>
+{% endif %}
+
+<main class="floor-main">
+  <div class="capture-head" id="capture-head">
+    <h1>Log missed sale</h1>
+    <form method="post" action="{% url 'floor' %}" data-floor-form>{% csrf_token %}<input type="hidden" name="back" value="{{ back }}"><button class="btn" type="submit" name="action" value="bought">{% icon "circle-check" "sm" %}They bought after all</button></form>
+  </div>
+  <form method="post" action="{% url 'floor' %}" class="floor-form" id="capture" novalidate data-floor-form>
+    {% csrf_token %}
+    <input type="hidden" name="back" value="{{ back }}">
+    {% if visit %}<input type="hidden" name="visit" value="{{ visit }}">{% endif %}
+    {% if customer %}<p class="floor-same">Another item for <b>{{ customer.first_name|default:customer.phone_number }}</b>. <a href="{% url 'floor' %}?back={{ back|urlencode }}">New customer</a></p>{% endif %}
+
+    <div class="steps">
+      <fieldset class="floor-step" data-step="1">
+        <legend><span class="step-no">1</span> What they wanted</legend>
+        <div class="field"><label for="product">Item</label>
+          <select id="product" name="product" required>
+            <option value="">Choose an item</option>
+            {% for p in products %}<option value="{{ p.pk }}"{% if form.product == p.pk|stringformat:"s" %} selected{% endif %}>{{ p.name }} · {{ p.base_price|money:request.shop }}</option>{% endfor %}
+            {% if can_add_products %}<option value="new"{% if form.product == 'new' %} selected{% endif %}>+ An item the shop doesn't have yet</option>{% endif %}
+          </select></div>
+
+        {% if can_add_products %}
+        <div class="new-item" data-new-item{% if form.product != 'new' %} hidden{% endif %}>
+          <div class="field"><label for="new_name">What is it?</label><input id="new_name" name="new_name" type="text" maxlength="200" value="{{ form.new_name }}" placeholder="e.g. Puma Suede Classic"></div>
+          <div class="form-row">
+            <div class="field"><label for="new_type">Type</label>
+              <select id="new_type" name="new_type">{% for t in product_types %}<option value="{{ t.pk }}"{% if form.new_type == t.pk|stringformat:"s" %} selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+            <div class="field"><label for="new_price">Price you'd sell it at</label><input id="new_price" name="new_price" type="number" inputmode="decimal" min="0" step="1" value="{{ form.new_price }}"></div>
+          </div>
+          <p class="help">It's added to Products{% if not is_manager %}, marked "Needs review" for the owner{% endif %}, and shows on To order.</p>
+        </div>
+        {% endif %}
+
+        <div class="field" data-options-field><span class="field-label" id="variation-label">Size and colour</span>
+          <select id="variation" name="variation" aria-labelledby="variation-label">
+            <option value="">Any, or not sure</option>
+            {% for v in variations %}<option value="{{ v.pk }}" data-product="{{ v.product_id }}" data-label="{{ v.label }}" data-left="{{ v.available_quantity }}"{% if form.variation == v.pk|stringformat:"s" %} selected{% endif %}>{{ v.product.name }} · {{ v.label|default:v.sku }} ({{ v.available_quantity }} in stock)</option>{% endfor %}
+          </select>
+          <div class="chips-pick" id="variation-chips" hidden></div>
+          <p class="stock-warning" id="stock-warning" role="alert" hidden></p>
+          <details class="typed-option" data-typed{% if form.new_option1 or form.new_option2 %} open{% endif %}>
+            <summary><span>Not in the list? Type the <span data-typed-names>size and colour</span></span></summary>
+            <div class="form-row">
+              <div class="field"><label for="new_option1" data-option-name="0">Size</label><input id="new_option1" name="new_option1" type="text" maxlength="50" value="{{ form.new_option1 }}" autocomplete="off"></div>
+              <div class="field"><label for="new_option2" data-option-name="1">Colour</label><input id="new_option2" name="new_option2" type="text" maxlength="50" value="{{ form.new_option2 }}" autocomplete="off"></div>
+            </div>
+            <p class="help">What they asked for exactly. It's added with 0 in stock, so it shows on To order.</p>
+          </details>
+        </div>
+
+        <fieldset class="field">
+          <legend class="field-label">Why not</legend>
+          <div class="chips-pick reasons">
+            {% for value, label, hint in reasons %}<label class="pick-chip reason-chip"><input type="radio" name="reason" value="{{ value }}"{% if form.reason == value %} checked{% endif %} required data-restock="{% if value in restock_reasons %}1{% endif %}">
+              <span>{{ label }}<small>{{ hint }}</small></span></label>{% endfor %}
+          </div>
+        </fieldset>
+        <div class="field"><label for="note">Note <span class="faint" data-note-optional>(optional)</span></label>
+          <textarea id="note" name="note" rows="2" maxlength="500" placeholder="Anything the team should know">{{ form.note }}</textarea></div>
+      </fieldset>
+
+      <fieldset class="floor-step" data-step="2">
+        <legend><span class="step-no">2</span> Customer</legend>
+        <div class="field"><label for="phone">Phone</label>
+          <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="off" required value="{% if customer %}{{ customer.phone_number }}{% else %}{{ form.phone }}{% endif %}" placeholder="0712 345 678">
+          <p class="help" id="phone-match" aria-live="polite"></p></div>
+        <div class="field"><label for="name">Name <span class="faint">(optional)</span></label>
+          <input id="name" name="name" type="text" autocomplete="off" value="{% if customer %}{{ customer.first_name }} {{ customer.last_name }}{% else %}{{ form.name }}{% endif %}"></div>
+        <div class="field"><label for="email">Email <span class="faint">(optional)</span></label>
+          <input id="email" name="email" type="email" inputmode="email" autocomplete="off" value="{% if customer %}{{ customer.email|default:'' }}{% else %}{{ form.email }}{% endif %}"></div>
+      </fieldset>
+
+      <fieldset class="floor-step" data-step="3">
+        <legend><span class="step-no">3</span> When and confirm</legend>
+        <fieldset class="field">
+          <legend class="field-label">They need it within</legend>
+          <div class="chips-pick">
+            {% for value, label in needed_within %}<label class="pick-chip"><input type="radio" name="within" value="{{ value }}"{% if form.within == value or not form and forloop.last %} checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+          </div>
+        </fieldset>
+        <label class="check consent"><input type="checkbox" name="consent" value="yes" checked>
+          <span>The customer agreed to a WhatsApp when it's back. They can reply STOP any time.</span></label>
+        <p class="floor-summary" id="summary" aria-live="polite"></p>
+        <div class="floor-save">
+          <button class="btn btn-primary btn-lg" type="submit" name="then" value="done">Save</button>
+          <button class="btn btn-lg" type="submit" name="then" value="another">Save, same customer, another item</button>
+        </div>
+      </fieldset>
+    </div>
+
+    <nav class="step-nav" aria-label="Steps" hidden>
+      <button class="btn btn-lg" type="button" data-back>Back</button>
+      <span class="small muted" id="step-label"></span>
+      <button class="btn btn-primary btn-lg" type="button" data-next>Next</button>
+    </nav>
+  </form>
+</main>
+
+{{ catalog|json_script:"catalog" }}
+<script>
+(function () {
+  var form = document.getElementById('capture');
+
+  // Size and colour: only the chosen item's options, as big chips showing what's in stock.
+  var catalog = JSON.parse(document.getElementById('catalog').textContent);
+  var product = document.getElementById('product'), variation = document.getElementById('variation');
+  var chips = document.getElementById('variation-chips'), warning = document.getElementById('stock-warning');
+  var newItem = document.querySelector('[data-new-item]'), typed = document.querySelector('[data-typed]');
+  var typedInputs = [document.getElementById('new_option1'), document.getElementById('new_option2')];
+  var note = document.getElementById('note'), noteOptional = document.querySelector('[data-note-optional]');
+  function selectedLeft() {
+    var o = variation.options[variation.selectedIndex];
+    return variation.value && o ? parseInt(o.dataset.left || '0', 10) : 0;
+  }
+  function reasonInput() { return form.querySelector('input[name=reason]:checked'); }
+  function checkStock() {
+    var reason = reasonInput(), left = selectedLeft();
+    var clash = reason && reason.dataset.restock && left > 0 && !typedInputs.some(function (i) { return i && i.value.trim(); });
+    warning.hidden = !clash;
+    if (clash) warning.textContent = 'This one is in stock (' + left + ' free). Sell it now, or choose another reason such as price.';
+    var other = reason && reason.value === 'other';
+    noteOptional.textContent = other ? '(needed for "Something else")' : '(optional)';
+    return !clash;
+  }
+  function drawChips() {
+    var isNew = product.value === 'new';
+    if (newItem) newItem.hidden = !isNew;
+    var names = (catalog[product.value] || {}).options || ['Size', 'Colour'];
+    document.querySelectorAll('[data-option-name]').forEach(function (label, i) { label.textContent = names[i] || (i ? 'Colour' : 'Size'); });
+    document.querySelector('[data-typed-names]').textContent = names.slice(0, 2).join(' and ').toLowerCase();
+    var options = Array.prototype.filter.call(variation.options, function (o) { return o.dataset.product === product.value; });
+    chips.innerHTML = '';
+    variation.hidden = true;
+    chips.hidden = false;
+    if (!product.value) { chips.innerHTML = '<p class="help">Choose the item first.</p>'; variation.value = ''; checkStock(); return; }
+    if (isNew) { chips.innerHTML = '<p class="help">A new item: type the size and colour below.</p>'; variation.value = ''; typed.open = true; checkStock(); return; }
+    if (variation.value && !options.some(function (o) { return o.value === variation.value; })) variation.value = '';
+    [{ value: '', label: 'Any or not sure', left: '' }].concat(options.map(function (o) {
+      return { value: o.value, label: o.dataset.label || o.text, left: o.dataset.left };
+    })).forEach(function (item) {
+      var left = item.left === '' ? null : parseInt(item.left, 10);
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pick-chip' + (variation.value === item.value ? ' is-on' : '') + (left > 0 ? ' is-instock' : '');
+      b.setAttribute('aria-pressed', String(variation.value === item.value));
+      b.innerHTML = '<span></span>';
+      b.firstChild.textContent = item.label;
+      if (left !== null) {
+        var s = document.createElement('small');
+        s.textContent = left > 0 ? left + ' in stock · sell it' : '0 in stock';
+        b.firstChild.appendChild(s);
+      }
+      b.addEventListener('click', function () {
+        variation.value = item.value;
+        typedInputs.forEach(function (i) { if (i) i.value = ''; });
+        drawChips(); summary();
+      });
+      chips.appendChild(b);
+    });
+    checkStock();
+  }
+  product.addEventListener('change', function () { drawChips(); summary(); });
+  typedInputs.forEach(function (input) {
+    if (input) input.addEventListener('input', function () {
+      if (input.value.trim() && variation.value) { variation.value = ''; drawChips(); }
+      checkStock(); summary();
+    });
+  });
+  form.querySelectorAll('input[name=reason]').forEach(function (r) { r.addEventListener('change', checkStock); });
+  drawChips();
+
+  // Known customer: fill in the name.
+  var phone = document.getElementById('phone'), name = document.getElementById('name'), email = document.getElementById('email');
+  var match = document.getElementById('phone-match'), timer;
+  phone.addEventListener('input', function () {
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      if (phone.value.replace(/\D/g, '').length < 9) { match.textContent = ''; return; }
+      fetch('{% url "floor-customer" %}?phone=' + encodeURIComponent(phone.value), { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); }).then(function (data) {
+          if (data.found) {
+            match.textContent = 'Known customer: ' + (data.name || 'no name yet') + (data.open ? ' · ' + data.open + ' open item' + (data.open === 1 ? '' : 's') : '');
+            if (!name.value && data.name) name.value = data.name;
+            if (!email.value && data.email) email.value = data.email;
+          } else { match.textContent = 'New customer'; }
+          summary();
+        }).catch(function () {});
+    }, 350);
+  });
+
+  var summaryEl = document.getElementById('summary');
+  function summary() {
+    var p = product.options[product.selectedIndex];
+    var v = variation.value ? variation.options[variation.selectedIndex].dataset.label : '';
+    var typedText = typedInputs.map(function (i) { return i ? i.value.trim() : ''; }).filter(Boolean).join(' / ');
+    var reason = reasonInput();
+    var parts = [];
+    var itemName = product.value === 'new' ? (document.getElementById('new_name').value.trim() || 'New item') : p.text.split(' · ')[0];
+    if (product.value) parts.push(itemName + ((typedText || v) ? ' · ' + (typedText || v) : ''));
+    if (reason) parts.push(reason.parentNode.querySelector('span').firstChild.textContent.trim());
+    if (name.value || phone.value) parts.push('for ' + (name.value || phone.value));
+    summaryEl.textContent = parts.join(' · ');
+  }
+  form.addEventListener('change', summary);
+  summary();
+
+  // Phones: one step per screen, the button always in thumb reach.
+  var steps = Array.prototype.slice.call(form.querySelectorAll('.floor-step'));
+  var nav = form.querySelector('.step-nav'), back = form.querySelector('[data-back]'), next = form.querySelector('[data-next]');
+  var label = document.getElementById('step-label'), current = 0, phoneSize = window.matchMedia('(max-width: 599px)');
+  function valid(index) {
+    if (index === 0) {
+      if (!product.value) { product.focus(); return false; }
+      if (product.value === 'new') {
+        var nm = document.getElementById('new_name'), pr = document.getElementById('new_price');
+        if (!nm.value.trim()) { nm.focus(); return false; }
+        if (pr.value === '') { pr.focus(); return false; }
+      }
+      if (!reasonInput()) { form.querySelector('input[name=reason]').focus(); return false; }
+      if (!checkStock()) { warning.scrollIntoView({ block: 'center' }); return false; }
+      if (reasonInput().value === 'other' && !note.value.trim()) { note.focus(); return false; }
+    }
+    if (index === 1 && phone.value.replace(/\D/g, '').length < 9) { phone.focus(); return false; }
+    return true;
+  }
+  function go(index) {
+    current = Math.max(0, Math.min(steps.length - 1, index));
+    steps.forEach(function (s, i) { s.hidden = phoneSize.matches && i !== current; });
+    back.disabled = current === 0;
+    next.hidden = current === steps.length - 1;
+    label.textContent = 'Step ' + (current + 1) + ' of ' + steps.length;
+    if (phoneSize.matches) window.scrollTo(0, 0);
+  }
+  function layout() { nav.hidden = !phoneSize.matches; go(current); }
+  back.addEventListener('click', function () { go(current - 1); });
+  next.addEventListener('click', function () { if (valid(current)) go(current + 1); });
+  form.addEventListener('submit', function (e) {
+    for (var i = 0; i < 2; i++) { if (!valid(i)) { e.preventDefault(); go(i); return; } }
+  });
+  phoneSize.addEventListener('change', layout);
+  layout();
+})();
+</script>
+{% include "offline/scripts.html" %}
+</body>
+</html>
