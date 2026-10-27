@@ -58,6 +58,7 @@ urlpatterns = [
     path('api/funnel/', FunnelAPIView.as_view(), name='api-funnel'),
     path('api/', include(router.urls)),
     # The same API under a versioned path, for integrations (POS plug-ins, the capture widget).
+    path('api/v1/connect/', include('connections.urls')),
     path('api/v1/to-order/', ToOrderAPIView.as_view()),
     path('api/v1/funnel/', FunnelAPIView.as_view()),
     path('api/v1/visits/bought/', record_bought_visit),

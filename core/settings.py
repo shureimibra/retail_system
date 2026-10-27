@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'ui',
     'shopsettings',
     'payments',
+    'connections',
 ]
 
 MIDDLEWARE = [

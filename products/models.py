@@ -181,10 +181,12 @@ class StockMovement(models.Model):
     RECEIVED = 'received'
     ADJUSTED = 'adjusted'
     SOLD = 'sold'
+    TILL_SALE = 'till_sale'
     KIND_CHOICES = [
         (RECEIVED, 'Received'),
         (ADJUSTED, 'Adjusted'),
         (SOLD, 'Sold to a waiting customer'),
+        (TILL_SALE, 'Sold at the till'),
     ]
 
     variation = models.ForeignKey(ProductVariation, on_delete=models.CASCADE, related_name='stock_movements')

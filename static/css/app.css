@@ -768,3 +768,5 @@ img.brand-logo { object-fit: contain; background: var(--surface); border: 1px so
 .link-copy { display: flex; flex-wrap: wrap; gap: 8px; }
 .link-copy input { flex: 1 1 240px; min-width: 0; }
 .panel-head h2 > .icon { margin-right: 6px; vertical-align: -2px; color: var(--crit); }
+fieldset.field { border: 0; padding: 0; margin: 0; min-width: 0; }
+.key-once { border-color: var(--warn); }

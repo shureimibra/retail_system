@@ -32,6 +32,7 @@ SECTIONS = [
     ('messaging', 'Messaging', 'How customers are contacted', MANAGERS, 'Shop'),
     ('payments', 'Payments', 'M-Pesa and how customers pay you', OWNER, 'Shop'),
     ('shop_link', 'Shop link', 'Customers ask for their size themselves', MANAGERS, 'Shop'),
+    ('connections', 'Connections', 'API keys for a POS or other systems', OWNER, 'Shop'),
 ]
 
 
@@ -295,6 +296,41 @@ def shop_link_qr(request):
     response = HttpResponse(buffer.getvalue(), content_type='image/png')
     response['Content-Disposition'] = 'attachment; filename="shop-link-qr.png"'
     return response
+
+
+class ConnectionsView(SettingsView):
+    """API keys: a POS or another system uses one to send stock and sales, and read To order."""
+    section, who = 'connections', OWNER
+    template_name = 'shopsettings/connections.html'
+    denied_message = 'Only the owner can manage connections.'
+
+    def get_context_data(self, **kwargs):
+        from connections.models import ApiKey
+        context = super().get_context_data(**kwargs)
+        context.update({
+            'keys': ApiKey.objects.filter(shop=self.request.shop, revoked_at__isnull=True).select_related('created_by'),
+            'new_key': self.request.session.pop('new_api_key', None),
+            'permissions': ApiKey.PERMISSION_CHOICES,
+            'api_base': django_settings.SITE_URL.rstrip('/') + '/api/v1/connect/',
+        })
+        return context
+
+    def post(self, request):
+        from django.utils import timezone
+        from connections.models import ApiKey
+        if request.POST.get('action') == 'revoke':
+            key = get_object_or_404(ApiKey, shop=request.shop, pk=request.POST.get('key') or 0, revoked_at__isnull=True)
+            key.revoked_at = timezone.now()
+            key.save(update_fields=['revoked_at'])
+            return self.saved(f'{key.name} can no longer connect.')
+        name = request.POST.get('name', '').strip()[:60]
+        permission = request.POST.get('permission')
+        if not name or permission not in dict(ApiKey.PERMISSION_CHOICES):
+            messages.error(request, 'Give the key a name and choose what it may do.')
+            return redirect(request.path)
+        key, raw = ApiKey.issue(request.shop, name, permission, created_by=request.user)
+        request.session['new_api_key'] = {'name': key.name, 'key': raw}
+        return redirect(request.path)
 
 
 class ProductTypesView(SettingsView):

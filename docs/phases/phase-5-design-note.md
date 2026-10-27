@@ -34,7 +34,7 @@ After Phase 5:
 - Every request with a key works for that one shop only.
 
 ### 2.4 The connection points a POS uses
-All under `/api/v1/`, using the key:
+All under `/api/v1/connect/`, using the key. (Built there rather than straight under `/api/v1/`, so the staff API that the screens use stays unchanged.)
 
 | What | Does |
 |---|---|

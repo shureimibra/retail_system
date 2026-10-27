@@ -1,0 +1,74 @@
+{% extends "shopsettings/base.html" %}
+{% load ui %}
+{% block pane %}
+{% if new_key %}
+<div class="panel key-once" role="alert">
+  <div class="panel-head"><h2>Key for {{ new_key.name }}</h2><span class="badge badge-warn">Shown once</span></div>
+  <div class="panel-body stack">
+    <p>Copy it now and give it to whoever sets up {{ new_key.name }}. It won't be shown again: if it's lost, revoke it and create another.</p>
+    <div class="link-copy">
+      <input class="mono" type="text" value="{{ new_key.key }}" readonly aria-label="The new key" id="new-key">
+      <button class="btn btn-primary" type="button" data-copy="new-key">Copy</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="panel">
+  <div class="panel-head"><h2 id="pane-title">Connections</h2></div>
+  <div class="panel-body stack">
+    <p class="muted">A POS, an online store or a developer working for you uses a key to send stock counts, deliveries and till sales, and to read your items and the To order list. Each key works for this shop only.</p>
+    {% if keys %}
+    <div class="rows divided">
+      {% for key in keys %}
+      <div><span class="grow"><b>{{ key.name }}</b>
+        <span class="row-sub"><span class="mono">{{ key.prefix }}…</span> · {{ key.get_permission_display }} · {% if key.last_used_at %}last used {{ key.last_used_at|timesince }} ago{% else %}never used{% endif %}</span></span>
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="revoke"><input type="hidden" name="key" value="{{ key.pk }}">
+          <button class="btn btn-sm" type="submit">Revoke</button></form></div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="faint small">No keys yet.</p>{% endif %}
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>Create a key</h2></div>
+  <form method="post" class="panel-body form">
+    {% csrf_token %}
+    <div class="field"><label for="key-name">What will use it?</label>
+      <input id="key-name" name="name" type="text" maxlength="60" required placeholder="e.g. Loyverse, Website"></div>
+    <fieldset class="field">
+      <legend class="field-label">It may</legend>
+      {% for value, label in permissions %}<label class="check"><input type="radio" name="permission" value="{{ value }}"{% if forloop.first %} checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+    </fieldset>
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Create key</button></div>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>For the person setting it up</h2></div>
+  <div class="panel-body stack small">
+    <p class="muted">Address: <span class="mono">{{ api_base }}</span>. Send the key as <span class="mono">Authorization: Bearer &lt;key&gt;</span>. The full guide is <span class="mono">docs/api.md</span>.</p>
+    <dl class="facts">
+      <dt class="mono">GET products/</dt><dd>Items, sizes, SKUs and stock</dd>
+      <dt class="mono">GET to-order/</dt><dd>What customers are waiting for</dd>
+      <dt class="mono">POST stock/</dt><dd>Counts, deliveries and stock taken out</dd>
+      <dt class="mono">POST sales/</dt><dd>A sale at the till</dd>
+    </dl>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-copy]').forEach(function (button) {
+  button.addEventListener('click', function () {
+    var input = document.getElementById(button.dataset.copy);
+    input.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(input.value) : Promise.reject()).catch(function () { document.execCommand('copy'); });
+    button.textContent = 'Copied';
+    setTimeout(function () { button.textContent = 'Copy'; }, 2000);
+  });
+});
+</script>
+{% endblock %}

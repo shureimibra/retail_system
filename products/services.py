@@ -70,6 +70,21 @@ def adjust_stock(variation_id, quantity_change, recorded_by=None, reference=''):
                                StockMovement.ADJUSTED, recorded_by, reference)
 
 
+@transaction.atomic
+def record_till_sale(variation_id, quantity, recorded_by=None, reference=''):
+    """
+    An ordinary sale at the till. Stock goes down, but never into units put aside for customers.
+    Returns (variation, units taken off): fewer than asked means the count was already wrong.
+    """
+    if quantity <= 0:
+        raise ValueError('Sold quantity must be more than zero.')
+    variation = ProductVariation.objects.select_for_update().get(id=variation_id)
+    taken = min(quantity, variation.available_quantity)
+    if taken:
+        _apply_stock_change(variation, variation.stock_quantity - taken, StockMovement.TILL_SALE, recorded_by, reference)
+    return variation, taken
+
+
 def _apply_stock_change(variation, new_quantity, kind, recorded_by, reference):
     old_quantity = variation.stock_quantity
     if new_quantity == old_quantity:
