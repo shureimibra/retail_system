@@ -38,6 +38,10 @@ class Shop(models.Model):
     # The public "Ask for your size" link: /ask/<link_name>/.
     link_name = models.SlugField(max_length=60, unique=True, null=True, blank=True)
     link_on = models.BooleanField(default=True)
+    # A sample shop from "Try the demo": only ever uses the simulator, never real customers. Deleted after 2 days.
+    is_demo = models.BooleanField(default=False)
+    # "Set up your shop": step key -> 'done' or 'skipped'.
+    setup = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
@@ -91,3 +95,29 @@ class Membership(models.Model):
     @property
     def can_manage_catalog(self):
         return self.role in (self.OWNER, self.MANAGER)
+
+
+class Invitation(models.Model):
+    """A one-time link to join a shop: a new shop's owner (sent by the Retail OS team) or a shop's staff member."""
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='invitations')
+    role = models.CharField(max_length=20, choices=Membership.ROLE_CHOICES, default=Membership.CASHIER)
+    name = models.CharField(max_length=150, blank=True)
+    contact = models.CharField(max_length=150, blank=True, help_text='Email or phone it was sent to.')
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    used_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='+')
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.get_role_display()} at {self.shop} for {self.name or self.contact or "someone"}'
+
+    @property
+    def is_open(self):
+        from django.utils import timezone
+        return self.used_at is None and self.expires_at > timezone.now()

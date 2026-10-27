@@ -57,6 +57,14 @@
     </header>
 
     <main class="main" id="main">
+      {% if request.shop.is_demo %}
+      <div class="demo-bar" role="note"><span><b>Demo shop.</b> Nothing here is real, and no messages leave Retail OS.</span>
+        <a href="{% url 'notifications:simulator' %}">Play the customer</a>
+        <form method="post" action="{% url 'demo' %}">{% csrf_token %}<button class="btn btn-sm" type="submit" name="action" value="restart">Start over</button></form>
+      </div>
+      {% elif request.session.setup_step %}
+      <div class="setup-bar"><a href="{% url 'setup' %}">{% icon "chevron-left" "sm" %}Back to Set up your shop</a></div>
+      {% endif %}
       {% block page %}<div class="content">{% block content %}{% endblock %}</div>{% endblock %}
     </main>
   </div>

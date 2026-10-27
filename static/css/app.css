@@ -809,3 +809,26 @@ body.ask-is-open { overflow: hidden; }
 .quick .chip.is-suggested { border-color: var(--accent); background: var(--accent-subtle); color: var(--accent-ink); }
 .suggested-tag { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-right: 6px; color: var(--accent-ink); }
 .to-order .suggest-why { color: var(--fg-3); }
+
+/* Set up your shop */
+.setup-progress { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 4px; }
+.setup-progress span { display: block; height: 100%; background: var(--accent); }
+.setup-steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 12px; }
+.setup-step { display: flex; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); }
+.setup-step h2 { margin: 0 0 4px; font-size: 16px; }
+.setup-step p { margin: 0 0 8px; }
+.setup-step.is-done { background: transparent; }
+.setup-step.is-done h2, .setup-step.is-skipped h2 { color: var(--fg-2); }
+.setup-mark { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-size: 14px; font-weight: 600;
+  border: 1px solid var(--border-strong); color: var(--fg-2); }
+.setup-step.is-done .setup-mark { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.setup-step.is-todo .setup-mark { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+.setup-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.setup-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding: 10px 14px;
+  border: 1px solid var(--border); border-radius: var(--r-card); background: var(--accent-subtle); }
+.setup-line a { font-weight: 600; color: var(--accent-ink); }
+.setup-bar, .demo-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 24px; font-size: 14px;
+  border-bottom: 1px solid var(--border); background: var(--accent-subtle); }
+.demo-bar { background: var(--warn-bg); color: var(--fg); }
+.demo-bar span { flex: 1 1 260px; }
+.setup-bar a { display: inline-flex; align-items: center; gap: 4px; }

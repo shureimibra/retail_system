@@ -388,6 +388,7 @@ class TeamView(SettingsView):
         context['roles'] = Membership.ROLE_CHOICES
         context.setdefault('new_member_form', forms.NewMemberForm())
         context.setdefault('team_form', forms.TeamSettingsForm(instance=self.request.shop))
+        context['new_link'] = self.request.session.pop('team_invite', None)
         return context
 
     def _owners(self):
@@ -395,6 +396,21 @@ class TeamView(SettingsView):
 
     def post(self, request):
         action = request.POST.get('action')
+        if action == 'invite':
+            from urllib.parse import quote
+            from accounts import services as accounts
+            role = request.POST.get('role')
+            name = request.POST.get('name', '').strip()
+            if role not in dict(Membership.ROLE_CHOICES) or not name:
+                messages.error(request, 'Enter their name and choose a role.')
+                return redirect(request.path)
+            _, raw = accounts.create_invitation(request.shop, role, name, request.POST.get('contact', '').strip(),
+                                                created_by=request.user)
+            link = accounts.invitation_url(raw)
+            text = (f'Hi {name.partition(" ")[0]}, join {request.shop.name} on Retail OS as '
+                    f'{dict(Membership.ROLE_CHOICES)[role].lower()}: {link}')
+            request.session['team_invite'] = {'name': name, 'link': link, 'whatsapp': 'https://wa.me/?text=' + quote(text)}
+            return redirect(request.path)
         if action == 'add':
             form = forms.NewMemberForm(request.POST)
             if not form.is_valid():

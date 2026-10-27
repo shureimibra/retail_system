@@ -43,6 +43,8 @@ def mpesa_phone(raw, region='KE'):
 def request_payment(intent, amount, phone, actor=None):
     """Send the M-Pesa PIN prompt for this item. Nothing is recorded until Safaricom confirms the payment."""
     mode, ready = mpesa_mode()
+    if intent.shop.is_demo:
+        raise ValueError('M-Pesa is off in the demo shop: record the payment by hand instead.')
     if not ready:
         raise ValueError('M-Pesa is not set up yet. See Settings → Payments.')
     if intent.is_closed:

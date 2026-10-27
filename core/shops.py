@@ -8,7 +8,7 @@ from rest_framework import permissions
 
 from accounts.models import Membership, Shop
 
-OPEN_PATH_PREFIXES = ('/accounts/', '/static/', '/media/', '/api/health/', '/notifications/webhook', '/ask/', '/sw.js', '/manifest.webmanifest')
+OPEN_PATH_PREFIXES = ('/accounts/', '/static/', '/media/', '/api/health/', '/notifications/webhook', '/ask/', '/sw.js', '/manifest.webmanifest', '/demo/')
 
 
 class CurrentShopMiddleware:

@@ -23,6 +23,8 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         context['widgets'] = [(key, f'dashboard/widgets/{key}.html') for key in keys]
         context['data'] = {key: selectors.BUILDERS[key](shop, period) for key in keys}
         context['uses_period'] = any(key in ('key_numbers', 'reasons', 'conversion') for key in keys)
+        from shopsettings.setup import home_reminder
+        context['setup_reminder'] = home_reminder(self.request)
         return context
 
 

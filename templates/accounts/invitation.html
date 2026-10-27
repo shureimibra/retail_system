@@ -1,0 +1,21 @@
+{% extends "auth_base.html" %}
+{% load ui %}
+{% block title %}Join {{ invite.shop.name }}{% endblock %}
+{% block content %}
+<h1>Join {{ invite.shop.name }}</h1>
+<p class="muted">You've been invited as <b>{{ invite.get_role_display|lower }}</b>.{% if invite.role == 'owner' %} Next, a short guide sets up your shop.{% endif %}</p>
+{% if signed_in_as %}
+  <p class="form-errors" role="alert">You're signed in as {{ signed_in_as.username }}. Sign out first, then open the link again.</p>
+  <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="btn btn-block" type="submit">Sign out</button></form>
+{% else %}
+<form method="post" class="form" novalidate>
+  {% csrf_token %}
+  {% if form.errors %}<p class="form-errors" role="alert">Please check the fields marked below.</p>{% endif %}
+  <div class="form-row">{% field form.first_name %}{% field form.last_name %}</div>
+  {% field form.username %}
+  {% field form.password %}
+  {% field form.password_again %}
+  <button type="submit" class="btn btn-primary btn-block">Create my account</button>
+</form>
+{% endif %}
+{% endblock %}

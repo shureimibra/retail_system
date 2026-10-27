@@ -12,7 +12,7 @@ from django.utils import timezone
 from core.phones import normalize_phone
 from .compose import compose, template_params
 from .models import Conversation, Message
-from .providers import provider_for
+from .providers import SimulatorProvider, provider_for
 
 CHANNEL_ORDER = [Message.WHATSAPP, Message.SMS, Message.EMAIL]
 # Messages that should only ever reach a customer once per request.
@@ -114,7 +114,7 @@ def deliver(message_id):
             message.save(update_fields=['status', 'error_detail', 'next_attempt_at'])
             return message
 
-    provider = provider_for(message.channel)
+    provider = SimulatorProvider() if message.shop.is_demo else provider_for(message.channel)
     result = provider.send(message)
     now = timezone.now()
     message.attempts += 1

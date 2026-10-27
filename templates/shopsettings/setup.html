@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Set up your shop{% endblock %}
+{% block page %}
+<div class="content narrow">
+  <div class="page-head"><div><h1>Set up your shop</h1>
+    <p>Six short steps. Skip any and come back later: everything stays in Settings too.</p></div></div>
+
+  <div class="setup-progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ total }}" aria-valuenow="{{ finished }}" aria-label="Setup progress">
+    <span style="width: {% widthratio finished total 100 %}%"></span></div>
+  <p class="small muted">{{ finished }} of {{ total }} done</p>
+
+  <ol class="setup-steps">
+    {% for step in steps %}
+    <li class="setup-step is-{{ step.state }}">
+      <span class="setup-mark" aria-hidden="true">{% if step.state == 'done' %}{% icon "check" "sm" %}{% elif step.state == 'skipped' %}–{% else %}{{ forloop.counter }}{% endif %}</span>
+      <div class="grow">
+        <h2>{{ step.title }}{% if step.state == 'skipped' %} <span class="badge badge-notified">Skipped</span>{% endif %}</h2>
+        <p class="muted">{{ step.why }}</p>
+        {% if step.key == 'try' and simulator %}<p class="small faint">Practice messages appear in <a href="{% url 'notifications:simulator' %}">the customer simulator</a>, where you can reply as the customer.</p>{% endif %}
+        <form method="post" class="setup-actions">{% csrf_token %}
+          <button class="btn{% if step.state == 'todo' %} btn-primary{% endif %}" type="submit" name="action" value="open:{{ step.key }}">{% if step.state == 'todo' %}Start{% else %}Open{% endif %}</button>
+          {% if step.state == 'todo' %}
+            <button class="btn btn-plain" type="submit" name="action" value="done:{{ step.key }}">Mark done</button>
+            <button class="btn btn-plain" type="submit" name="action" value="skip:{{ step.key }}">Skip for now</button>
+          {% elif step.state == 'skipped' %}
+            <button class="btn btn-plain" type="submit" name="action" value="undo:{{ step.key }}">Do it now</button>
+          {% endif %}
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <form method="post" class="form-actions">{% csrf_token %}
+    {% if finished == total %}<p class="ok-text">Your shop is ready. Going live on WhatsApp with your own number is the next step; we'll help with that.</p>{% endif %}
+    {% if finished == total %}<button class="btn btn-primary" type="submit" name="action" value="close">Go to Home</button>
+    {% else %}<button class="btn" type="submit" name="action" value="later">I'll finish later</button>{% endif %}
+  </form>
+</div>
+{% endblock %}

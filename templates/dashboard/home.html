@@ -13,6 +13,12 @@
   {% endif %}
 </div>
 
+{% if setup_reminder %}
+<div class="setup-line">
+  <a href="{% url 'setup' %}">Finish setting up your shop · {{ setup_reminder.finished }} of {{ setup_reminder.total }} →</a>
+  <form method="post" action="{% url 'setup' %}">{% csrf_token %}<button class="btn btn-plain btn-sm" type="submit" name="action" value="close">Hide</button></form>
+</div>
+{% endif %}
 <div class="home-grid">
   {% for key, template in widgets %}{% include template %}{% empty %}
   <div class="panel w-wide"><div class="empty">{% icon "house" %}<p>Nothing is set to show on your Home. The owner chooses this in Settings → Home layout.</p></div></div>

@@ -31,8 +31,35 @@
   </div>
 </div>
 
+{% if new_link %}
+<div class="panel key-once" role="alert">
+  <div class="panel-head"><h2>Link for {{ new_link.name }}</h2><span class="badge badge-warn">Shown once</span></div>
+  <div class="panel-body stack">
+    <p>Send it to them now. It works once, for 7 days. They choose their own username and password.</p>
+    <div class="link-copy"><input class="mono" type="text" value="{{ new_link.link }}" readonly id="invite-link" aria-label="Invitation link">
+      <button class="btn btn-primary" type="button" data-copy="invite-link">Copy</button>
+      <a class="btn" href="{{ new_link.whatsapp }}" target="_blank" rel="noopener">{% icon "send" "sm" %}Send on WhatsApp</a></div>
+  </div>
+</div>
+{% endif %}
+
 <div class="panel">
-  <div class="panel-head"><h2>Add someone</h2></div>
+  <div class="panel-head"><h2>Invite with a link</h2></div>
+  <form method="post" class="panel-body form" novalidate>
+    {% csrf_token %}<input type="hidden" name="action" value="invite">
+    <div class="form-row">
+      <div class="field"><label for="inv-name">Their name</label><input id="inv-name" name="name" type="text" maxlength="150" required></div>
+      <div class="field"><label for="inv-contact">Phone or email <span class="faint">(optional)</span></label><input id="inv-contact" name="contact" type="text" maxlength="150"></div>
+    </div>
+    <div class="field"><label for="inv-role">Role</label>
+      <select id="inv-role" name="role">{% for value, label in roles %}<option value="{{ value }}"{% if value == 'cashier' %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <p class="help">They get a link to choose their own username and password. Easiest for staff with their own phone.</p>
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Create link</button></div>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="panel-head"><h2>Or add someone yourself</h2></div>
   <form method="post" class="panel-body form" novalidate>
     {% csrf_token %}<input type="hidden" name="action" value="add">
     <div class="form-row">{% field new_member_form.first_name %}{% field new_member_form.last_name %}</div>
@@ -49,4 +76,18 @@
     <div class="form-actions"><button type="submit" class="btn">Save</button></div>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-copy]').forEach(function (button) {
+  button.addEventListener('click', function () {
+    var input = document.getElementById(button.dataset.copy);
+    input.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(input.value) : Promise.reject()).catch(function () { document.execCommand('copy'); });
+    button.textContent = 'Copied';
+    setTimeout(function () { button.textContent = 'Copy'; }, 2000);
+  });
+});
+</script>
 {% endblock %}

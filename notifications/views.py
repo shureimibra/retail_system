@@ -114,8 +114,8 @@ class ConversationView(LoginRequiredMixin, TemplateView):
             'quick_replies': self.quick_replies(deals[0], last_in) if deals else [],
             'suggested': self.suggestion(deals[0], last_in) if deals else '',
             'payment_methods': Payment.METHOD_CHOICES,
-            'mpesa_mode': mpesa_mode()[0],
-            'mpesa_ready': mpesa_mode()[1],
+            'mpesa_mode': 'off' if self.request.shop.is_demo else mpesa_mode()[0],
+            'mpesa_ready': mpesa_mode()[1] and not self.request.shop.is_demo,
             'inbox': selectors.inbox(self.request.shop, limit=25),
             'draft': self.request.GET.get('draft', ''),
         })
@@ -320,13 +320,13 @@ def africastalking_webhook(request, token):
 
 def simulator(request):
     """Play the customer: see what they'd receive and reply as them, with no phone or account."""
-    if not settings.SIMULATOR_ENABLED:
-        raise Http404
     if not request.user.is_authenticated:
         return redirect_to_login(request.get_full_path())
+    if not (settings.SIMULATOR_ENABLED or (request.shop and request.shop.is_demo)):
+        raise Http404
     if request.method == 'POST':
         inbound.receive(request.POST.get('channel', Message.WHATSAPP), request.POST.get('from', ''),
-                        request.POST.get('body', ''))
+                        request.POST.get('body', ''), shop=request.shop)
         return redirect('notifications:simulator')
     sent = (Message.objects.filter(shop=request.shop).select_related('conversation__customer', 'intent__product')
             .order_by('-created_at')[:60])

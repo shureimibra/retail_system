@@ -1,0 +1,6 @@
+{% extends "admin/index.html" %}
+{% block content %}
+<div class="module" style="margin-bottom:20px"><h2>New shops</h2>
+  <p style="padding:8px 12px"><a href="{% url 'admin:invite_shop' %}"><b>Invite a new shop →</b></a> Creates the shop and a one-time link for its owner.</p></div>
+{{ block.super }}
+{% endblock %}

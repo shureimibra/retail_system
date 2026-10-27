@@ -1,0 +1,13 @@
+{% extends "auth_base.html" %}
+{% block title %}Try the demo{% endblock %}
+{% block content %}
+<h1>Try Retail OS</h1>
+<p class="muted">Open a sample fashion shop of your own: customers waiting for sizes, a reply to answer, a deposit, reports. Click around and try anything. <b>Nothing is real, and no messages leave Retail OS</b>: you can play the customer too.</p>
+{% if too_many %}<p class="form-errors" role="alert">Too many demos opened from this connection. Try again in an hour.</p>
+{% elif signed_in_as %}<p class="form-errors" role="alert">You're signed in to a real shop as {{ signed_in_as.username }}. Open the demo in a private window, or sign out first.</p>
+{% else %}
+<form method="post">{% csrf_token %}<button class="btn btn-primary btn-block" type="submit">Open the demo shop</button></form>
+<p class="small faint">The demo is deleted after 2 days.</p>
+{% endif %}
+<p class="small"><a href="{% url 'accounts:login' %}">Have an account? Sign in</a></p>
+{% endblock %}

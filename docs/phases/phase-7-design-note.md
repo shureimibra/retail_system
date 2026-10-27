@@ -1,6 +1,9 @@
 # Phase 7 design note: getting a shop started
 
-**Status:** draft for the owner's approval · branch `phase-7/onboarding`
+**Status:** approved by the owner 27 Oct 2026, with this scope · built on `phase-7/onboarding`
+**Owner's scope decision (27 Oct, later the same day):**
+- **Build now:** invitation links (§3), the demo shop (§4), and the setup guide invited owners land in (§5).
+- **Documented, built later** when the landing page and pricing are decided: self sign-up with its spam protection (§2), and the free trial and billing (§6). Until then, every shop comes in by invitation, and the team sets "paid until" by hand outside the app.
 **Owner's decisions (27 Oct 2026):**
 - Shops can come in **both ways now**: invited by the Retail OS team, or signing up themselves.
 - **Spam protection, a free-trial policy and billing** are needed from the start.
@@ -41,14 +44,18 @@
 
 ## 4. The demo shop
 
-- After signing up, or from the sign-in page, **"Explore a demo shop first"** gives the person their own copy of the sample fashion shop:
+- From the sign-in page (and later the landing page), **"Try the demo"** at `/demo/` gives the visitor their own copy of the sample fashion shop, with a temporary account. No sign-up is needed:
   - products and waiting customers;
   - a reply waiting, a reservation, recovered sales, reports.
 
   It's built from the existing `seed_demo` data.
 - **A bar at the top:** "Demo shop. Nothing here is real, and no messages leave Retail OS. **Set up my real shop →**"
 - **Everything works**, but all messages go to the simulator, so they can play the customer.
-- **"Reset demo"** puts it back as new. Demo shops are deleted automatically after 14 days unused.
+- **"Start over"** gives a fresh copy. Demo shops are deleted automatically after 2 days. A connection can open a few demos an hour, so bots can't fill the database.
+- **Safety:**
+  - a demo shop only ever uses the simulator, never real WhatsApp, SMS, email or M-Pesa;
+  - it never receives real customers' replies;
+  - its shop link is closed.
 - **Sales demos:** you can open the same demo in front of a client.
 
 ## 5. "Set up your shop": six steps
@@ -85,6 +92,10 @@ On its own page, `/setup/`, with a progress bar. Every step can be skipped and f
 **Settings → Plan and billing** (owner only) shows the plan, trial or paid-until date, a **Pay now** button, and past receipts.
 
 Later, not in this phase: several plans (for example a cheaper one without WhatsApp), card payments, and automatic monthly M-Pesa payments.
+
+## 6b. Found while designing this (separate fix, later)
+
+Replies from customers are matched to a shop by phone number. If two **real** shops have the same customer, that customer's replies aren't filed under either shop today. To fix before many shops share customers: match the reply to the shop that last messaged that number.
 
 ## 7. Not in this phase
 

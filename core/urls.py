@@ -14,6 +14,8 @@ from reports.api_views import ReportsAPIView
 from notifications.api_views import ConversationViewSet
 from core.api_views import health_check
 from core.offline import manifest, service_worker
+from shopsettings.setup import SetupView
+from intents.demo import demo_view
 
 router = DefaultRouter()
 router.register(r'categories', CategoryViewSet, basename='api-category')
@@ -50,6 +52,8 @@ urlpatterns = [
     path('floor/token/', floor_token, name='floor-token'),
     path('ask/<slug:name>/', AskView.as_view(), name='ask'),
     path('sw.js', service_worker, name='service-worker'),
+    path('setup/', SetupView.as_view(), name='setup'),
+    path('demo/', demo_view, name='demo'),
     path('manifest.webmanifest', manifest, name='manifest'),
 
     

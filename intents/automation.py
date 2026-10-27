@@ -27,6 +27,8 @@ def process_due(now=None):
         'holds_returned': holds_returned,
     }
     summary['messages_retried'] = len(retry_due_messages())
+    from .demo import remove_old_demos
+    summary['demo_shops_removed'] = remove_old_demos(now)
     return summary
 
 

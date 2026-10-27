@@ -18,19 +18,21 @@ def _first_word(body):
     return match.group(1).upper() if match else ''
 
 
-def _find_customer(channel, from_address):
+def _find_customer(channel, from_address, shop=None):
     from customers.models import Customer
+    # Real replies never reach a demo shop's sample customers; the simulator names its shop.
+    customers = Customer.objects.filter(shop=shop) if shop else Customer.objects.filter(shop__is_demo=False)
     if channel == Message.EMAIL:
-        matches = list(Customer.objects.filter(email__iexact=from_address)[:2])
+        matches = list(customers.filter(email__iexact=from_address)[:2])
     else:
         phone = normalize_phone(from_address)
-        matches = list(Customer.objects.filter(phone_number=phone)[:2]) if phone else []
+        matches = list(customers.filter(phone_number=phone)[:2]) if phone else []
     # Only attach the reply when exactly one customer has this number or address.
     return matches[0] if len(matches) == 1 else None
 
 
 @transaction.atomic
-def receive(channel, from_address, body, to_address='', provider_message_id=''):
+def receive(channel, from_address, body, to_address='', provider_message_id='', shop=None):
     """
     Record a customer's reply. Returns (message, auto_reply_text); the text is
     what the provider should answer immediately, if anything (STOP confirmation).
@@ -38,7 +40,7 @@ def receive(channel, from_address, body, to_address='', provider_message_id=''):
     from intents.models import BlockedPurchaseIntent as Intent
     from intents.services import log_event, transition
 
-    customer = _find_customer(channel, from_address)
+    customer = _find_customer(channel, from_address, shop)
     clean_from = normalize_phone(from_address) or from_address
     if customer is None:
         message = Message.objects.create(direction=Message.INBOUND, channel=channel, from_address=clean_from,

@@ -38,7 +38,7 @@ class AskView(View):
     template_name = 'intents/ask.html'
 
     def get_shop(self, name):
-        shop = get_object_or_404(Shop, link_name=name)
+        shop = get_object_or_404(Shop, link_name=name, is_demo=False)
         if not shop.link_on:
             raise Http404('This link is switched off.')
         return shop

@@ -1,0 +1,7 @@
+{% extends "auth_base.html" %}
+{% block title %}Invitation closed{% endblock %}
+{% block content %}
+<h1>This link can't be used</h1>
+<p class="muted">It has already been used, or it's more than 7 days old. Ask whoever sent it for a new one.</p>
+<a class="btn btn-block" href="{% url 'accounts:login' %}">Go to sign in</a>
+{% endblock %}
