@@ -1,77 +1,90 @@
-# Phase 6 design note: AI and an assistant for the owner
+# Phase 6 design note: an assistant for the owner, free
 
-**Status:** direction decided by the owner 27 Oct 2026; details to confirm before building · after Phase 5b
-**Owner's decision (27 Oct):** the assistant must be free for now. It will be an **"Ask" box inside Retail OS that uses no AI API**, answering set questions from the shop's own data, so no customer data leaves the system and nobody needs a subscription. A real AI can be switched on behind it later with one platform key the owner of Retail OS holds. The MCP tool (section 2) is not being built for now.
-**From the approved spec:** "MCP server, forecasting, reply-drafting assistant."
-**Owner's rule:** nothing paid for now. That shapes this phase more than any other, because AI that writes text runs on a paid model. Below, each part says whether it's free.
+**Status:** draft for the owner's approval · branch `phase-6/assistant` (after Phase 5b)
+**Owner's decisions (27 Oct 2026):**
+- The assistant must be free for now. It's an **Ask box inside Retail OS that uses no AI API**: it answers set questions from the shop's own data, so no customer data leaves the system and nobody needs a subscription.
+- No MCP tool for now.
+- Reply drafts: free smart quick replies now, real AI later.
+
+**Later, real AI:** the Ask box and quick replies are built so a language model can be switched on behind them, using one platform key that the owner of Retail OS holds and pays for. It would never use a shop owner's own account, and it stays off until then.
 
 ## 1. What this phase delivers
 
-1. **Ask your shop questions in Claude** (free for Retail OS to run). The owner asks, in their own words, "What should I order this week?" or "Who's waiting for size 42?", and Claude answers from the shop's live data.
-2. **Order suggestions** (free, no AI). To order shows how many to buy of each size, based on what customers asked for and what sold.
-3. **Reply drafts in Conversations** (a decision for you, see section 4).
+1. **Ask box on Home.** Type or tap a question like "What should I order?" or "Who's waiting for size 42?", and get a short answer with a link to the full page.
+2. **Order suggestions on To order.** Each size shows how many to buy, and why.
+3. **Smart quick replies in Conversations.** From the customer's last message, the chat suggests the right ready-made reply, already filled in. Staff edit it and press Send.
 
-## 2. Ask your shop questions: an MCP server
+## 2. The Ask box
 
-**What MCP is:** a standard way to let Claude (the desktop app or Claude Code) use a tool safely. We build a small Retail OS tool that runs on the owner's laptop. It talks to Retail OS with an API key from Settings → Connections, the same kind of key a POS uses.
+**Where:** at the top of Home, for the owner and managers. Under the box are 4 tap-to-ask examples that change with what's happening, for example "Who's waiting for my answer?" when replies are waiting.
 
-**What it can read:**
-- what's waiting and for how long;
-- To order, with suggestions;
-- recovered money for a period;
-- reasons customers didn't buy;
-- stock of an item;
-- one customer's open requests.
+**How it understands:** it looks for known words and details in the question, not free conversation:
+- a size (42) or a colour;
+- an item or customer name;
+- a period: today, this week, last week, this month.
 
-**What it can do:** nothing by default. With a key that can change stock, it can also record a delivery, which messages waiting customers. Every change asks the owner to confirm in Claude first.
+If it can't tell what's meant, it says so and shows the list of questions it can answer. It never guesses.
 
-**Privacy:**
-- Phone numbers are shortened (`+254 7•• ••• 281`) unless the owner asks for one customer by name.
-- Customers' message texts are never sent to Claude.
+**The questions it answers (please confirm or change):**
 
-**Cost:** free for Retail OS. The owner uses their own Claude account. The tool is built with the official open-source MCP library.
+| # | You can ask, for example | It answers with |
+|---|---|---|
+| 1 | What should I order? / What to buy this week? | The order suggestions: item, size, how many, and why |
+| 2 | Who's waiting for size 42? / Who wants Nike Air Zoom? | The customers waiting for it, oldest first, with how long |
+| 3 | How much did we recover this month? | The money recovered and how many sales, compared with the period before |
+| 4 | How much money is waiting? | The value of everything customers are waiting for, and for how many customers |
+| 5 | Why aren't people buying? | The top reasons this period, with counts |
+| 6 | Which items are asked for most? | The most-requested items and sizes this period |
+| 7 | Who's waiting for my answer? | The customers who replied and haven't been answered |
+| 8 | What's reserved? / Which pickups are due? | Deposits held and pickup dates, overdue first |
+| 9 | How many Adidas 42 do we have? | The stock for that item and size: in the shop, held for customers, free |
+| 10 | Tell me about Wanjiku / 0712 345 678 | That customer's open requests and their last message |
+| 11 | How are we doing this week? | Recovered, money waiting and walk-in conversion against last week |
+| 12 | What came in through the shop link? | Requests from the link this period |
 
-**New read points for it (and for any connected system):**
-- `GET waiting/`
-- `GET summary/` (recovered, waiting, reasons, for a period)
-- `GET customers/<phone or name>/` (masked by default)
+- **Language:** English for now. A few common Swahili words are understood too ("wanangoja" for waiting, "bei" for price, "leo" for today, "wiki hii" for this week).
+- **Who can ask:** the owner and managers. Cashiers don't see money totals, so questions 3, 4 and 11 are owner and manager only.
 
-All are read-only and work with a Read-only key.
+## 3. Order suggestions on To order
 
-## 3. Order suggestions (no AI, free)
-
-On **To order**, each size gets a **Suggested** number:
+Each size gets a **Suggested** number:
 
 > suggested = customers waiting now + expected demand until the delivery − free stock
 
-- **Expected demand** is how many asked for that size, plus how many sold at the till (when a POS or the Excel counts send sales), over the last 8 weeks, scaled to the shop's usual delivery time. That time is a new setting in Follow-ups and holds, 7 days by default.
+- **Expected demand:**
+  - how many asked for that size over the last 8 weeks;
+  - plus how many sold at the till, when a POS or Excel counts send sales;
+  - scaled to the shop's usual delivery time, a new setting in Follow-ups and holds (7 days by default).
 - **Shown with its reason**, for example: "3 waiting + about 2 more in a week, 1 in stock → order 4".
-- **Never rounds a size people haven't asked for into an order:** with no demand, there's no suggestion.
-- The owner can always type a different number. A suggestion is advice, not an automatic order.
+- **No demand, no suggestion.** It never adds a size nobody asked for.
+- **Advice, not an automatic order.** The owner still ticks what they ordered.
 
-This is plain arithmetic on the shop's own data, so it is free and works today.
+## 4. Smart quick replies in Conversations
 
-## 4. Reply drafts: your decision
+The chat reads the customer's last message and puts the best matching quick reply first, marked **Suggested**, with the text already filled in. Nothing is sent until staff press Send.
 
-**Why it needs a decision:** writing a natural reply to "Can I pay half now and the rest Friday?" needs a language model, and every good one charges per message. Options:
+| Customer writes (English or common Swahili/Sheng) | Suggested reply |
+|---|---|
+| pay, M-Pesa, till, paybill, lipa, pesa | Payment details, with the balance (plus "Ask for M-Pesa payment" when M-Pesa is on) |
+| deposit, half, part, nusu, kidogo kidogo | "You can pay a deposit of KSh … to hold it until …" |
+| when, come, pick, Saturday, kesho, leo, nikuje | Confirm pickup, with the date it's held until |
+| price, discount, last price, bei, punguza | "The price is KSh …", with a note to staff if a price drop is due |
+| other size, colour, another, rangi, saizi | Offer another option, listing the sizes and colours in stock |
+| yes, ok, sawa, ndio, I want it | Payment details, or Confirm pickup if a deposit is already paid |
+| no, not now, sitaki, later | Highlights **Close as declined**, and suggests a polite thank-you |
 
-| Option | Cost | Quality | Notes |
-|---|---|---|---|
-| **A. Build it, switched off** until you're ready to pay | Free now; later a small charge per draft (checked against current prices when you decide) | Good | You turn it on in Settings when you're ready; nothing else changes |
-| **B. Smarter quick replies, no AI** | Free | Fair | Suggests the right ready-made reply (deposit, pickup date, price, payment details) from keywords in the customer's message, with their name and item filled in |
-| **C. Both:** B now, A ready to switch on | Free now | Fair now, good later | Recommended |
-
-Drafts are never sent automatically. Staff read, edit and press Send.
+The existing three quick replies stay. There are two new ones: **Deposit** and **Price**.
 
 ## 5. Not in this phase
 
+- Any AI API, paid or free.
+- The MCP tool.
 - Automatic replies with no person checking.
-- AI that changes prices or orders stock by itself.
-- Image recognition of products.
+- Anything that changes prices or orders stock by itself.
 
 ## 6. Order of work
 
-1. Order suggestions on To order.
-2. New read points, then the MCP tool, with a short setup guide for Claude Desktop.
-3. Reply drafts as you choose in section 4.
-4. Tests (no real AI calls in tests), then your UAT, sign-off and merge.
+1. Order suggestions on To order, plus the delivery-time setting.
+2. The Ask box: the questions above, examples under the box, and the "I can answer these" list.
+3. Smart quick replies.
+4. Tests, then your UAT, sign-off and merge.
