@@ -37,7 +37,7 @@
         <tbody>
         {% for a in changes %}
         <tr><td>{{ a.item }}{% if a.kind == 'new_option' %} <span class="badge badge-ok">New</span>{% endif %}</td>
-          <td class="r num">{% if a.kind == 'count' %}{{ a.old }}{% else %}<span class="faint">none</span>{% endif %}</td>
+          <td class="r num">{% if a.kind == 'count' %}{{ a.old }}{% else %}<span class="faint">not listed yet</span>{% endif %}</td>
           <td class="r num"><b>{{ a.new }}</b></td></tr>
         {% endfor %}
         </tbody>

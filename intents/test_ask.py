@@ -43,6 +43,25 @@ class PublicPageTests(AskCase):
         self.assertNotIn('18', page.split('<main')[1].split('<script')[0].replace('18px', ''))
         self.assertNotIn('in stock', page)
 
+    def test_only_sizes_not_in_stock_are_offered(self):
+        receive_stock(self.grey44.pk, 2)
+        page = self.client.get(self.url).content.decode()
+        self.assertIn(f'value="{self.grey42.pk}"', page)
+        self.assertNotIn(f'value="{self.grey44.pk}"', page)
+        self.assertNotIn('value="any"', page)  # some sizes are in the shop: they can come in
+
+    def test_call_or_message_opens_a_chat_even_before_they_have_written(self):
+        receive_stock(self.grey44.pk, 2)
+        self.ask(self.grey44.pk)  # in stock: staff follow up by hand
+        owner = User.objects.create_user('owner2', password='pw12345!')
+        Membership.objects.create(user=owner, shop=self.shop, role=Membership.OWNER)
+        self.client.login(username='owner2', password='pw12345!')
+        intent = Intent.objects.get()
+        response = self.client.get(f'/notifications/customer/{intent.customer_id}/')
+        self.assertRedirects(response, f'/notifications/c/{intent.customer.conversations.get().pk}/',
+                             fetch_redirect_response=False)
+        self.assertContains(self.client.get('/intents/?show=all'), f'/notifications/c/')
+
     def test_a_missing_size_lands_in_waiting_as_a_shop_link_request(self):
         response = self.ask(self.grey42.pk)
         self.assertContains(response, 'Thank you, Wanjiku')

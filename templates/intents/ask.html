@@ -52,9 +52,9 @@
       <p class="muted small" data-pick-first>Choose an item first.</p>
       {% for p in products %}
       <div class="chips-pick" data-for="{{ p.pk }}">
-        <span class="ask-for">{{ p.name }}</span>
-        {% for v in p.variations.all %}{% if v.label %}<label class="pick-chip"><input type="radio" name="want_{{ p.pk }}" value="{{ v.pk }}"><span>{{ v.label }}</span></label>{% endif %}{% endfor %}
-        <label class="pick-chip"><input type="radio" name="want_{{ p.pk }}" value="any"><span>Any</span></label>
+        <span class="ask-for">{{ p.name }}{% if p.some_in_stock %}: sizes we don't have today. Yours isn't listed? Choose "Something else".{% endif %}</span>
+        {% for v in p.missing %}<label class="pick-chip"><input type="radio" name="want_{{ p.pk }}" value="{{ v.pk }}"><span>{{ v.label }}</span></label>{% endfor %}
+        {% if not p.some_in_stock %}<label class="pick-chip"><input type="radio" name="want_{{ p.pk }}" value="any"><span>Any</span></label>{% endif %}
         <label class="pick-chip"><input type="radio" name="want_{{ p.pk }}" value="other" data-other><span>Something else</span></label>
       </div>
       {% endfor %}

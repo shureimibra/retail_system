@@ -59,6 +59,15 @@ class NotificationListView(LoginRequiredMixin, ListView):
         return context
 
 
+def open_chat(request, customer_id):
+    """Open this customer's chat, starting one if they haven't messaged yet (e.g. they asked through the shop link)."""
+    from customers.models import Customer
+    if not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path())
+    customer = get_object_or_404(Customer, pk=customer_id, shop=request.shop)
+    return redirect('notifications:conversation', pk=gateway.conversation_for(customer).pk)
+
+
 class ConversationView(LoginRequiredMixin, TemplateView):
     """One customer: the chat, a reply box, and the deal for each open item beside it."""
     template_name = 'notifications/conversation.html'

@@ -44,7 +44,12 @@ class AskView(View):
         return shop
 
     def context(self, shop, **extra):
-        products = Product.objects.filter(shop=shop).prefetch_related('variations', 'option_photos').order_by('name')
+        products = list(Product.objects.filter(shop=shop).prefetch_related('variations__holds').order_by('name'))
+        for product in products:
+            # Only the sizes they can't buy today. Ones in stock aren't offered: they can come in for those.
+            variations = list(product.variations.all())
+            product.missing = [v for v in variations if v.label and v.available_quantity == 0]
+            product.some_in_stock = any(v.available_quantity > 0 for v in variations)
         return {'shop': shop, 'products': products, **extra}
 
     def get(self, request, name):

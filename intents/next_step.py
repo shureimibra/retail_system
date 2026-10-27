@@ -17,7 +17,8 @@ def next_step(intent, manager=True):
     """{'text', 'action', 'url'}; action/url are empty when nothing needs doing yet."""
     customer = intent.customer.first_name or intent.customer.phone_number
     conversation = intent.customer.conversations.first()
-    chat = reverse('notifications:conversation', args=[conversation.pk]) if conversation else reverse('customers:detail', args=[intent.customer_id])
+    chat = (reverse('notifications:conversation', args=[conversation.pk]) if conversation
+            else reverse('notifications:open_chat', args=[intent.customer_id]))
     product = reverse('products:detail', args=[intent.product_id])
     status = intent.status
 

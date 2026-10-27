@@ -10,7 +10,7 @@
         · {% if customer.marketing_opt_in %}can be messaged{% else %}<span class="err-text">opted out of messages</span>{% endif %}</p></div>
     <div class="actions">
       <a class="btn" href="tel:{{ customer.phone_number }}">{% icon "phone" "sm" %}Call</a>
-      {% if conversation %}<a class="btn" href="{% url 'notifications:conversation' conversation.pk %}">{% icon "message-circle" "sm" %}Messages</a>{% endif %}
+      <a class="btn" href="{% if conversation %}{% url 'notifications:conversation' conversation.pk %}{% else %}{% url 'notifications:open_chat' customer.pk %}{% endif %}">{% icon "message-circle" "sm" %}Messages</a>
       <a class="btn" href="{% url 'customers:update' customer.pk %}">{% icon "pencil" "sm" %}Edit</a>
     </div>
   </div>
