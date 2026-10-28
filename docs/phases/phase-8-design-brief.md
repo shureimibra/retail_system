@@ -107,12 +107,22 @@ As in §4 of the creative direction, section by section:
 
 ## 8. Your decisions
 
-1. **Brand name and domain:** is it "Retail OS", or another name? This blocks the launch, not the build.
-2. **Language:** English only; English with a few Swahili phrases (e.g. "From *sina size yako* to paid"); or a full Swahili version as well?
-3. **The running example:** "Grace" and a black sneaker in size 42? Or a bag or dress, if that fits your first shops better?
-4. **WhatsApp and M-Pesa logos:** show them (within their brand rules), or words only with our own icons?
-5. **Price on the site:** show a price, or "pricing on invitation"?
-6. **Your WhatsApp number**, and the pre-filled first message (e.g. "Hi, I run a shop and want to try Retail OS").
-7. **Photos:** can we photograph 3–5 real partner shops (with signed permission)? If not yet, we start with licensed stock and placeholders.
-8. **Display typeface:** IBM Plex Sans Condensed for big headlines, yes or no?
-9. **Visitor counting:** none at launch, or a cookie-free counter you host yourself (e.g. Umami on your VPS, free), which needs no cookie banner?
+**Answered by the owner, 28 Oct 2026:**
+- **Name:** RetailOS, written as one word.
+- **Language:** English only.
+- **Logos:** show both WhatsApp and M-Pesa, using the official logo files and following each brand's rules (clear space, no recolouring or stretching), as "works with" marks.
+- **Price:** shown on the site, and **easy to change later in the codebase**. Price, currency and period live in one settings file (`site.config.json`) with the WhatsApp number and links. Nothing is hard-coded in the pages.
+- **References:** the five images plus the video are enough to start.
+- **Who builds:** Claude Code builds the site in `retail-os-marketing`. The owner's Claude chat reviews screenshots against the references as a second opinion.
+
+**Still open, with the default used until you say otherwise:**
+
+1. **Domain:** needed for launch, not for the build.
+2. ~~Language~~ (answered).
+3. **The running example** (default: Grace and a black sneaker in size 42): "Grace" and a black sneaker in size 42? Or a bag or dress, if that fits your first shops better?
+4. ~~Logos~~ (answered).
+5. **The starting price** to put in the settings file. Until you give it, the page shows "KSh —" and the build flags it.
+6. **Your WhatsApp number**, and the pre-filled first message (e.g. "Hi, I run a shop and want to try RetailOS").
+7. **Photos** (default: licensed stock and marked placeholders until a shoot): can we photograph 3–5 real partner shops (with signed permission)? If not yet, we start with licensed stock and placeholders.
+8. **Display typeface** (default: yes): IBM Plex Sans Condensed for big headlines, yes or no?
+9. **Visitor counting** (default: none at launch): none at launch, or a cookie-free counter you host yourself (e.g. Umami on your VPS, free), which needs no cookie banner?
