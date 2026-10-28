@@ -19,6 +19,8 @@ Django 5.2 + DRF app for local fashion shops: capture missed sales, re-engage cu
 
 `delight` and `overdrive` are only for the later landing/marketing phase.
 
+`brag` (launch videos) is installed only in the separate `../retail-os-marketing` workspace, reviewed and pinned (28 Oct 2026). Never install it, or any outside skill or package, here without the same review.
+
 **Do not use in this project:** `cosmic-glass-dashboard`, `design-taste-frontend`, `gpt-taste`, `high-end-visual-design`, `stitch-design-taste`, `redesign-existing-projects`, `minimalist-ui`, `industrial-brutalist-ui`, `ui-ux-pro-max`, `colorize`, `bolder`, `image-to-code`, `imagegen-frontend-web`, `imagegen-frontend-mobile`, `brandkit`, `website`. They impose conflicting aesthetics or stacks (React, Tailwind, GSAP).
 
 ## Product rules that code must respect
